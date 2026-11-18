@@ -271,6 +271,11 @@ body.nopanel #panel { display: none; }
         <label class="optrow">pairs up to <select id="tsItsDt"><option value="100000">any</option><option value="120">120 d</option>
         <option value="30">30 d</option><option value="12" selected>12 d</option></select></label></div>
       <div id="tsItsNote" class="note"></div>
+      <div id="tsYRow" class="block-inner" hidden>
+        <div class="ctl"><label for="tsYMax">Plot y max <b id="tsYMaxV"></b></label><input id="tsYMax" type="range" min="0" max="1000" step="1"></div>
+        <div class="ctl"><label for="tsYMin">Plot y min <b id="tsYMinV"></b> <button id="tsYAuto" type="button" class="link">Auto</button></label>
+          <input id="tsYMin" type="range" min="0" max="1000" step="1"></div>
+      </div>
       <div class="row">
         <button id="tsCsv" type="button" disabled>Save CSV</button>
         <button id="tsPng" type="button" disabled>Save plot (PNG)</button>
@@ -1614,7 +1619,9 @@ async function computeTs() {
   $('tsCsv').disabled = true; $('tsPng').disabled = true;
   $('tsProg').hidden = false; $('tsProg').value = 0;
   const band0 = selected.assets[key]?.['raster:bands']?.[0] || {};
+  if (tsPlotInfo?.key !== key) tsYTyped = null;
   tsPlotInfo = { key, unit: band0.unit || '', withErr, n: series.length, times: series.map(it => (+it.start + +it.end) / 2) };
+  $('tsYRow').hidden = false;
   for (const p of tsPoints) p.values = [];
   setTsPlot(true);
   drawTsPlot();
@@ -1657,6 +1664,31 @@ async function computeTs() {
 }
 
 let tsPlotInfo = null;
+// Plot y range: automatic (the GrIMP values with their error bars), or set with the two sliders, which
+// span the GrIMP values and the 1st-99th percentile of the ITS_LIVE values shown (half a span beyond each).
+let tsYTyped = null, tsYSpan = null;
+function tsYSliders(a0, a1, itsOn) {
+  let lo = a0, hi = a1;
+  if (itsOn) {
+    const maxDt = +$('tsItsDt').value, v = tsPoints.flatMap(p => p.itsKey === tsPlotInfo.key && p.its ? p.its.filter(q => q.dt <= maxDt).map(q => q.v) : []).sort((x, y) => x - y);
+    if (v.length) { lo = Math.min(lo, v[Math.floor(v.length * 0.01)]); hi = Math.max(hi, v[Math.floor(v.length * 0.99)]); }
+  }
+  const pad = (hi - lo) * 0.5;
+  tsYSpan = [lo - pad, hi + pad];
+  const [y0, y1] = tsYTyped || [a0, a1], pos = v => Math.round((v - tsYSpan[0]) / (tsYSpan[1] - tsYSpan[0]) * 1000);
+  $('tsYMin').value = pos(y0); $('tsYMax').value = pos(y1);
+  $('tsYMinV').textContent = fmtVal(+y0.toPrecision(4)); $('tsYMaxV').textContent = fmtVal(+y1.toPrecision(4));
+  $('tsYAuto').hidden = !tsYTyped;
+}
+function tsYInput() {
+  if (!tsYSpan) return;
+  const val = id => tsYSpan[0] + (tsYSpan[1] - tsYSpan[0]) * +$(id).value / 1000;
+  let lo = val('tsYMin'), hi = val('tsYMax');
+  const gap = (tsYSpan[1] - tsYSpan[0]) * 0.01;
+  if (hi - lo < gap) { if (document.activeElement === $('tsYMin')) lo = hi - gap; else hi = lo + gap; }
+  tsYTyped = [lo, hi];
+  drawTsPlot();
+}
 // Each point's ITS_LIVE cloud gets its own grey level, shown beside the point in the legend.
 const itsGreys = [175, 95, 135, 210, 60, 155, 115, 190];
 const itsGrey = (p, a = 1) => { const g = itsGreys[(p.n - 1) % itsGreys.length]; return `rgba(${g}, ${g}, ${g}, ${a})`; };
@@ -1685,6 +1717,8 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   let y1 = Math.max(...finite.map(q => q.v + (Number.isFinite(q.e) ? q.e : 0)));
   if (y0 === y1) { y0 -= 1; y1 += 1; }
   const yp = (y1 - y0) * 0.06; y0 -= yp; y1 += yp;
+  if (canvas === $('tsCanvas')) tsYSliders(y0, y1, itsOn);
+  if (tsYTyped) [y0, y1] = tsYTyped;
   const ts = tsPlotInfo.times;  // the whole series, so the time axis stays put while values arrive
   let t0 = Math.min(...ts), t1 = Math.max(...ts);
   const tp = Math.max((t1 - t0) * 0.04, 86400e3 * 5); t0 -= tp; t1 += tp;
@@ -1733,6 +1767,7 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
     ctx.beginPath(); ctx.moveTo(X(tSel), T); ctx.lineTo(X(tSel), T + ph); ctx.stroke(); ctx.restore();
   }
   if (onScreen) tsPlotInfo.geom = { X, Y };  // for picking a date by clicking the plot
+  ctx.save(); ctx.beginPath(); ctx.rect(L, T, pw, ph); ctx.clip();
   // series: line, error bars, markers
   for (const p of tsPoints) {
     const q = p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v, e: x.e })).filter(x => Number.isFinite(x.v));
@@ -1755,6 +1790,7 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
       if (x && Number.isFinite(x.v)) { ctx.beginPath(); ctx.arc(X(tSel), Y(x.v), 6.5, 0, 2 * Math.PI); ctx.stroke(); }
     }
   }
+  ctx.restore();
   // legend: point numbers in their colors
   ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.font = '700 12px sans-serif';
   let lx = W - R - 26;
@@ -1776,7 +1812,7 @@ function addTsPoint(coord) {
   refreshTs();
 }
 function clearTsPoints() {
-  ++tsToken; tsPoints = []; tsNext = 1; tsKey = ''; tsPlotInfo = null; $('tsProg').hidden = true; $('tsItsNote').textContent = '';
+  ++tsToken; tsPoints = []; tsNext = 1; tsKey = ''; tsPlotInfo = null; tsYTyped = null; $('tsYRow').hidden = true; $('tsProg').hidden = true; $('tsItsNote').textContent = '';
   tsSource.clear(); tsCache.clear();
   $('tsPlot').hidden = true; $('tsClear').hidden = true; $('tsShow').hidden = true;
   $('tsCsv').disabled = true; $('tsPng').disabled = true; $('tsNote').textContent = ''; $('tsCount').textContent = '';
@@ -1804,6 +1840,8 @@ function setTsPlot(show) {
 $('tsHide').onclick = () => setTsPlot(false);
 $('tsShow').onclick = () => setTsPlot($('tsPlot').hidden);
 window.addEventListener('resize', () => { if (!$('tsPlot').hidden) drawTsPlot(); });
+$('tsYMin').oninput = $('tsYMax').oninput = tsYInput;
+$('tsYAuto').onclick = () => { tsYTyped = null; drawTsPlot(); };
 $('tsCanvas').onclick = e => {
   // Show the image of the GrIMP point nearest the click (any point's series), as if its time-bar tick were clicked.
   const g = tsPlotInfo?.geom;
@@ -1903,6 +1941,9 @@ const tips = {
   th1: 'End of the time range: drag, or use the arrow keys',
   treset: 'Show the full time range',
   tsShow: 'Hide or show the time-series plot',
+  tsYMax: 'Top of the plot y axis (drag down to zoom in)',
+  tsYMin: 'Bottom of the plot y axis (drag up to zoom in)',
+  tsYAuto: 'Fit the y axis to the GrIMP values again',
   tsIts: 'Also plot ITS_LIVE image-pair velocities (its-live.jpl.nasa.gov datacubes) at the same points, in grey',
   tsItsDt: 'Only ITS_LIVE pairs whose images are at most this many days apart',
   panelToggle: 'Hide or show the control panel, giving the map the whole window',

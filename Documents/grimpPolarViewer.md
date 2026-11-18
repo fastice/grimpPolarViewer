@@ -110,6 +110,9 @@ the hover readout gives) and plotted against the middle of each product's date r
 
 - **Only dates in the time range** follows the time-bar handles; untick it for every date.
 - **Hide plot / Show plot** in the panel toggles the plot; its x also hides it.
+- **Plot y max / y min** sliders set the y axis (the time range sets the x axis). They span the
+  GrIMP values and the 1st-99th percentile of the ITS_LIVE values shown, plus half that span each
+  way; **Auto** fits the GrIMP values again. A new asset or Clear points returns to Auto.
 - The plot marks the displayed date with a thin dashed line and rings each point's value there, so
   clicking a time-bar tick moves the marker. Clicking a point on the plot shows that date's image
   (as if its tick were clicked). The saved PNG leaves the marker out.
