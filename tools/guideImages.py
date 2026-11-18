@@ -11,7 +11,7 @@ import os
 
 from PIL import Image
 
-fullShots = ['overview', 'vx', 'anomaly', 'animation', 'antarctica', 'tsx', 'readout']
+fullShots = ['overview', 'vx', 'anomaly', 'animation', 'antarctica', 'tsx', 'readout', 'timeseries']
 panelShots = ['panel-catalog', 'panel-color', 'panel-download', 'panel-sites']
 
 

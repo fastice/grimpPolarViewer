@@ -79,6 +79,26 @@ await page.evaluate(() => { const r = document.getElementById('readout'), c = r.
 await shot('readout.jpg', m);
 await page.evaluate(() => document.getElementById('readoutCopy').remove());
 
+// 2b. Time series at three points near Jakobshavn (trunk margin, upstream trunk, slow ice).
+await page.evaluate(() => { const mm = window.grimpViewer.map, c = ol.proj.fromLonLat([-49.1, 69.2], mm.getView().getProjection());
+  mm.getView().fit([c[0] - 60e3, c[1] - 45e3, c[0] + 60e3, c[1] + 45e3], { size: mm.getSize() }); });
+await settle(4000);
+await page.$eval('#tsSec', e => { e.open = true; });
+await click('#tsAdd');
+for (const [lon, lat] of [[-49.30, 69.17], [-48.60, 69.20], [-49.30, 69.45]]) {
+  const px = await page.evaluate((lon, lat) => { const mm = window.grimpViewer.map, r = mm.getTargetElement().getBoundingClientRect();
+    const pp = mm.getPixelFromCoordinate(ol.proj.fromLonLat([lon, lat], mm.getView().getProjection())); return [r.x + pp[0], r.y + pp[1]]; }, lon, lat);
+  await page.mouse.click(px[0], px[1]);
+  await sleep(300);
+}
+await click('#tsAdd');
+await waitText('#tsNote', /dates in/);
+await page.mouse.move(5, 5);
+await settle(3000);
+await shot('timeseries.jpg');
+await click('#tsClear');
+await page.$eval('#tsSec', e => { e.open = false; });
+
 // 3. vx with the diverging map, whole ice sheet.
 await setSelect('#asset', 'vx');
 await waitText('#clipnote', /Clip from/);

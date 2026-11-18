@@ -85,6 +85,10 @@ details.block[open] > .block-inner { margin-top: 8px; }
            font: 12px/1.5 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--tb-text);
            background: var(--tb-label-bg); border-radius: 4px; padding: 4px 8px; }
 .readout b { color: var(--tb-hi); font-weight: 600; }
+.tsplot { position: absolute; left: 190px; bottom: 30px; width: min(600px, calc(100% - 220px)); height: 270px;
+          background: var(--panel); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
+.tsplot canvas { width: 100%; height: 100%; display: block; }
+.tsclose { position: absolute; right: 8px; top: 2px; font-size: 20px; text-decoration: none; }
 .pickblock { display: grid; gap: 4px; padding: 8px 10px; border: 1px solid var(--pick); border-radius: 4px; background: var(--bg); font-size: 13px; }
 #items li input, .countrow .allbox input { margin-left: 0; }
 .countrow { padding: 8px 16px 4px; justify-content: space-between; }
@@ -227,6 +231,23 @@ button.link { background: none; border: 0; color: var(--accent); padding: 0; fon
       <div id="animNote" class="note"></div>
     </div>
   </details>
+  <details id="tsSec" class="block" hidden>
+    <summary>Time series at points <span id="tsCount"></span></summary>
+    <div class="block-inner">
+      <div class="row">
+        <button id="tsAdd" type="button">Add points</button>
+        <button id="tsShow" type="button" class="link" hidden>Show plot</button>
+        <button id="tsClear" type="button" class="link" hidden>Clear points</button>
+      </div>
+      <label class="optrow"><input id="tsRange" type="checkbox" checked> Only dates in the time range</label>
+      <label class="optrow" id="tsErrRow"><input id="tsErr" type="checkbox" checked> Error bars (from ex/ey)</label>
+      <div class="row">
+        <button id="tsCsv" type="button" disabled>Save CSV</button>
+        <button id="tsPng" type="button" disabled>Save plot (PNG)</button>
+      </div>
+      <div id="tsNote" class="note"></div>
+    </div>
+  </details>
   <section id="cropSec" class="block" hidden>
     <label class="lab" id="dlTitle">Download</label>
     <div id="pickBlock" class="pickblock" hidden>
@@ -250,6 +271,10 @@ button.link { background: none; border: 0; color: var(--accent); padding: 0; fon
 <div id="mapwrap">
   <div id="map"></div>
   <div id="readout" class="readout" hidden></div>
+  <div id="tsPlot" class="tsplot" hidden>
+    <button id="tsHide" type="button" class="link tsclose" title="Hide the plot (Show plot brings it back)">&times;</button>
+    <canvas id="tsCanvas"></canvas>
+  </div>
   <div id="timebar" hidden>
     <div id="ttrack">
       <div id="trange"></div>
@@ -432,7 +457,7 @@ async function loadCatalog(href, push = true) {
   setStatus(`${items.length} items, ${code}${codes.length > 1 ? ` (catalog mixes ${codes.join(', ')}; showing first)` : ''}`);
   selected = null; rasterLayer.setSource(null); $('legend').hidden = true;
   $('asset').replaceChildren();
-  stopDraw(); boxSource.clear(); cropBox = null; picks.clear(); saCache = null; clearStaticAnom(); updateCropInfo();
+  stopDraw(); boxSource.clear(); cropBox = null; picks.clear(); saCache = null; clearStaticAnom(); clearTsPoints(); updateCropInfo();
   applyFilter(true);
   // Open on the newest item so a catalog shows data straight away, as stac-map does on a click.
   if (items.length) select(items[items.length - 1]);
@@ -901,14 +926,14 @@ const animLayer = new ol.layer.Image({ zIndex: 2, visible: false });
 map.addLayer(animLayer);
 let animExtKey = '', frames = [], frameBox = null, animIdx = 0, animTimer = null, animDate = null, animBuilding = false, animToken = 0;
 
-function timeSeries() {
+function timeSeries(allDates = false) {
   if (!selected) return [];
   const key = $('asset').value, e0 = selected.feature.getGeometry().getExtent();
   const overlap = e => {
     const i = ol.extent.getIntersection(e, e0);
     return ol.extent.isEmpty(i) ? 0 : ol.extent.getArea(i) / Math.min(ol.extent.getArea(e), ol.extent.getArea(e0));
   };
-  return inRange().filter(it => it.assets[key] && overlap(it.feature.getGeometry().getExtent()) >= 0.5)
+  return (allDates ? items : inRange()).filter(it => it.assets[key] && overlap(it.feature.getGeometry().getExtent()) >= 0.5)
                   .sort((a, b) => a.start - b.start);
 }
 function animExtent() {
@@ -918,6 +943,7 @@ function frameSize(ext, res) { return [Math.ceil((ext[2] - ext[0]) / res), Math.
 
 function refreshAnimInfo() {
   refreshStaticAnom();
+  refreshTs();
   if (animBuilding) return;
   const series = timeSeries();
   $('animSec').hidden = series.length < 2;
@@ -1371,6 +1397,226 @@ $('saPrev').onclick = () => saStep(-1);
 $('saNext').onclick = () => saStep(1);
 $('saAuto').onclick = () => { saTyped = false; $('saRange').value = ''; if (saShown) drawStaticAnom(); };
 
+// Time series at points: click points on the map; each is read at full resolution from every date
+// of the displayed item's time series (one-pixel reads, like the hover readout) and plotted against
+// date. Velocity gets error bars from the ex/ey assets. Points, plot and values can be saved.
+const tsColors = ['#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#9a6324'];
+const tsSource = new ol.source.Vector();
+map.addLayer(new ol.layer.Vector({ source: tsSource, zIndex: 6, style: f => new ol.style.Style({
+  image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: f.get('color') }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }),
+  text: new ol.style.Text({ text: String(f.get('n')), offsetY: -15, font: '700 12px sans-serif',
+    fill: new ol.style.Fill({ color: '#ffffff' }), stroke: new ol.style.Stroke({ color: '#000000', width: 3 }) }) }) }));
+let tsPoints = [], tsMode = false, tsToken = 0, tsKey = '', tsNext = 1;
+const tsCache = new Map();  // `${x},${y}|${href}` -> value in physical units (NaN = no data)
+
+function tsSeries() { return timeSeries(!$('tsRange').checked); }
+function tsHasErrors(key, series) {
+  const need = key === 'vx' ? ['ex'] : key === 'vy' ? ['ey'] : key === 'vv' ? ['vx', 'vy', 'ex', 'ey'] : null;
+  return !!need && series.some(it => need.every(k => it.assets[k]));
+}
+
+function refreshTs() {
+  const series = selected && !rgbMode ? tsSeries() : [];
+  const ok = series.length >= 2;
+  $('tsSec').hidden = !ok;
+  if (!ok) { $('tsPlot').hidden = true; return; }
+  $('tsCount').textContent = tsPoints.length ? `(${tsPoints.length} point${tsPoints.length > 1 ? 's' : ''})` : '';
+  $('tsErrRow').hidden = !tsHasErrors($('asset').value, series);
+  if (!tsPoints.length) return;
+  const key = [$('asset').value, series.map(s => s.id).join(';'), $('tsErr').checked, tsPoints.map(p => p.n).join(',')].join('|');
+  if (key !== tsKey) computeTs();
+}
+
+async function pointValue(it, key, coord) {
+  const a = it.assets[key];
+  if (!a) return NaN;
+  const ck = `${coord[0]},${coord[1]}|${a.href}`;
+  if (tsCache.has(ck)) return tsCache.get(ck);
+  const b = a['raster:bands']?.[0] || {};
+  const { levels: lv, origin: org } = await assetLevels(a.href);
+  const img = lv[0].img, r = lv[0].res;
+  const col = Math.floor((coord[0] - org[0]) / r), row = Math.floor((org[1] - coord[1]) / r);
+  let v = NaN;
+  if (col >= 0 && row >= 0 && col < img.getWidth() && row < img.getHeight()) {
+    const raw = (await img.readRasters({ window: [col, row, col + 1, row + 1], samples: [0] }))[0][0];
+    if (raw !== b.nodata && Number.isFinite(raw)) v = raw * (b.scale ?? 1) + (b.offset ?? 0);
+  }
+  tsCache.set(ck, v);
+  return v;
+}
+async function pointError(it, key, coord) {
+  if (key === 'vx' || key === 'vy') return pointValue(it, key === 'vx' ? 'ex' : 'ey', coord);
+  if (key === 'vv') {
+    // Speed error from the component errors: sigma_v = sqrt((vx ex)^2 + (vy ey)^2) / v.
+    const [vx, vy, ex, ey] = await Promise.all(['vx', 'vy', 'ex', 'ey'].map(k => pointValue(it, k, coord)));
+    const v = Math.hypot(vx, vy);
+    return v > 0 ? Math.hypot(vx * ex, vy * ey) / v : NaN;
+  }
+  return NaN;
+}
+async function runPool(tasks, n) {
+  // Run async tasks with at most n in flight; results keep the task order.
+  const out = new Array(tasks.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(n, tasks.length) }, async () => {
+    while (next < tasks.length) { const k = next++; out[k] = await tasks[k](); }
+  }));
+  return out;
+}
+
+async function computeTs() {
+  const series = tsSeries(), key = $('asset').value, token = ++tsToken;
+  const withErr = $('tsErr').checked && tsHasErrors(key, series);
+  tsKey = [key, series.map(s => s.id).join(';'), $('tsErr').checked, tsPoints.map(p => p.n).join(',')].join('|');
+  $('tsNote').textContent = `Reading ${tsPoints.length * series.length} values...`;
+  $('tsCsv').disabled = true; $('tsPng').disabled = true;
+  const t0 = performance.now();
+  try {
+    const tasks = tsPoints.flatMap(p => series.map(it => async () => ({
+      p, it, v: await pointValue(it, key, p.coord), e: withErr ? await pointError(it, key, p.coord) : NaN })));
+    const res = await runPool(tasks, 6);
+    if (token !== tsToken) return;
+    for (const p of tsPoints) p.values = res.filter(r => r.p === p).map(({ it, v, e }) => ({ it, v, e }));
+    const band0 = selected.assets[key]?.['raster:bands']?.[0] || {};
+    tsPlotInfo = { key, unit: band0.unit || '', withErr, n: series.length };
+    $('tsPlot').hidden = false; $('tsShow').hidden = true;
+    drawTsPlot();
+    const empty = tsPoints.filter(p => p.values.every(x => Number.isNaN(x.v))).map(p => p.n);
+    $('tsNote').textContent = `${tsPoints.length} point${tsPoints.length > 1 ? 's' : ''} x ${series.length} dates in `
+      + `${((performance.now() - t0) / 1000).toFixed(1)} s.` + (empty.length ? ` No data at point ${empty.join(', ')}.` : '');
+    $('tsCsv').disabled = false; $('tsPng').disabled = false;
+  } catch (e) {
+    if (token === tsToken) $('tsNote').textContent = `Could not read the values: ${e.message}`;
+  }
+}
+
+let tsPlotInfo = null;
+function niceStep(span, target) {
+  const raw = span / target, mag = 10 ** Math.floor(Math.log10(raw)), f = raw / mag;
+  return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * mag;
+}
+function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1) {
+  if (!tsPlotInfo) return;
+  const W = canvas.clientWidth || 600, H = canvas.clientHeight || 270;
+  canvas.width = W * scale; canvas.height = H * scale;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  const css = getComputedStyle(document.documentElement), tok = n => css.getPropertyValue(n).trim();
+  const fg = tok('--fg'), muted = tok('--muted'), line = tok('--line');
+  ctx.fillStyle = tok('--panel'); ctx.fillRect(0, 0, W, H);
+  const L = 64, R = 14, T = 30, B = 30, pw = W - L - R, ph = H - T - B;
+  const pts = tsPoints.flatMap(p => p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v, e: x.e })));
+  const finite = pts.filter(q => Number.isFinite(q.v));
+  ctx.font = '12px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = fg; ctx.textBaseline = 'middle';
+  ctx.fillText(`${tsPlotInfo.key}${tsPlotInfo.unit ? ` (${tsPlotInfo.unit})` : ''}${tsPlotInfo.withErr ? ', error bars 1 sigma' : ''}`, L, 14);
+  if (!finite.length) { ctx.fillStyle = muted; ctx.fillText('No data at these points', L + 10, T + ph / 2); return; }
+  let y0 = Math.min(...finite.map(q => q.v - (Number.isFinite(q.e) ? q.e : 0)));
+  let y1 = Math.max(...finite.map(q => q.v + (Number.isFinite(q.e) ? q.e : 0)));
+  if (y0 === y1) { y0 -= 1; y1 += 1; }
+  const yp = (y1 - y0) * 0.06; y0 -= yp; y1 += yp;
+  const ts = pts.map(q => q.t);
+  let t0 = Math.min(...ts), t1 = Math.max(...ts);
+  const tp = Math.max((t1 - t0) * 0.04, 86400e3 * 5); t0 -= tp; t1 += tp;
+  const X = t => L + (t - t0) / (t1 - t0) * pw, Y = v => T + (1 - (v - y0) / (y1 - y0)) * ph;
+  // grid and y labels
+  const ys = niceStep(y1 - y0, 5);
+  ctx.strokeStyle = line; ctx.lineWidth = 1; ctx.fillStyle = muted; ctx.textAlign = 'right';
+  for (let v = Math.ceil(y0 / ys) * ys; v <= y1; v += ys) {
+    ctx.beginPath(); ctx.moveTo(L, Y(v)); ctx.lineTo(L + pw, Y(v)); ctx.stroke();
+    ctx.fillText(fmtVal(+v.toPrecision(6)), L - 6, Y(v));
+  }
+  // x labels: years for long spans, months otherwise
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  const d0 = new Date(t0), d1 = new Date(t1), years = (t1 - t0) / (365.25 * 86400e3);
+  if (years > 2) {
+    const step = Math.max(1, Math.round(years / 8));
+    for (let y = d0.getUTCFullYear() + 1; y <= d1.getUTCFullYear(); y += step) {
+      const x = X(Date.UTC(y, 0, 1));
+      ctx.beginPath(); ctx.moveTo(x, T); ctx.lineTo(x, T + ph); ctx.stroke();
+      ctx.fillText(String(y), x, T + ph + 6);
+    }
+  } else {
+    const step = Math.max(1, Math.round(years * 12 / 8));
+    for (let m = new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth() + 1, 1)); m <= d1; m = new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() + step, 1))) {
+      const x = X(+m);
+      ctx.beginPath(); ctx.moveTo(x, T); ctx.lineTo(x, T + ph); ctx.stroke();
+      ctx.fillText(m.toISOString().slice(0, 7), x, T + ph + 6);
+    }
+  }
+  ctx.strokeStyle = muted; ctx.strokeRect(L, T, pw, ph);
+  // series: line, error bars, markers
+  for (const p of tsPoints) {
+    const q = p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v, e: x.e })).filter(x => Number.isFinite(x.v));
+    ctx.strokeStyle = p.color; ctx.fillStyle = p.color; ctx.lineWidth = 1.6;
+    ctx.beginPath(); q.forEach((x, i) => (i ? ctx.lineTo(X(x.t), Y(x.v)) : ctx.moveTo(X(x.t), Y(x.v)))); ctx.stroke();
+    ctx.lineWidth = 1.2;
+    for (const x of q) {
+      if (Number.isFinite(x.e) && x.e > 0) {
+        ctx.beginPath(); ctx.moveTo(X(x.t), Y(x.v - x.e)); ctx.lineTo(X(x.t), Y(x.v + x.e));
+        ctx.moveTo(X(x.t) - 3, Y(x.v - x.e)); ctx.lineTo(X(x.t) + 3, Y(x.v - x.e));
+        ctx.moveTo(X(x.t) - 3, Y(x.v + x.e)); ctx.lineTo(X(x.t) + 3, Y(x.v + x.e)); ctx.stroke();
+      }
+      ctx.beginPath(); ctx.arc(X(x.t), Y(x.v), 3.2, 0, 2 * Math.PI); ctx.fill();
+    }
+  }
+  // legend: point numbers in their colors
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.font = '700 12px sans-serif';
+  let lx = W - R - 26;
+  for (const p of [...tsPoints].reverse()) {
+    ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(lx, 14, 6, 0, 2 * Math.PI); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.fillText(String(p.n), lx, 14.5);
+    lx -= 18;
+  }
+}
+
+function addTsPoint(coord) {
+  const n = tsNext++, color = tsColors[(n - 1) % tsColors.length];
+  const f = new ol.Feature({ geometry: new ol.geom.Point(coord) });
+  f.setProperties({ n, color });
+  tsSource.addFeature(f);
+  tsPoints.push({ n, coord, color, feature: f, values: [] });
+  $('tsClear').hidden = false;
+  refreshTs();
+}
+function clearTsPoints() {
+  ++tsToken; tsPoints = []; tsNext = 1; tsKey = ''; tsPlotInfo = null;
+  tsSource.clear(); tsCache.clear();
+  $('tsPlot').hidden = true; $('tsClear').hidden = true; $('tsShow').hidden = true;
+  $('tsCsv').disabled = true; $('tsPng').disabled = true; $('tsNote').textContent = ''; $('tsCount').textContent = '';
+}
+function setTsMode(on) {
+  tsMode = on;
+  $('tsAdd').textContent = on ? 'Done adding' : 'Add points';
+  $('tsNote').textContent = on ? 'Click the map to add points; each click plots that spot.' : $('tsNote').textContent;
+  if (on) stopDraw();
+}
+
+$('tsAdd').onclick = () => setTsMode(!tsMode);
+$('tsClear').onclick = () => { setTsMode(false); clearTsPoints(); refreshTs(); };
+$('tsRange').onchange = () => refreshTs();
+$('tsErr').onchange = () => refreshTs();
+$('tsHide').onclick = () => { $('tsPlot').hidden = true; $('tsShow').hidden = !tsPoints.length; };
+$('tsShow').onclick = () => { $('tsPlot').hidden = false; $('tsShow').hidden = true; drawTsPlot(); };
+window.addEventListener('resize', () => { if (!$('tsPlot').hidden) drawTsPlot(); });
+$('tsCsv').onclick = () => {
+  const info = tsPlotInfo, rows = [['point', 'x_km', 'y_km', 'lat', 'lon', 'item', 'start', 'end', 'asset', 'value', 'unit', 'error']];
+  for (const p of tsPoints) {
+    const [lon, lat] = ol.proj.toLonLat(p.coord, viewCode);
+    for (const x of p.values) {
+      rows.push([p.n, (p.coord[0] / 1000).toFixed(3), (p.coord[1] / 1000).toFixed(3), lat.toFixed(5), lon.toFixed(5), x.it.id,
+                 fmtDate(x.it.start), fmtDate(x.it.end), info.key, Number.isNaN(x.v) ? '' : x.v, info.unit, Number.isFinite(x.e) ? x.e : '']);
+    }
+  }
+  const coll = items[0]?.raw?.collection || 'grimp';
+  saveBlob(new Blob([rows.map(r => r.join(',')).join('\n') + '\n'], { type: 'text/csv' }), `${coll}_${info.key}_points.csv`);
+};
+$('tsPng').onclick = () => {
+  const c = document.createElement('canvas'); c.style.width = `${$('tsCanvas').clientWidth}px`; c.style.height = `${$('tsCanvas').clientHeight}px`;
+  document.body.append(c); drawTsPlot(c, 2); c.remove();
+  const coll = items[0]?.raw?.collection || 'grimp';
+  saveUrl(c.toDataURL('image/png'), `${coll}_${tsPlotInfo.key}_points.png`);
+};
+
 function applyClip() {
   const p = +$('clip').value;
   $('clipv').textContent = `${p}%`;
@@ -1468,6 +1714,7 @@ $('clip').oninput = applyClip;
 
 map.on('singleclick', e => {
   if (draw) return;
+  if (tsMode) { addTsPoint(e.coordinate); return; }
   // Test against the footprint geometry rather than rendered pixels, since footprints are outline-only.
   const hits = footLayer.getVisible() ? footSource.getFeaturesAtCoordinate(e.coordinate) : [];
   if (!hits.length) return;
@@ -1537,7 +1784,7 @@ map.getViewport().addEventListener('pointerleave', () => { clearTimeout(readoutT
 
 map.on('pointermove', e => {
   const over = !draw && footLayer.getVisible() && footSource.getFeaturesAtCoordinate(e.coordinate).length > 0;
-  map.getTargetElement().style.cursor = over ? 'pointer' : '';
+  map.getTargetElement().style.cursor = tsMode ? 'crosshair' : over ? 'pointer' : '';
 });
 window.addEventListener('popstate', () => loadCatalog(new URL(location.href).searchParams.get('href') || presets[0][1], false));
 

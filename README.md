@@ -62,7 +62,16 @@ in latitude and longitude:
 
 ![Value readout over Jakobshavn Isbræ showing a speed of 2113.6 m/yr](Documents/images/readout.jpg)
 
-### 4. See what changed
+### 4. Plot a time series at points
+
+Open **Time series at points**, click **Add points**, and click the spots on the map you want to
+follow. Each point is read at full resolution from every date and plotted against time, one color
+per point, with error bars for velocity. **Save CSV** writes the numbers (date, position, value,
+error) for a spreadsheet or script; **Save plot** writes the picture.
+
+![Ice speed at three points near Jakobshavn Isbræ, 2014-2023](Documents/images/timeseries.jpg)
+
+### 5. See what changed
 
 When a product is part of a time series, tick **Show as anomaly** to see how one date differs
 from the average of all dates: blue where the ice was slower than usual, red where it was faster.
@@ -70,7 +79,7 @@ Step through the years with **Earlier** and **Later**, or by clicking the ticks 
 
 ![Speed in 2022-23 minus the 2014-2023 mean, showing fast-flowing outlet glaciers in red](Documents/images/anomaly.jpg)
 
-### 5. Make an animation
+### 6. Make an animation
 
 Open **Animate time series**, draw a box around the area you want (or animate the whole image),
 and click **Load frames**. Then **Play**, change the speed, or drag the slider through the frames.
@@ -88,7 +97,7 @@ the range set to ±1500 m/yr: faster than average (red) in 2014-2016, slower (bl
 
 ![The animation panel with an anomaly frame of Jakobshavn Isbræ and its color bar](Documents/images/animation.jpg)
 
-### 6. Download data
+### 7. Download data
 
 <img src="Documents/images/panel-download.png" align="right" width="300" alt="Download panel with asset checkboxes, crop box and download buttons">
 
@@ -111,7 +120,7 @@ Small glacier-site products, such as the TerraSAR-X boxes, are downloaded whole:
 
 ![A TerraSAR-X glacier site at Jakobshavn Isbræ, picked for download](Documents/images/tsx.jpg)
 
-### 7. Antarctica
+### 8. Antarctica
 
 Switch to **Southern** for Antarctic products, drawn with the South Pole at the center:
 

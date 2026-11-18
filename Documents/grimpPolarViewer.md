@@ -81,6 +81,24 @@ The anomaly is computed at the resolution chosen in its menu, over the crop box 
 otherwise the whole image or site. Whole mosaics therefore show an overview grid; draw a box for
 full resolution (see Limits).
 
+### Time series at points
+
+**Time series at points** appears when the displayed item has a time series (not for RGB images).
+**Add points**, then click the map; each click adds a numbered, colored marker. Every point is read
+at full resolution from every date of the series (one-pixel reads, six at a time; the same values
+the hover readout gives) and plotted against the middle of each product's date range.
+
+- **Only dates in the time range** follows the time-bar handles; untick it for every date.
+- **Error bars** (1 sigma): `ex` for `vx`, `ey` for `vy`, and for speed
+  $`\sigma_v = \sqrt{(v_x e_x)^2 + (v_y e_y)^2}/v`$ from the four component files.
+- Changing the asset or the time range redraws the plot; values already read are cached.
+- **Save CSV**: `point, x_km, y_km, lat, lon, item, start, end, asset, value, unit, error`.
+  **Save plot**: a PNG at twice screen resolution.
+
+Checked against GDAL at one point (2014-15 annual mosaic): speed 625.9329 m/yr and speed error
+0.467258 m/yr, identical to `gdallocationinfo`. Three points over the nine annual mosaics read in
+about 3.6 s.
+
 ### Animation
 
 **Animate time series** appears only when the displayed item has a time series.
