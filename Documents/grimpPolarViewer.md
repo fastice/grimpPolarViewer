@@ -248,6 +248,8 @@ on every host.
 - **CORS** (`kopah/cors.xml`, `s3cmd setcors kopah/cors.xml s3://ianj-grimp`) lets pages on other
   sites, such as stac-map on github.io, read the data and make range requests.
 - **Layout:** `public/viewer/index.html` (the viewer), `public/nsidc-0723/v04/` (2024 backscatter),
+  `public/nsidc-0766/v03/` (Greenland 6/12-day velocity, 516 windows, 409 GB),
+  `public/pig/quarterly/` and `public/pig/annual/` (Amundsen Sea velocity, 12 GB),
   `public/display/` (one-off display products). Scott's presets point at his `gaia` bucket.
 - **Deploy** the viewer with `tools/deployViewer.sh`. It uploads as `text/html` with
   `Cache-Control: no-cache` and replaces `build dev` under the title with the UTC time and git
