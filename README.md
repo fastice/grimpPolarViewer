@@ -73,10 +73,11 @@ error) for a spreadsheet or script; **Save plot** writes the picture.
 
 ### 5. See what changed
 
-When a product is part of a time series, tick **Show as anomaly** to see how one date differs
+When a product is part of a time series, open **Anomaly and stack** and tick **Show as anomaly** to see how one date differs
 from the average of all dates: blue where the ice was slower than usual, red where it was faster.
 Step through the years with **Earlier** and **Later**, or by clicking the ticks on the timeline.
-**Show stack** instead averages every date in the time range into one image.
+**Show stack** instead averages every date in the time range into one image. Both cover the whole
+image, or a box you draw with **Draw box** in that section for full resolution.
 
 ![Speed in 2022-23 minus the 2014-2023 mean, showing fast-flowing outlet glaciers in red](Documents/images/anomaly.jpg)
 

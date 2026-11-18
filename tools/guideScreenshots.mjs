@@ -110,6 +110,7 @@ await shot('vx.jpg');
 // 4. Static anomaly of the newest year.
 await setSelect('#asset', 'vv');
 await waitText('#clipnote', /Clip from/);
+await page.$eval('#saBlock', e => { e.open = true; });
 await click('#saOn');
 await waitText('#saNote', /minus the mean/);
 await settle(6000);
@@ -143,7 +144,9 @@ for (let i = 0; i < n; i++) {
 }
 await click('#animClose');
 
-// 6. Download panel with the crop box.
+// 6. Download panel with the crop option on.
+await page.$eval('#saBlock', e => { e.open = false; });
+await page.$eval('#cropOn', e => { e.checked = true; e.dispatchEvent(new Event('change')); });
 await settle(3000);
 await shotEl('panel-download.png', '#cropSec');
 

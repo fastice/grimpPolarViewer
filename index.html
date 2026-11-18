@@ -1656,6 +1656,9 @@ async function computeTs() {
 }
 
 let tsPlotInfo = null;
+// Each point's ITS_LIVE cloud gets its own grey level, shown beside the point in the legend.
+const itsGreys = [175, 95, 135, 210, 60, 155, 115, 190];
+const itsGrey = (p, a = 1) => { const g = itsGreys[(p.n - 1) % itsGreys.length]; return `rgba(${g}, ${g}, ${g}, ${a})`; };
 function niceStep(span, target) {
   const raw = span / target, mag = 10 ** Math.floor(Math.log10(raw)), f = raw / mag;
   return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * mag;
@@ -1673,8 +1676,9 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   const pts = tsPoints.flatMap(p => p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v, e: x.e })));
   const finite = pts.filter(q => Number.isFinite(q.v));
   ctx.font = '12px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = fg; ctx.textBaseline = 'middle';
-  ctx.fillText(`${tsPlotInfo.key}${tsPlotInfo.unit ? ` (${tsPlotInfo.unit})` : ''}${tsPlotInfo.withErr ? ', error bars 1 sigma' : ''}`
-    + ($('tsIts').checked && tsPlotInfo.key in itsVars ? `; grey: ITS_LIVE pairs${+$('tsItsDt').value < 1e5 ? ` up to ${$('tsItsDt').value} d` : ''}` : ''), L, 14);
+  const itsOn = $('tsIts').checked && tsPlotInfo.key in itsVars;
+  ctx.fillText(`GrIMP (color): ${tsPlotInfo.key}${tsPlotInfo.unit ? ` (${tsPlotInfo.unit})` : ''}${tsPlotInfo.withErr ? ', error bars 1 sigma' : ''}`
+    + (itsOn ? `; ITS_LIVE (grey): pairs${+$('tsItsDt').value < 1e5 ? ` up to ${$('tsItsDt').value} d` : ''}` : ''), L, 14);
   if (!finite.length) { ctx.fillStyle = muted; ctx.fillText($('tsProg').hidden ? 'No data at these points' : 'Reading values...', L + 10, T + ph / 2); return; }
   let y0 = Math.min(...finite.map(q => q.v - (Number.isFinite(q.e) ? q.e : 0)));
   let y1 = Math.max(...finite.map(q => q.v + (Number.isFinite(q.e) ? q.e : 0)));
@@ -1714,9 +1718,9 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   if ($('tsIts').checked && tsPlotInfo.key in itsVars) {
     const maxDt = +$('tsItsDt').value;
     ctx.save(); ctx.beginPath(); ctx.rect(L, T, pw, ph); ctx.clip();
-    ctx.fillStyle = 'rgba(150, 150, 150, 0.45)';
     for (const p of tsPoints) {
       if (p.itsKey !== tsPlotInfo.key || !p.its) continue;
+      ctx.fillStyle = itsGrey(p, 0.55);
       for (const q of p.its) if (q.dt <= maxDt) ctx.fillRect(X(q.t) - 1.25, Y(q.v) - 1.25, 2.5, 2.5);
     }
     ctx.restore();
@@ -1742,6 +1746,7 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   for (const p of [...tsPoints].reverse()) {
     ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(lx, 14, 6, 0, 2 * Math.PI); ctx.fill();
     ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.fillText(String(p.n), lx, 14.5);
+    if (itsOn && p.its) { ctx.fillStyle = itsGrey(p); ctx.fillRect(lx - 4, 22, 8, 5); }  // this point's ITS_LIVE grey
     lx -= 18;
   }
 }

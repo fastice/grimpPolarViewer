@@ -116,7 +116,8 @@ the hover readout gives) and plotted against the middle of each product's date r
 - While values are read, a progress bar under the buttons shows the count and an estimate of the
   time left, and the plot fills in as values arrive (the time axis is fixed to the whole series).
 - **ITS_LIVE in grey** (for vv, vx, vy) adds the ITS_LIVE image-pair velocities at the same points
-  as a light grey cloud behind the GrIMP series, for comparison. The viewer fetches the ITS_LIVE
+  as a grey cloud behind the GrIMP series, for comparison; each point's cloud has its own grey level,
+  shown as a swatch under that point in the legend. The viewer fetches the ITS_LIVE
   datacube catalog (`its-live-data/datacubes/catalog_v02.json`, 7.6 MB, once), picks the cube in
   the map's projection that holds the point (so vx/vy are the same components), and reads the nearest
   120 m pixel's full time series with zarrita 0.7.5 (about 2 s and 3 MB per point). **Pairs up to**
