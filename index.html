@@ -262,9 +262,12 @@ body.nopanel #panel { display: none; }
     <div class="block-inner">
       <div class="row">
         <button id="tsAdd" type="button">Add points</button>
+        <button id="tsLoad" type="button" class="link">Load points</button>
         <button id="tsShow" type="button" class="link" hidden>Show plot</button>
         <button id="tsClear" type="button" class="link" hidden>Clear points</button>
+        <input id="tsFile" type="file" accept=".csv,.txt,.tsv,text/csv,text/plain" hidden>
       </div>
+      <div id="tsLoadNote" class="note"></div>
       <label class="optrow"><input id="tsRange" type="checkbox" checked> Only dates in the time range</label>
       <label class="optrow" id="tsErrRow"><input id="tsErr" type="checkbox" checked> Error bars (from ex/ey)</label>
       <div class="optrow" id="tsItsRow"><label class="optrow"><input id="tsIts" type="checkbox"> ITS_LIVE in grey,</label>
@@ -1802,17 +1805,84 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   }
 }
 
-function addTsPoint(coord) {
+function addTsPoint(coord, label = '', refresh = true) {
   const n = tsNext++, color = tsColors[(n - 1) % tsColors.length];
   const f = new ol.Feature({ geometry: new ol.geom.Point(coord) });
   f.setProperties({ n, color });
   tsSource.addFeature(f);
-  tsPoints.push({ n, coord, color, feature: f, values: [] });
+  tsPoints.push({ n, coord, color, label, feature: f, values: [] });
   $('tsClear').hidden = false;
-  refreshTs();
+  if (refresh) refreshTs();
+}
+
+// Load points from a text/CSV file: lat/lon columns (preferred), or x/y in km (x_km, y_km, or x, y with
+// |x| < 20000) or metres (x_m, y_m, or larger x, y), in the map's projection. A header row is optional;
+// without one, two numbers that fit lat/lon are read as lat, lon, otherwise as x, y. An optional
+// label/name/site/id/point column names the points. The CSV this section saves loads back (one point
+// per distinct position).
+const maxLoadPoints = 100;
+function parseTsPoints(text) {
+  const rows = text.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'))
+    .map(l => (l.includes(',') ? l.split(/\s*,\s*/) : l.includes(';') ? l.split(/\s*;\s*/) : l.includes('\t') ? l.split(/\t/) : l.split(/\s+/))
+      .map(c => c.trim().replace(/^"(.*)"$/, '$1')));
+  if (!rows.length) throw new Error('the file is empty');
+  const isNum = c => c !== '' && Number.isFinite(+c);
+  let head = null, body = rows;
+  if (rows[0].some(c => !isNum(c))) { head = rows[0].map(c => c.toLowerCase()); body = rows.slice(1); }
+  const col = names => { for (const n of names) { const i = head ? head.indexOf(n) : -1; if (i >= 0) return i; } return -1; };
+  let iLat = col(['lat', 'latitude']), iLon = col(['lon', 'long', 'lng', 'longitude']);
+  let iX = col(['x_km', 'x_m', 'x']), iY = col(['y_km', 'y_m', 'y']), iLab = col(['label', 'name', 'site', 'id', 'point']);
+  if (!head) {
+    const num = body.map(r => r.filter(isNum).map(Number));
+    if (num.every(r => r.length >= 2 && Math.abs(r[0]) <= 90 && Math.abs(r[1]) <= 360)) { iLat = 0; iLon = 1; } else { iX = 0; iY = 1; }
+    if (body[0].length > 2 && !isNum(body[0][2])) iLab = 2;
+  }
+  const useLL = iLat >= 0 && iLon >= 0;
+  if (!useLL && (iX < 0 || iY < 0)) throw new Error('no lat/lon or x/y columns found');
+  const unit = useLL ? 'lat/lon' : head?.[iX] === 'x_m' ? 'm' : head?.[iX] === 'x_km' ? 'km' : null;
+  const pts = [], seen = new Set();
+  let metres = false;
+  for (const r of body) {
+    let coord;
+    if (useLL) {
+      const lat = +r[iLat], lon = +r[iLon];
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+      coord = ol.proj.fromLonLat([lon, lat], viewCode);
+    } else {
+      const x = +r[iX], y = +r[iY];
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      const m = unit === 'm' || (unit === null && Math.max(Math.abs(x), Math.abs(y)) > 20000) ? 1 : 1000;
+      metres ||= m === 1;
+      coord = [x * m, y * m];
+    }
+    const key = coord.map(Math.round).join(',');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    pts.push({ coord, label: iLab >= 0 ? (r[iLab] ?? '') : '' });
+  }
+  if (!pts.length) throw new Error('no valid rows');
+  return { pts, how: useLL ? 'lat/lon' : `x/y in ${metres ? 'metres' : 'km'}` };
+}
+async function loadTsPoints(file) {
+  try {
+    const { pts, how } = parseTsPoints(await file.text());
+    const use = pts.slice(0, maxLoadPoints);
+    setTsMode(false);
+    for (const q of use) addTsPoint(q.coord, q.label, false);
+    $('tsLoadNote').textContent = `Loaded ${use.length} point${use.length > 1 ? 's' : ''} from ${file.name} (${how})`
+      + (pts.length > use.length ? `; only the first ${maxLoadPoints} of ${pts.length} were used.` : '.');
+    const v = map.getView(), ext = v.calculateExtent(map.getSize());
+    if (use.some(q => !ol.extent.containsCoordinate(ext, q.coord))) {
+      const e = ol.extent.boundingExtent(tsPoints.map(p => p.coord)), pad = 20e3;
+      v.fit([e[0] - pad, e[1] - pad, e[2] + pad, e[3] + pad], { size: map.getSize(), padding: [40, 40, 40, 40], duration: 250 });
+    }
+    refreshTs();
+  } catch (e) {
+    $('tsLoadNote').textContent = `Could not load points from ${file.name}: ${e.message}`;
+  }
 }
 function clearTsPoints() {
-  ++tsToken; tsPoints = []; tsNext = 1; tsKey = ''; tsPlotInfo = null; tsYTyped = null; $('tsYRow').hidden = true; $('tsProg').hidden = true; $('tsItsNote').textContent = '';
+  ++tsToken; tsPoints = []; tsNext = 1; tsKey = ''; tsPlotInfo = null; tsYTyped = null; $('tsYRow').hidden = true; $('tsLoadNote').textContent = ''; $('tsProg').hidden = true; $('tsItsNote').textContent = '';
   tsSource.clear(); tsCache.clear();
   $('tsPlot').hidden = true; $('tsClear').hidden = true; $('tsShow').hidden = true;
   $('tsCsv').disabled = true; $('tsPng').disabled = true; $('tsNote').textContent = ''; $('tsCount').textContent = '';
@@ -1825,6 +1895,8 @@ function setTsMode(on) {
 }
 
 $('tsAdd').onclick = () => setTsMode(!tsMode);
+$('tsLoad').onclick = () => $('tsFile').click();
+$('tsFile').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) loadTsPoints(f); };
 $('tsSec').addEventListener('toggle', () => { if (!$('tsSec').open && tsMode) setTsMode(false); });  // collapsing ends point picking
 $('tsClear').onclick = () => { setTsMode(false); clearTsPoints(); refreshTs(); };
 $('tsRange').onchange = () => refreshTs();
@@ -1856,11 +1928,12 @@ $('tsCanvas').onclick = e => {
   if (best && best !== selected) select(best);
 };
 $('tsCsv').onclick = () => {
-  const info = tsPlotInfo, rows = [['point', 'x_km', 'y_km', 'lat', 'lon', 'item', 'start', 'end', 'asset', 'value', 'unit', 'error']];
+  const info = tsPlotInfo, rows = [['point', 'label', 'x_km', 'y_km', 'lat', 'lon', 'item', 'start', 'end', 'asset', 'value', 'unit', 'error']];
+  const csvText = t => /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
   for (const p of tsPoints) {
     const [lon, lat] = ol.proj.toLonLat(p.coord, viewCode);
     for (const x of p.values) {
-      rows.push([p.n, (p.coord[0] / 1000).toFixed(3), (p.coord[1] / 1000).toFixed(3), lat.toFixed(5), lon.toFixed(5), x.it.id,
+      rows.push([p.n, csvText(p.label || ''), (p.coord[0] / 1000).toFixed(3), (p.coord[1] / 1000).toFixed(3), lat.toFixed(5), lon.toFixed(5), x.it.id,
                  fmtDate(x.it.start), fmtDate(x.it.end), info.key, Number.isNaN(x.v) ? '' : x.v, info.unit, Number.isFinite(x.e) ? x.e : '']);
     }
   }
@@ -1944,6 +2017,7 @@ const tips = {
   tsYMax: 'Top of the plot y axis (drag down to zoom in)',
   tsYMin: 'Bottom of the plot y axis (drag up to zoom in)',
   tsYAuto: 'Fit the y axis to the GrIMP values again',
+  tsLoad: 'Load points from a CSV or text file: lat/lon or x/y (km or m) columns, optional label; a saved CSV loads back',
   tsIts: 'Also plot ITS_LIVE image-pair velocities (its-live.jpl.nasa.gov datacubes) at the same points, in grey',
   tsItsDt: 'Only ITS_LIVE pairs whose images are at most this many days apart',
   panelToggle: 'Hide or show the control panel, giving the map the whole window',

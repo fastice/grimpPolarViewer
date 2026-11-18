@@ -66,7 +66,8 @@ in latitude and longitude:
 
 Open **Time series at points**, click **Add points**, and click the spots on the map you want to
 follow. Each point is read at full resolution from every date and plotted against time, one color
-per point, with error bars for velocity. **Save CSV** writes the numbers (date, position, value,
+per point, with error bars for velocity. **Load points** reads a list of sites from a CSV file
+(lat/lon or x/y, with optional names). **Save CSV** writes the numbers (date, position, value,
 error) for a spreadsheet or script; **Save plot** writes the picture.
 
 ![Ice speed at three points near Jakobshavn Isbræ, 2014-2023](Documents/images/timeseries.jpg)

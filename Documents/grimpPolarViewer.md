@@ -133,7 +133,19 @@ the hover readout gives) and plotted against the middle of each product's date r
   pairs of 12 days or less and 16297 in all, identical.
 - The time bar takes clicks across its shaded box, so points cannot be placed under it; pan the map
   to sample there.
-- **Save CSV**: `point, x_km, y_km, lat, lon, item, start, end, asset, value, unit, error`.
+- **Load points** reads a CSV or text file of positions, for extracting values at many sites:
+  `lat`/`lon` columns (preferred), or `x`/`y` in the map's projection (`x_km`/`y_km`, `x_m`/`y_m`, or
+  `x`/`y`, taken as metres when larger than 20000). The header is optional; without one, two numbers
+  that fit lat/lon are read as lat, lon, otherwise as x, y. An optional `label`, `name`, `site` or
+  `id` column names the points. Up to 100 points per file; repeated positions are dropped, and the map
+  zooms out to show points outside the view. A saved CSV loads back (one point per position). Example:
+
+  ```
+  name,lat,lon
+  Jakobshavn trunk,69.1317,-48.7640
+  Upstream,69.20,-48.60
+  ```
+- **Save CSV**: `point, label, x_km, y_km, lat, lon, item, start, end, asset, value, unit, error`.
   **Save plot**: a PNG at twice screen resolution.
 
 Checked against GDAL at one point (2014-15 annual mosaic): speed 625.9329 m/yr and speed error
