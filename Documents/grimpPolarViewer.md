@@ -82,15 +82,17 @@ The vertical bar at the left edge of the map has one tick per acquisition date (
 
 ### Anomaly view
 
-**Show as anomaly** (in the color section) appears when the displayed item has a time series
+**Anomaly and stack** (a collapsible section below the colors) appears when the displayed item has a time series
 (see below). It shows the displayed date minus the per-pixel mean of every date in the series,
 in blue-white-red, with a range of ±L: automatic (1% clip over all dates) or typed. **Earlier /
 Later** step through the dates; ticks and list clicks also step while it is on. The series stack is
 kept in memory, so stepping takes under a second.
 
-The anomaly is computed at the resolution chosen in its menu, over the crop box if one is drawn,
-otherwise the whole image or site. Whole mosaics therefore show an overview grid; draw a box for
-full resolution (see Limits).
+The anomaly is computed at the resolution chosen in its menu, over the **area box** if one is drawn
+(**Draw box** on the section's Area row), otherwise the whole image or site. Whole mosaics therefore
+show an overview grid; draw a box for full resolution (see Limits). The area box (cyan) is shared
+with the animation and is separate from the download crop box (amber); **Whole image** clears it.
+Both boxes are outlines only, so they do not tint the image.
 
 **Show stack** (just below) shows the per-pixel mean of the dates in the time range instead, with
 the normal stretch and color map (changing them recolors it). Each pixel averages the dates that
@@ -135,7 +137,8 @@ about 3.6 s; one point over 141 six-day windows (speed with error bars, 705 file
 
 **Animate time series** appears only when the displayed item has a time series.
 
-1. Optionally draw a box (**Draw box** on the Area row; mosaics only, sites are animated whole).
+1. Optionally draw a box (**Draw box** on the Area row; the same cyan area box as the anomaly and
+   stack, not the download crop; mosaics only, sites are animated whole).
 2. Pick a frame resolution (a new area starts at the finest level that fits).
 3. Optional: **Anomaly** (frames minus the series mean; **Anomaly range ±** recolors loaded frames
    at once) and **Color bar** (burned into the frames).

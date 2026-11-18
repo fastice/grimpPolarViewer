@@ -191,7 +191,15 @@ body.nopanel #panel { display: none; }
     </div>
     <div id="clipnote" class="note"></div>
     </div>
-    <div id="saBlock" class="block-inner" hidden>
+  </section>
+  <details id="saBlock" class="block" hidden>
+    <summary>Anomaly and stack <span id="saSecCount"></span></summary>
+    <div class="block-inner">
+      <div class="row" id="saAreaRow">
+        <span class="note" style="flex:none">Area:</span><b id="saArea" class="note" style="flex:1"></b>
+        <button id="saDrawBox" type="button">Draw box</button>
+        <button id="saWhole" type="button" class="link" hidden>Whole image</button>
+      </div>
       <label class="optrow"><input id="saOn" type="checkbox"> Show as anomaly: minus the mean of <span id="saCount"></span></label>
       <label class="optrow"><input id="stOn" type="checkbox"> Show stack: mean of <span id="stCount"></span></label>
       <div id="saOpts" class="block-inner" hidden>
@@ -214,7 +222,7 @@ body.nopanel #panel { display: none; }
         <div id="saNote" class="note"></div>
       </div>
     </div>
-  </section>
+  </details>
   <details id="animSec" class="block" hidden>
     <summary>Animate time series <span id="animCount"></span></summary>
     <div class="block-inner">
@@ -484,7 +492,7 @@ async function loadCatalog(href, push = true) {
   setStatus(`${items.length} items, ${code}${codes.length > 1 ? ` (catalog mixes ${codes.join(', ')}; showing first)` : ''}`);
   selected = null; rasterLayer.setSource(null); $('legend').hidden = true;
   $('asset').replaceChildren();
-  stopDraw(); boxSource.clear(); cropBox = null; picks.clear(); saCache = null; clearStaticAnom(); clearTsPoints(); updateCropInfo();
+  stopDraw(); boxSource.clear(); cropBox = null; areaSource.clear(); areaBox = null; picks.clear(); saCache = null; clearStaticAnom(); clearTsPoints(); updateCropInfo();
   applyFilter(true);
   // Open on the newest item so a catalog shows data straight away, as stac-map does on a click.
   if (items.length) select(items[items.length - 1]);
@@ -736,21 +744,26 @@ async function loadSample(href, nodata) {
 // Download: originals or crops of the ticked assets, for the displayed image or for a selection of items.
 const maxCropPixels = 64e6, maxSelectionCrops = 100;
 const boxSource = new ol.source.Vector();
-const boxLayer = new ol.layer.Vector({ source: boxSource, zIndex: 5, visible: false, style: new ol.style.Style({
-  stroke: new ol.style.Stroke({ color: '#e8a33d', width: 2.5 }),
-  fill: new ol.style.Fill({ color: 'rgba(232,163,61,0.08)' }) }) });
+// Boxes are outlines only, so they never tint the image under them: amber for the download crop,
+// cyan for the area used by the anomaly, stack and animation.
+const outline = color => new ol.style.Style({ stroke: new ol.style.Stroke({ color, width: 2.5 }),
+  image: new ol.style.Circle({ radius: 5, fill: new ol.style.Fill({ color }) }) });
+const boxLayer = new ol.layer.Vector({ source: boxSource, zIndex: 5, visible: false, style: outline('#e8a33d') });
 map.addLayer(boxLayer);
-let draw = null, cropBox = null;
+const areaSource = new ol.source.Vector();
+map.addLayer(new ol.layer.Vector({ source: areaSource, zIndex: 5, style: outline('#3cc8e6') }));
+let draw = null, drawKind = null, cropBox = null, areaBox = null;
 
 function stopDraw() {
   if (draw) map.removeInteraction(draw);
-  draw = null; $('drawBox').textContent = 'Draw box';
+  draw = null; drawKind = null; $('drawBox').textContent = 'Draw box';
 }
+const boxDraw = (source, color) => new ol.interaction.Draw({ source, type: 'Circle', geometryFunction: ol.interaction.Draw.createBox(), style: outline(color) });
 $('drawBox').onclick = () => {
-  if (draw) { stopDraw(); return; }
+  if (draw) { const was = drawKind; stopDraw(); if (was === 'crop') return; refreshAnimInfo(); }
   boxSource.clear(); cropBox = null; updateCropInfo();
-  draw = new ol.interaction.Draw({ source: boxSource, type: 'Circle', geometryFunction: ol.interaction.Draw.createBox() });
-  draw.on('drawend', e => { cropBox = e.feature.getGeometry().getExtent(); setTimeout(() => { stopDraw(); refreshAnimInfo(); }); updateCropInfo(); });
+  draw = boxDraw(boxSource, '#e8a33d'); drawKind = 'crop';
+  draw.on('drawend', e => { cropBox = e.feature.getGeometry().getExtent(); setTimeout(() => { stopDraw(); updateCropInfo(); }); updateCropInfo(); });
   map.addInteraction(draw);
   $('drawBox').textContent = 'Cancel';
   $('cropNote').textContent = 'Click one corner, then the opposite corner.';
@@ -780,8 +793,7 @@ function cropWindow(level, org = origin) {
 
 function updateCropInfo() {
   $('cropSec').hidden = !selected;
-  if (frames.length && cropBox !== frameBox) resetAnimation('The crop box changed; load the frames again.');
-  else refreshAnimInfo();
+  refreshAnimInfo();
   const sel = $('cropRes');
   $('boxInfo').textContent = cropBox ? `${((cropBox[2] - cropBox[0]) / 1000).toFixed(1)} x ${((cropBox[3] - cropBox[1]) / 1000).toFixed(1)} km` : '';
   $('clearBox').hidden = !cropBox;
@@ -972,11 +984,35 @@ function timeSeries(allDates = false) {
                   .sort((a, b) => a.start - b.start);
 }
 function animExtent() {
-  return !siteMode && $('cropOn').checked && cropBox ? cropBox : selected.feature.getGeometry().getExtent();
+  return !siteMode && areaBox ? areaBox : selected.feature.getGeometry().getExtent();
+}
+function drawArea() {
+  if (draw) { const was = drawKind; stopDraw(); if (was === 'area') { refreshAnimInfo(); return; } }
+  areaSource.clear(); areaBox = null;
+  draw = boxDraw(areaSource, '#3cc8e6'); drawKind = 'area';
+  draw.on('drawend', e => { areaBox = e.feature.getGeometry().getExtent(); setTimeout(() => { stopDraw(); areaChanged(); }); });
+  map.addInteraction(draw);
+  areaChanged();
+}
+function clearArea() { if (drawKind === 'area') stopDraw(); areaSource.clear(); areaBox = null; areaChanged(); }
+function areaChanged() {
+  if (frames.length && areaBox !== frameBox) resetAnimation('The area changed; load the frames again.');
+  else refreshAnimInfo();
+}
+function refreshAreaRows() {
+  // The area rows in the anomaly/stack and animation sections show the same box.
+  const box = !siteMode && areaBox, txt = box ? `box, ${((areaBox[2] - areaBox[0]) / 1000).toFixed(0)} x ${((areaBox[3] - areaBox[1]) / 1000).toFixed(0)} km` : 'whole image';
+  for (const [area, btn, whole, row] of [['saArea', 'saDrawBox', 'saWhole', 'saAreaRow'], ['animArea', 'animDrawBox', 'animWhole', 'animAreaRow']]) {
+    $(row).hidden = siteMode; $(area).textContent = txt; $(whole).hidden = !box;
+    $(btn).textContent = drawKind === 'area' ? 'Cancel' : box ? 'Redraw box' : 'Draw box';
+  }
+  const hint = 'Click one corner on the map, then the opposite corner.';
+  for (const n of ['animNote', 'saNote']) if (drawKind === 'area') $(n).textContent = hint; else if ($(n).textContent === hint) $(n).textContent = '';
 }
 function frameSize(ext, res) { return [Math.ceil((ext[2] - ext[0]) / res), Math.ceil((ext[3] - ext[1]) / res)]; }
 
 function refreshAnimInfo() {
+  refreshAreaRows();
   refreshStaticAnom();
   refreshTs();
   if (animBuilding) return;
@@ -984,14 +1020,9 @@ function refreshAnimInfo() {
   $('animSec').hidden = series.length < 2;
   if (series.length < 2) return;
   $('animCount').textContent = `(${series.length} dates)`;
-  // The animation area is the same box as the download crop; mosaics only (sites are animated whole).
-  const box = !siteMode && $('cropOn').checked && cropBox;
-  $('animAreaRow').hidden = siteMode;
-  $('animArea').textContent = box ? `box, ${((cropBox[2] - cropBox[0]) / 1000).toFixed(0)} x ${((cropBox[3] - cropBox[1]) / 1000).toFixed(0)} km` : 'whole image';
-  $('animWhole').hidden = !box;
-  $('animDrawBox').textContent = draw ? 'Cancel' : box ? 'Redraw box' : 'Draw box';
+  // The animation area is the area box shared with the anomaly/stack; mosaics only (sites are animated whole).
   if (frames.length) return;
-  const ext = animExtent(), where = ext === cropBox ? 'inside the box' : siteMode ? 'the whole site' : 'the whole image';
+  const ext = animExtent(), where = ext === areaBox ? 'inside the box' : siteMode ? 'the whole site' : 'the whole image';
   $('animAnomRow').hidden = rgbMode; $('animBarRow').hidden = rgbMode;
   $('animRangeRow').hidden = rgbMode || !$('animAnom').checked;
   $('animRangeUnit').textContent = band.unit || '';
@@ -1123,7 +1154,7 @@ async function buildFrames() {
   const barStops = anomaly ? cmaps['blue-white-red'] : (cmaps[$('cmap').value] || cmaps.gray);
   resetAnimation();
   const token = ++animToken;  // after the reset, which bumps the token itself
-  animBuilding = true; frameBox = ext === cropBox ? cropBox : null;
+  animBuilding = true; frameBox = ext === areaBox ? areaBox : null;
   $('animBuild').disabled = true; $('animRes').disabled = true;
   const built = [], label = it => `${fmtDate(it.start)} to ${fmtDate(it.end)}${anomaly ? '  minus mean' : ''}`;
   const add = (it, canvas, values = null) => {
@@ -1297,13 +1328,8 @@ $('animAnom').onchange = () => { if (frames.length) resetAnimation('Load the fra
 $('animRange').onchange = () => { animRangeTyped = $('animRange').value !== '' && +$('animRange').value > 0; recolorAnomaly(); };
 $('animRangeAuto').onclick = () => { animRangeTyped = false; $('animRange').value = ''; recolorAnomaly(); };
 $('animBar').onchange = () => { if (frames.length) resetAnimation('Load the frames again to add or remove the color bar.'); };
-$('animDrawBox').onclick = () => {
-  if (!$('cropOn').checked) { $('cropOn').checked = true; $('cropOn').dispatchEvent(new Event('change')); }
-  $('drawBox').click();  // same box as the download crop
-  $('animNote').textContent = draw ? 'Click one corner on the map, then the opposite corner.' : '';
-  refreshAnimInfo();
-};
-$('animWhole').onclick = () => { $('clearBox').click(); $('cropOn').checked = false; $('cropOn').dispatchEvent(new Event('change')); };
+$('animDrawBox').onclick = $('saDrawBox').onclick = drawArea;
+$('animWhole').onclick = $('saWhole').onclick = clearArea;
 $('animPlay').onclick = () => (animTimer ? pauseAnim() : playAnim());
 $('animFps').onchange = () => { if (animTimer) playAnim(); };
 $('animPos').oninput = e => { pauseAnim(); showFrame(+e.target.value); };
@@ -1328,6 +1354,7 @@ function refreshStaticAnom() {
   $('saBlock').hidden = !ok;
   if (!ok) { if (saShown) clearStaticAnom(); return; }
   $('saCount').textContent = $('stCount').textContent = `${series.length} dates`;
+  $('saSecCount').textContent = `(${series.length} dates)`;
   const pos = series.indexOf(selected);
   $('saPrev').disabled = pos <= 0; $('saNext').disabled = pos < 0 || pos >= series.length - 1;
   $('saPos').textContent = pos >= 0 ? `${pos + 1} of ${series.length}: ${fmtDate(selected.start)}` : '';
@@ -1812,8 +1839,10 @@ const tips = {
   saAuto: 'Go back to the automatic range (1% clip over all dates)',
   saPrev: 'Show the anomaly for the previous date in the series',
   saNext: 'Show the anomaly for the next date in the series',
-  animDrawBox: 'Draw the area to animate: click one corner on the map, then the opposite corner',
-  animWhole: 'Animate the whole image instead of the box',
+  animDrawBox: 'Draw the area (shared with the anomaly and stack): click one corner on the map, then the opposite corner',
+  animWhole: 'Use the whole image instead of the box',
+  saDrawBox: 'Draw the area (shared with the animation): click one corner on the map, then the opposite corner',
+  saWhole: 'Use the whole image instead of the box',
   animRes: 'Grid spacing of the frames; finer levels need a smaller box',
   animAnom: 'Animate each date minus the per-pixel mean of all frames',
   animRange: 'Anomaly color range, ± this value; changing it recolors the loaded frames',
