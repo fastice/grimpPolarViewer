@@ -1,7 +1,7 @@
 """Build a stac-geoparquet catalog of GrIMP velocity mosaics (e.g. NSIDC-0766 6/12-day), one item per window.
 
 Each window directory (e.g. .../sixDayVelocities/Vel-2026-09-07.2026-09-18) holds a release/ directory
-of GL_vel_mosaic_*_<asset>_v*.tif COGs (vv, vx, vy, ex, ey, dT, browse); each becomes an asset of one
+of <region>_vel_mosaic_*_<asset>_v*.tif COGs (GL, ASE, ...) (vv, vx, vy, ex, ey, dT, browse); each becomes an asset of one
 item, laid out like gaia/public/grimp/nsidc-0725/v05/nsidc-0725.parquet. Upload the COGs to --baseUrl
 and the parquet next to them; see Documents/grimpPolarViewer.md. To add windows later, rerun with all
 of them: the catalog is rewritten, not appended to.
@@ -16,6 +16,7 @@ import glob
 import os
 import re
 
+import rasterio
 import rio_stac
 import rustac
 
@@ -36,7 +37,7 @@ def parseDates(windowDir):
 def makeItem(windowDir, baseUrl, collection):
     start, end = parseDates(windowDir)
     tifFiles = {}
-    for tifFile in glob.glob(f'{windowDir}/release/GL_vel_mosaic_*_v*.tif'):
+    for tifFile in glob.glob(f'{windowDir}/release/*_vel_mosaic_*_v*.tif'):
         key = re.search(r'_([A-Za-z]+)_v\d+\.\d+\.tif$', tifFile).group(1)
         tifFiles[key] = tifFile
     keys = [k for k in assetOrder if k in tifFiles]
@@ -54,7 +55,8 @@ def makeItem(windowDir, baseUrl, collection):
             asset_href=f"{baseUrl.rstrip('/')}/{tifName}", with_proj=True, with_raster=True,
             geom_densify_pts=21, geom_precision=6)
         asset = one.assets[key]
-        asset.title = f'{key} (200m)'
+        with rasterio.open(tifFiles[key]) as ds:
+            asset.title = f'{key} ({round(ds.res[0])}m)'
         if key in units:
             for band in asset.extra_fields.get('raster:bands', []):
                 band['unit'] = units[key]
