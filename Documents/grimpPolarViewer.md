@@ -103,12 +103,14 @@ the hover readout gives) and plotted against the middle of each product's date r
 - **Error bars** (1 sigma): `ex` for `vx`, `ey` for `vy`, and for speed
   $`\sigma_v = \sqrt{(v_x e_x)^2 + (v_y e_y)^2}/v`$ from the four component files.
 - Changing the asset or the time range redraws the plot; values already read are cached.
+- While values are read, a progress bar under the buttons shows the count and an estimate of the
+  time left, and the plot fills in as values arrive (the time axis is fixed to the whole series).
 - **Save CSV**: `point, x_km, y_km, lat, lon, item, start, end, asset, value, unit, error`.
   **Save plot**: a PNG at twice screen resolution.
 
 Checked against GDAL at one point (2014-15 annual mosaic): speed 625.9329 m/yr and speed error
 0.467258 m/yr, identical to `gdallocationinfo`. Three points over the nine annual mosaics read in
-about 3.6 s.
+about 3.6 s; one point over 141 six-day windows (speed with error bars, 705 files) in about 17 s.
 
 ### Animation
 

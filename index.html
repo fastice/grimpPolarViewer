@@ -88,6 +88,7 @@ details.block[open] > .block-inner { margin-top: 8px; }
 .tsplot { position: absolute; left: 190px; bottom: 30px; width: min(600px, calc(100% - 220px)); height: 270px;
           background: var(--panel); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
 .tsplot canvas { width: 100%; height: 100%; display: block; }
+progress { width: 100%; height: 8px; accent-color: var(--accent); }
 .tsclose { position: absolute; right: 8px; top: 2px; font-size: 20px; text-decoration: none; }
 .pickblock { display: grid; gap: 4px; padding: 8px 10px; border: 1px solid var(--pick); border-radius: 4px; background: var(--bg); font-size: 13px; }
 #items li input, .countrow .allbox input { margin-left: 0; }
@@ -257,6 +258,7 @@ body.nopanel #panel { display: none; }
         <button id="tsCsv" type="button" disabled>Save CSV</button>
         <button id="tsPng" type="button" disabled>Save plot (PNG)</button>
       </div>
+      <progress id="tsProg" max="1" value="0" hidden></progress>
       <div id="tsNote" class="note"></div>
     </div>
   </details>
@@ -1474,39 +1476,65 @@ async function pointError(it, key, coord) {
   }
   return NaN;
 }
-async function runPool(tasks, n) {
-  // Run async tasks with at most n in flight; results keep the task order.
+async function runPool(tasks, n, onDone = null) {
+  // Run async tasks with at most n in flight; results keep the task order. onDone(k, result, count) after each.
   const out = new Array(tasks.length);
-  let next = 0;
+  let next = 0, count = 0;
   await Promise.all(Array.from({ length: Math.min(n, tasks.length) }, async () => {
-    while (next < tasks.length) { const k = next++; out[k] = await tasks[k](); }
+    while (next < tasks.length) { const k = next++; out[k] = await tasks[k](); onDone?.(k, out[k], ++count); }
   }));
   return out;
 }
+const fmtSecs = s => s < 60 ? `${Math.ceil(s)} s` : `${Math.floor(s / 60)} min ${String(Math.round(s % 60)).padStart(2, '0')} s`;
 
 async function computeTs() {
   const series = tsSeries(), key = $('asset').value, token = ++tsToken;
   const withErr = $('tsErr').checked && tsHasErrors(key, series);
   tsKey = [key, series.map(s => s.id).join(';'), $('tsErr').checked, tsPoints.map(p => p.n).join(',')].join('|');
-  $('tsNote').textContent = `Reading ${tsPoints.length * series.length} values...`;
+  const total = tsPoints.length * series.length;
+  $('tsNote').textContent = `Reading ${total} values...`;
   $('tsCsv').disabled = true; $('tsPng').disabled = true;
+  $('tsProg').hidden = false; $('tsProg').value = 0;
+  const band0 = selected.assets[key]?.['raster:bands']?.[0] || {};
+  tsPlotInfo = { key, unit: band0.unit || '', withErr, n: series.length, times: series.map(it => (+it.start + +it.end) / 2) };
+  for (const p of tsPoints) p.values = [];
+  $('tsPlot').hidden = false; $('tsShow').hidden = true;
+  drawTsPlot();
   const t0 = performance.now();
-  try {
-    const tasks = tsPoints.flatMap(p => series.map(it => async () => ({
-      p, it, v: await pointValue(it, key, p.coord), e: withErr ? await pointError(it, key, p.coord) : NaN })));
-    const res = await runPool(tasks, 6);
+  // Progress and the plot update as values arrive (redrawn at most every 0.3 s); values already in
+  // the cache count as done at once, so the time estimate uses the uncached reads only.
+  const got = new Array(total);
+  let lastDraw = 0, fresh = 0, freshAt = 0;
+  const progress = (k, r, count) => {
     if (token !== tsToken) return;
+    got[k] = r;
+    if (r.fresh) { fresh++; freshAt = performance.now(); }
+    const now = performance.now();
+    if (count < total && now - lastDraw < 300) return;
+    lastDraw = now;
+    $('tsProg').value = count / total;
+    const left = fresh ? (freshAt - t0) / fresh * (total - count) / 1000 : NaN;
+    $('tsNote').textContent = `Reading values: ${count} of ${total} (${Math.round(100 * count / total)}%)`
+      + (count < total && Number.isFinite(left) ? `, about ${fmtSecs(left)} left` : '');
+    for (const p of tsPoints) p.values = got.filter(x => x && x.p === p).map(({ it, v, e }) => ({ it, v, e }));
+    drawTsPlot();
+  };
+  try {
+    const tasks = tsPoints.flatMap(p => series.map(it => async () => {
+      const fresh = !tsCache.has(`${p.coord[0]},${p.coord[1]}|${it.assets[key]?.href}`);
+      return { p, it, fresh, v: await pointValue(it, key, p.coord), e: withErr ? await pointError(it, key, p.coord) : NaN };
+    }));
+    const res = await runPool(tasks, 6, progress);
+    if (token !== tsToken) return;
+    $('tsProg').hidden = true;
     for (const p of tsPoints) p.values = res.filter(r => r.p === p).map(({ it, v, e }) => ({ it, v, e }));
-    const band0 = selected.assets[key]?.['raster:bands']?.[0] || {};
-    tsPlotInfo = { key, unit: band0.unit || '', withErr, n: series.length };
-    $('tsPlot').hidden = false; $('tsShow').hidden = true;
     drawTsPlot();
     const empty = tsPoints.filter(p => p.values.every(x => Number.isNaN(x.v))).map(p => p.n);
     $('tsNote').textContent = `${tsPoints.length} point${tsPoints.length > 1 ? 's' : ''} x ${series.length} dates in `
       + `${((performance.now() - t0) / 1000).toFixed(1)} s.` + (empty.length ? ` No data at point ${empty.join(', ')}.` : '');
     $('tsCsv').disabled = false; $('tsPng').disabled = false;
   } catch (e) {
-    if (token === tsToken) $('tsNote').textContent = `Could not read the values: ${e.message}`;
+    if (token === tsToken) { $('tsProg').hidden = true; $('tsNote').textContent = `Could not read the values: ${e.message}`; }
   }
 }
 
@@ -1529,12 +1557,12 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   const finite = pts.filter(q => Number.isFinite(q.v));
   ctx.font = '12px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = fg; ctx.textBaseline = 'middle';
   ctx.fillText(`${tsPlotInfo.key}${tsPlotInfo.unit ? ` (${tsPlotInfo.unit})` : ''}${tsPlotInfo.withErr ? ', error bars 1 sigma' : ''}`, L, 14);
-  if (!finite.length) { ctx.fillStyle = muted; ctx.fillText('No data at these points', L + 10, T + ph / 2); return; }
+  if (!finite.length) { ctx.fillStyle = muted; ctx.fillText($('tsProg').hidden ? 'No data at these points' : 'Reading values...', L + 10, T + ph / 2); return; }
   let y0 = Math.min(...finite.map(q => q.v - (Number.isFinite(q.e) ? q.e : 0)));
   let y1 = Math.max(...finite.map(q => q.v + (Number.isFinite(q.e) ? q.e : 0)));
   if (y0 === y1) { y0 -= 1; y1 += 1; }
   const yp = (y1 - y0) * 0.06; y0 -= yp; y1 += yp;
-  const ts = pts.map(q => q.t);
+  const ts = tsPlotInfo.times;  // the whole series, so the time axis stays put while values arrive
   let t0 = Math.min(...ts), t1 = Math.max(...ts);
   const tp = Math.max((t1 - t0) * 0.04, 86400e3 * 5); t0 -= tp; t1 += tp;
   const X = t => L + (t - t0) / (t1 - t0) * pw, Y = v => T + (1 - (v - y0) / (y1 - y0)) * ph;
@@ -1599,7 +1627,7 @@ function addTsPoint(coord) {
   refreshTs();
 }
 function clearTsPoints() {
-  ++tsToken; tsPoints = []; tsNext = 1; tsKey = ''; tsPlotInfo = null;
+  ++tsToken; tsPoints = []; tsNext = 1; tsKey = ''; tsPlotInfo = null; $('tsProg').hidden = true;
   tsSource.clear(); tsCache.clear();
   $('tsPlot').hidden = true; $('tsClear').hidden = true; $('tsShow').hidden = true;
   $('tsCsv').disabled = true; $('tsPng').disabled = true; $('tsNote').textContent = ''; $('tsCount').textContent = '';
