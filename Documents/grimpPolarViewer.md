@@ -17,6 +17,7 @@ This is the reference and maintainer guide. The illustrated tour for users is th
 | `tools/deployViewer.sh` | Stamps the build and uploads `index.html` to Kopah with s3cmd. |
 | `tools/makeBksParquet.py` | Catalog builder for the uncalibrated S1 backscatter mosaics. |
 | `tools/makeSingleCogParquet.py` | One-item catalog for a single COG (e.g. a display mosaic). |
+| `tools/makeVelocityParquet.py` | Catalog builder for velocity mosaics (e.g. NSIDC-0766 6/12-day), one item per window directory. |
 | `tools/guideScreenshots.mjs`, `tools/guideImages.py` | Regenerate the README images. |
 | `kopah/publicReadPolicy.json` | Bucket policy: anonymous read of `public/*` only. |
 | `kopah/cors.xml` | CORS rules so browsers on other sites can read the data. |
@@ -166,6 +167,10 @@ Needs `rio_stac` and `rustac` (`~/miniforge3/bin/pip install rustac`; `rio_stac`
 ```bash
 # One year of uncalibrated S1 backscatter mosaics (windows overlapping the year).
 python tools/makeBksParquet.py 2024 nsidc-0723.parquet
+
+# 6/12-day velocity (NSIDC-0766 v3): one item per window directory; list every window each time.
+python tools/makeVelocityParquet.py nsidc-0766.parquet \
+    /Volumes/insar9/ian/Sentinel1/Release/sixDayVelocities/Vel-2026-09-07.2026-09-18
 
 # A single COG, e.g. a display mosaic.
 python tools/makeSingleCogParquet.py <file.tif> https://s3.kopah.uw.edu/ianj-grimp/public/display \
