@@ -61,12 +61,14 @@ another footprint shows that product. The time-bar handles and ticks get larger 
 
 The vertical bar at the left edge of the map has one tick per acquisition date (newest at the top).
 
-- **Handles** (drag, or arrow keys) set the range of products. The list, footprints, animation
-  and anomaly mean all use that range.
+- **Handles** (drag, or arrow keys) set the range of products. The list, footprints, anomaly, stack,
+  animation and point plot all use that range.
 - **Ticks** pick the date in focus without changing the range. If a product at that date covers
   the same place as the current one (e.g. the same TSX site), it is chosen; otherwise the newest
   product at that date. A tick outside the range widens the range to include it.
 - **Reset** restores the full range.
+- The bar sits in a faint dashed box, which marks where it takes clicks: points cannot be placed
+  under it (pan the map to sample there).
 
 ### Color and values
 
@@ -77,13 +79,14 @@ The vertical bar at the left edge of the map has one tick per acquisition date (
   everything else clips both ends.
 - RGB(A) assets (three or more bands, e.g. `browse`) are drawn as stored; the stretch controls hide.
 - **Hover readout** (bottom right; tap on touch screens): map x/y in km, latitude/longitude, and the value under the
-  pointer read from the full-resolution COG (exact native value, with units). During an animation or
-  anomaly view it reports that layer's value instead.
+  pointer read from the full-resolution COG (exact native value, with units). During an animation,
+  anomaly or stack it reports that layer's value instead (for the stack, the mean and how many dates
+  went into it).
 
-### Anomaly view
+### Anomaly and stack
 
-**Anomaly and stack** (a collapsible section below the colors) appears when the displayed item has a time series
-(see below). It shows the displayed date minus the per-pixel mean of every date in the series,
+**Anomaly and stack** (a collapsible section below the colors) appears when the displayed item has a
+time series (see Catalog requirements). **Show as anomaly** shows the displayed date minus the per-pixel mean of every date in the series,
 in blue-white-red, with a range of ±L: automatic (1% clip over all dates) or typed. **Earlier /
 Later** step through the dates; ticks and list clicks also step while it is on. The series stack is
 kept in memory, so stepping takes under a second.
@@ -103,63 +106,75 @@ the 1600 m grid, the same as the mean of the nine 1600 m overview pixels.
 
 ### Time series at points
 
-**Time series at points** appears when the displayed item has a time series (not for RGB images).
-**Add points**, then click the map; each click adds a numbered, colored marker. Every point is read
-at full resolution from every date of the series (one-pixel reads, six at a time; the same values
-the hover readout gives) and plotted against the middle of each product's date range.
+**Time series at points** (a collapsible section) appears when the displayed item has a time series
+(not for RGB images). Each point is read at full resolution from every date of the series (one-pixel
+reads, six at a time; the same values the hover readout gives) and plotted against the middle of each
+product's date range, one color per point.
 
-- **Only dates in the time range** follows the time-bar handles; untick it for every date.
-- **Hide plot / Show plot** in the panel toggles the plot; its x also hides it.
-- **Plot x axis follows the time-bar range** (on by default) limits the x axis to the time bar's
-  handles; untick it to show every date plotted, including earlier collections' (below).
-- **Plot y max / y min** sliders set the y axis. They span the
-  GrIMP values and the 1st-99th percentile of the ITS_LIVE values shown, plus half that span each
-  way; **Auto** fits the GrIMP values again. A new asset or Clear points returns to Auto.
-- The plot marks the displayed date with a thin dashed line and rings each point's value there, so
-  clicking a time-bar tick moves the marker. Clicking a point on the plot shows that date's image
-  (as if its tick were clicked). The saved PNG leaves the marker out.
-- **Error bars** (1 sigma): `ex` for `vx`, `ey` for `vy`, and for speed
-  $`\sigma_v = \sqrt{(v_x e_x)^2 + (v_y e_y)^2}/v`$ from the four component files.
-- Changing the asset or the time range redraws the plot; values already read are cached.
-- While values are read, a progress bar under the buttons shows the count and an estimate of the
-  time left, and the plot fills in as values arrive (the time axis is fixed to the whole series).
-- **ITS_LIVE in grey** (for vv, vx, vy) adds the ITS_LIVE image-pair velocities at the same points
-  as a grey cloud behind the GrIMP series, for comparison; each point's cloud has its own grey level,
-  shown as a swatch under that point in the legend. The viewer fetches the ITS_LIVE
-  datacube catalog (`its-live-data/datacubes/catalog_v02.json`, 7.6 MB, once), picks the cube in
-  the map's projection that holds the point (so vx/vy are the same components), and reads the nearest
-  120 m pixel's full time series with zarrita 0.7.5 (about 2 s and 3 MB per point). **Pairs up to**
-  limits the image separation (default 12 days, to match the 6/12-day products; ITS_LIVE pairs at
-  Jakobshavn have a median separation of 125 days). The grey points are clipped to the axes set by
-  the GrIMP values and are not in the CSV. Checked against xarray at two Jakobshavn points: 2040
-  pairs of 12 days or less and 16297 in all, identical.
-- The time bar takes clicks across its shaded box, so points cannot be placed under it; pan the map
-  to sample there.
+**Adding points**
+
+- **Add points**, then click the map; each click adds a numbered marker. Collapsing the section, or
+  clicking **Done adding**, stops adding.
 - **Load points** reads a CSV or text file of positions, for extracting values at many sites:
   `lat`/`lon` columns (preferred), or `x`/`y` in the map's projection (`x_km`/`y_km`, `x_m`/`y_m`, or
   `x`/`y`, taken as metres when larger than 20000). The header is optional; without one, two numbers
   that fit lat/lon are read as lat, lon, otherwise as x, y. An optional `label`, `name`, `site` or
-  `id` column names the points. Up to 100 points per file; repeated positions are dropped, and the map
-  zooms out to show points outside the view. A saved CSV loads back (one point per position). Example:
+  `id` column names the points. Up to 100 points per file (but see Limits for the time this takes);
+  repeated positions are dropped, and the map zooms out to show points outside the view. A saved
+  CSV loads back (one point per position). Example:
 
   ```
   name,lat,lon
   Jakobshavn trunk,69.1317,-48.7640
   Upstream,69.20,-48.60
   ```
-- **Switching collections keeps the points** when the new collection is in the same projection (e.g.
-  annual to 6/12-day velocity): the new collection's values are read and drawn on top (filled circles,
-  solid lines), and the previous collection's series stay underneath as dashed lines with large hollow
-  markers (squares, then triangles, diamonds), with a legend line under the title. Only the asset
-  plotted when leaving a collection is kept, and it shows while the same asset is plotted. Switching
-  hemisphere clears the points.
+- **Clear points** removes them all.
+
+**The plot**
+
+- While values are read, a progress bar under the buttons shows the count and an estimate of the
+  time left, and the plot fills in as values arrive. Values already read are cached, so changing
+  the asset or the time range redraws quickly.
+- **Only dates in the time range** follows the time-bar handles; untick it for every date.
+- **Error bars** (1 sigma): `ex` for `vx`, `ey` for `vy`, and for speed
+  $`\sigma_v = \sqrt{(v_x e_x)^2 + (v_y e_y)^2}/v`$ from the four component files.
+- **Axes:** **Plot x axis follows the time-bar range** (on by default) limits the x axis to the time
+  bar's handles; untick it to show every date plotted. **Plot y max / y min** sliders set the y axis;
+  they span the GrIMP values and the 1st-99th percentile of the ITS_LIVE values shown, plus half that
+  span each way. **Auto** fits the GrIMP values again; a new asset or Clear points returns to Auto.
+  Everything outside the axes is clipped.
+- **Linked to the map:** a thin dashed line marks the displayed date and each point's value there is
+  ringed, so clicking a time-bar tick moves the marker. Clicking a point on the plot shows that
+  date's image, as if its tick were clicked.
+- **Hide plot / Show plot** in the panel toggles the plot; its x also hides it.
+
+**Comparing**
+
+- **ITS_LIVE in grey** (for vv, vx, vy) adds the ITS_LIVE image-pair velocities at the same points
+  as a grey cloud behind the GrIMP series; each point's cloud has its own grey level, shown as a
+  swatch under that point in the legend. The viewer fetches the ITS_LIVE datacube catalog
+  (`its-live-data/datacubes/catalog_v02.json`, 7.6 MB, once), picks the cube in the map's projection
+  that holds the point (so vx/vy are the same components), and reads the nearest 120 m pixel's full
+  time series with zarrita 0.7.5 (about 2 s and 3 MB per point). **Pairs up to** limits the image
+  separation (default 12 days, to match the 6/12-day products; ITS_LIVE pairs at Jakobshavn have a
+  median separation of 125 days). The grey points are not in the CSV. Checked against xarray at two
+  Jakobshavn points: 2040 pairs of 12 days or less and 16297 in all, identical.
+- **Other GrIMP collections:** switching to a collection in the same projection keeps the points
+  (e.g. annual to 6/12-day velocity). The new collection's values are read and drawn on top (filled
+  circles, solid lines); the previous collection's series stay underneath as dashed lines with large
+  hollow markers (squares, then triangles, diamonds), named in a legend line under the title. Only the
+  asset plotted when leaving a collection is kept, and it shows while the same asset is plotted.
+  Switching hemisphere clears the points.
+
+**Saving**
+
 - **Save CSV**: `point, label, x_km, y_km, lat, lon, item, start, end, asset, value, unit, error,
-  collection`, including the earlier collections' rows.
-  **Save plot**: a PNG at twice screen resolution.
+  collection`, one row per point and date, including earlier collections' rows.
+- **Save plot**: a PNG at twice screen resolution, without the displayed-date marker.
 
 Checked against GDAL at one point (2014-15 annual mosaic): speed 625.9329 m/yr and speed error
-0.467258 m/yr, identical to `gdallocationinfo`. Three points over the nine annual mosaics read in
-about 3.6 s; one point over 141 six-day windows (speed with error bars, 705 files) in about 17 s.
+0.467258 m/yr, identical to `gdallocationinfo`; the 6/12-day series matches GDAL at its first and
+last dates. Read times are under Limits.
 
 ### Animation
 
@@ -183,7 +198,8 @@ directly comparable; changing either asks for a reload.
 - **Download selection** covers picked items, or every item in the time range. Without a crop it
   saves a URL list (`<collection>_selection_urls.txt`) to fetch with `wget -i`, since selections can
   be hundreds of GB.
-- **Crop to a box** (mosaics only): draw a box, choose a resolution (levels over 64 Mpx are
+- **Crop to a box** (mosaics only): draw a box (amber; separate from the cyan area box of the anomaly,
+  stack and animation), choose a resolution (levels over 64 Mpx are
   disabled) and the buttons save cropped GeoTIFFs, cut in the browser. Single-band products are
   written as float32 in physical units (e.g. dB) with nodata kept; RGB as 8-bit RGB. Up to 100
   crops per selection download.
@@ -287,8 +303,8 @@ Everything runs in the browser; there is no server-side code.
 | MP4 packaging | mp4-muxer 5.2.2 with the browser's WebCodecs H.264 encoder |
 | Basemap | NASA GIBS WMS (`BlueMarble_ShadedRelief_Bathymetry`, `Coastlines`) |
 
-The displayed image is rendered on the GPU from the COG tiles (WebGL). Crops, animation frames and
-the anomaly view are computed on the CPU: each date is read at the chosen level, resampled
+The displayed image is rendered on the GPU from the COG tiles (WebGL). Crops, animation frames, the
+anomaly and the stack are computed on the CPU: each date is read at the chosen level, resampled
 (nearest neighbor) onto a common grid over the area, and colorized into a canvas that is shown as a
 static image layer. Limits: 2.5 Mpx per frame and 40 Mpx per series (about 160 MB of values),
 64 Mpx per crop.
@@ -297,10 +313,15 @@ static image layer. Limits: 2.5 Mpx per frame and 40 Mpx per series (about 160 M
 
 - **WebGL is required** for the main image. The anomaly and animation layers and all other
   controls work without it (they were tested in a browser without WebGL); the main image was not.
-- **Anomaly and animation are at overview resolution for whole mosaics.** Full resolution needs a
+- **Anomaly, stack and animation are at overview resolution for whole mosaics.** Full resolution needs a
   box that fits the limits, e.g. about 316 km across for the 200 m annual velocity (9 dates) and
   about 28 km for 25 m backscatter (31 dates). Full resolution at any zoom would need GPU band math
   across all dates per tile.
+- **Point reads scale with points x dates x files.** Each date is one file for a value, five with
+  speed error bars (vv, vx, vy, ex, ey), and each read fetches the tile around the pixel. Measured:
+  3 points over the 9 annual mosaics in about 4 s; 1 point over the 516 six-day windows (with error
+  bars, 2580 files) in about 1 minute; 2 points in about 3 minutes. A 100-point file on the 6/12-day
+  series would take well over an hour, so narrow the time range or untick Error bars first.
 - **On touch screens a tap reads the value,** so tapping cannot step through overlapping dates;
   use the time bar or the item list.
 - `mp4-muxer` is superseded by Mediabunny, and geotiff.js 3.1 is a beta pinned to match OpenLayers.

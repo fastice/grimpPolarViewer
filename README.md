@@ -68,10 +68,18 @@ in latitude and longitude:
 ### 4. Plot a time series at points
 
 Open **Time series at points**, click **Add points**, and click the spots on the map you want to
-follow. Each point is read at full resolution from every date and plotted against time, one color
-per point, with error bars for velocity. **Load points** reads a list of sites from a CSV file
-(lat/lon or x/y, with optional names). **Save CSV** writes the numbers (date, position, value,
-error) for a spreadsheet or script; **Save plot** writes the picture.
+follow, or **Load points** from a CSV file of sites (lat/lon or x/y, with optional names). Each
+point is read at full resolution from every date and plotted against time as the values arrive, one
+color per point, with error bars for velocity.
+
+- The plot and the timeline are linked: the date on the map is marked on the plot, and clicking a
+  point on the plot shows that date's image.
+- Sliders set the plot's y axis; its x axis follows the timeline's range.
+- Tick **ITS_LIVE in grey** to compare with the ITS_LIVE image-pair velocities at the same points.
+- Switch to another velocity collection and your points stay: its values are drawn on top, with the
+  previous collection's series underneath for comparison.
+- **Save CSV** writes the numbers (date, position, value, error, collection) for a spreadsheet or
+  script; **Save plot** writes the picture.
 
 ![Ice speed at three points near Jakobshavn Isbræ, 2014-2023](Documents/images/timeseries.jpg)
 
@@ -87,7 +95,8 @@ image, or a box you draw with **Draw box** in that section for full resolution.
 
 ### 6. Make an animation
 
-Open **Animate time series**, draw a box around the area you want (or animate the whole image),
+Open **Animate time series**, draw a box around the area you want (the same box as the anomaly and
+stack, or animate the whole image),
 and click **Load frames**. Then **Play**, change the speed, or drag the slider through the frames.
 Tick **Anomaly** to animate the change from the mean, and **Color bar** to label the frames.
 **Save movie** writes an MP4 that plays in QuickTime, Windows Media Player, PowerPoint and
@@ -112,8 +121,8 @@ Tick the files you want under **Assets** (for velocity: speed, components, error
 - **Download this image** saves the original files of the product on the map.
 - **Download selection** covers every product in the time range, or just the ones you have
   picked. For many large files it saves a list of links to fetch with `wget`.
-- **Crop to a box** cuts out just the area you draw, at the resolution you choose, as GeoTIFFs
-  ready for GIS software.
+- **Crop to a box** cuts out just the area you draw (its own box, separate from the one for the
+  anomaly and animation), at the resolution you choose, as GeoTIFFs ready for GIS software.
 
 <br clear="right">
 
@@ -142,8 +151,12 @@ Switch to **Southern** for Antarctic products, drawn with the South Pole at the 
 - **Hide controls** (top left of the map) gives the map the whole window.
 - **Phones and tablets:** the controls sit below the map; hide them for a full-screen map. Tap the
   map to read a value.
-- **Resolution of anomalies and animations:** whole ice sheets are shown at a coarser level; draw a
-  box to work at full resolution.
+- **Resolution of anomalies, stacks and animations:** whole ice sheets are shown at a coarser
+  level; draw a box to work at full resolution.
+- **Long point extractions take time:** each point reads one file per date (five with speed error
+  bars), so one point over the 516 six-day windows takes about a minute. Narrow the time range for
+  many points.
+- **Points can't be placed under the timeline** (its faint box takes the clicks); pan the map instead.
 
 ## Using your own data
 
