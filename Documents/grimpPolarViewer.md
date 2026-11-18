@@ -46,6 +46,16 @@ both viewers.
 Each catalog opens on its newest item. Items are listed below the panel; clicking a row or a
 footprint shows it. Clicking repeatedly where footprints overlap steps back through the dates.
 
+**Hide controls** (top left of the map) removes the panel so the map fills the window; **Controls**
+brings it back.
+
+### Phones and tablets
+
+On screens narrower than 760 px the map sits on top with the panel in a scrolling strip below it;
+**Hide controls** gives the map the whole screen. Touch screens have no hover, so a tap shows the
+readout (top right on phones). A tap inside the product on the map only reads its value; a tap on
+another footprint shows that product. The time-bar handles and ticks get larger touch targets.
+
 ### Time bar
 
 The vertical bar at the left edge of the map has one tick per acquisition date (newest at the top).
@@ -65,7 +75,7 @@ The vertical bar at the left edge of the map has one tick per acquisition date (
   are symmetric about 0 (±L, the larger tail at the clip %) and switch to the blue-white-red map;
   everything else clips both ends.
 - RGB(A) assets (three or more bands, e.g. `browse`) are drawn as stored; the stretch controls hide.
-- **Hover readout** (bottom right): map x/y in km, latitude/longitude, and the value under the
+- **Hover readout** (bottom right; tap on touch screens): map x/y in km, latitude/longitude, and the value under the
   pointer read from the full-resolution COG (exact native value, with units). During an animation or
   anomaly view it reports that layer's value instead.
 
@@ -227,7 +237,8 @@ static image layer. Limits: 2.5 Mpx per frame and 40 Mpx per series (about 160 M
   box that fits the limits, e.g. about 316 km across for the 200 m annual velocity (9 dates) and
   about 28 km for 25 m backscatter (31 dates). Full resolution at any zoom would need GPU band math
   across all dates per tile.
-- **The hover readout needs a mouse;** touch screens have no hover.
+- **On touch screens a tap reads the value,** so tapping cannot step through overlapping dates;
+  use the time bar or the item list.
 - `mp4-muxer` is superseded by Mediabunny, and geotiff.js 3.1 is a beta pinned to match OpenLayers.
   Both work as pinned; revisit when upgrading OpenLayers.
 - Catalogs written by `tools/` differ slightly from Scott's: no `type` column, and `proj:*` fields at

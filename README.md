@@ -133,7 +133,9 @@ Switch to **Southern** for Antarctic products, drawn with the South Pole at the 
 - **Maintenance:** the data are stored on UW's Kopah storage, which is offline for maintenance on
   the second Tuesday of each month, 9 a.m.-5 p.m. Pacific (24 hours in January, April, July and
   October). The viewer will not load during those windows.
-- **Pointer readout** needs a mouse; touch screens have no hover.
+- **Hide controls** (top left of the map) gives the map the whole window.
+- **Phones and tablets:** the controls sit below the map; hide them for a full-screen map. Tap the
+  map to read a value.
 - **Resolution of anomalies and animations:** whole ice sheets are shown at a coarser level; draw a
   box to work at full resolution.
 

@@ -99,11 +99,15 @@ button.link { background: none; border: 0; color: var(--accent); padding: 0; fon
 #items li.sel.picked { box-shadow: inset 3px 0 0 var(--sel), inset 6px 0 0 var(--pick); }
 #legend .name { font-family: var(--font-mono); font-size: 11px; word-break: break-all; }
 .toggles { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; }
-.ol-zoom { top: 12px; left: 12px; }
+.ol-zoom { top: 52px; left: 12px; }
+/* Hide/show the control panel; with it hidden the map fills the window (most useful on phones). */
+#panelToggle { position: absolute; top: 12px; left: 12px; z-index: 2; font-size: 13px; padding: 4px 10px;
+               background: var(--tb-label-bg); color: var(--tb-text); border-color: transparent; }
+body.nopanel #panel { display: none; }
 /* Vertical time range on the left edge of the map (next to the panel): newest at the top, one tick per
    acquisition window. Fixed amber-on-dark colors in both themes so it reads over Blue Marble's blues and whites. */
 :root { --tb-hi: #ffb000; --tb-strip: rgba(12, 16, 20, 0.62); --tb-label-bg: rgba(12, 16, 20, 0.86); --tb-text: #ffffff; }
-#timebar { position: absolute; left: 14px; top: 92px; bottom: 44px; width: 150px; display: flex; flex-direction: column;
+#timebar { position: absolute; left: 14px; top: 124px; bottom: 44px; width: 150px; display: flex; flex-direction: column;
            align-items: flex-start; gap: 14px; pointer-events: none; }
 #ttrack { position: relative; flex: 1; width: 100%; pointer-events: auto; touch-action: none; }
 #ttrack::before { content: ""; position: absolute; left: 1px; top: -6px; bottom: -6px; width: 13px; border-radius: 7px; background: var(--tb-strip); }
@@ -121,10 +125,18 @@ button.link { background: none; border: 0; color: var(--accent); padding: 0; fon
               font: 600 11px var(--font-mono); font-variant-numeric: tabular-nums; background: var(--tb-label-bg); color: var(--tb-text);
               border-radius: 3px; padding: 2px 6px; }
 #treset { pointer-events: auto; font-size: 12px; padding: 3px 10px; background: var(--tb-label-bg); color: var(--tb-text); border-color: transparent; }
+/* Phones: map on top, controls in a scrolling strip below it that Hide controls removes. */
 @media (max-width: 760px) {
   body { flex-direction: column; }
-  #mapwrap { flex: none; height: 60vh; order: -1; }
-  #panel { width: 100%; border-right: 0; border-top: 1px solid var(--line); }
+  #mapwrap { flex: 1; min-height: 0; order: -1; }
+  #panel { width: 100%; flex: none; max-height: 45vh; border-right: 0; border-top: 1px solid var(--line); }
+  .readout { top: 12px; bottom: auto; white-space: normal; max-width: calc(100% - 150px); }
+  .tsplot { left: 8px; right: 8px; width: auto; height: 210px; bottom: 28px; }
+}
+/* Touch screens: bigger targets on the time bar. */
+@media (pointer: coarse) {
+  .tick { height: 20px; margin-top: -10px; }
+  .thumb { left: -3.5px; width: 22px; height: 22px; margin-top: -11px; }
 }
 </style>
 </head>
@@ -270,6 +282,7 @@ button.link { background: none; border: 0; color: var(--accent); padding: 0; fon
 </aside>
 <div id="mapwrap">
   <div id="map"></div>
+  <button id="panelToggle" type="button" aria-controls="panel" aria-expanded="true">&lsaquo; Hide controls</button>
   <div id="readout" class="readout" hidden></div>
   <div id="tsPlot" class="tsplot" hidden>
     <button id="tsHide" type="button" class="link tsclose" title="Hide the plot (Show plot brings it back)">&times;</button>
@@ -582,10 +595,16 @@ function pickAsset(it) {
   return $('asset').value;
 }
 
+const phoneLayout = matchMedia('(max-width: 760px)');
 function select(it, zoom = false) {
   selected = it;
   for (const li of $('items').children) li.classList.remove('sel');
-  it.li?.classList.add('sel'); it.li?.scrollIntoView({ block: 'nearest' });
+  it.li?.classList.add('sel');
+  // On phones the whole panel scrolls, so scroll only the list there; otherwise the panel would open part way down.
+  if (it.li && phoneLayout.matches) {
+    const ul = $('items'), top = it.li.offsetTop - ul.offsetTop;
+    if (top < ul.scrollTop || top + it.li.offsetHeight > ul.scrollTop + ul.clientHeight) ul.scrollTop = top;
+  } else it.li?.scrollIntoView({ block: 'nearest' });
   footLayer.changed();
   if (dates.length) drawTimebar();
   if (zoom) map.getView().fit(it.feature.getGeometry().getExtent(), { padding: [40, 40, 40, 40], duration: 250 });
@@ -1680,6 +1699,7 @@ const tips = {
   th0: 'Start of the time range: drag, or use the arrow keys',
   th1: 'End of the time range: drag, or use the arrow keys',
   treset: 'Show the full time range',
+  panelToggle: 'Hide or show the control panel, giving the map the whole window',
 };
 for (const [id, text] of Object.entries(tips)) {
   const el = $(id);
@@ -1711,10 +1731,20 @@ $('smin').onchange = $('smax').onchange = () => setStretch(+$('smin').value, +$(
 $('cmap').replaceChildren(...Object.keys(cmaps).map(k => new Option(k, k)));
 $('cmap').onchange = e => { if (e.target.value !== 'blue-white-red') lastSeqCmap = e.target.value; setColormap(e.target.value); };
 $('clip').oninput = applyClip;
+function setPanel(show) {
+  document.body.classList.toggle('nopanel', !show);
+  $('panelToggle').innerHTML = show ? '&lsaquo; Hide controls' : '&#9776; Controls';
+  $('panelToggle').setAttribute('aria-expanded', show);
+  map.updateSize();
+}
+$('panelToggle').onclick = () => setPanel(document.body.classList.contains('nopanel'));
 
 map.on('singleclick', e => {
   if (draw) return;
   if (tsMode) { addTsPoint(e.coordinate); return; }
+  // Touch screens have no hover, so a tap shows the readout.
+  const touch = e.originalEvent.pointerType === 'touch';
+  if (touch) updateReadout(e);
   // Test against the footprint geometry rather than rendered pixels, since footprints are outline-only.
   const hits = footLayer.getVisible() ? footSource.getFeaturesAtCoordinate(e.coordinate) : [];
   if (!hits.length) return;
@@ -1728,6 +1758,8 @@ map.on('singleclick', e => {
     return;
   }
   const cur = hits.findIndex(f => f.get('item') === selected);
+  // A tap inside the shown product only reads its value; a tap on another footprint shows that product.
+  if (touch) { if (cur < 0) select(hits[0].get('item')); return; }
   select(hits[(cur + 1) % hits.length].get('item'));
 });
 // Hover readout: map x/y (km) and lat/lon at once; the pixel value after a short pause, read from
