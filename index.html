@@ -193,15 +193,16 @@ body.nopanel #panel { display: none; }
     </div>
     <div id="saBlock" class="block-inner" hidden>
       <label class="optrow"><input id="saOn" type="checkbox"> Show as anomaly: minus the mean of <span id="saCount"></span></label>
+      <label class="optrow"><input id="stOn" type="checkbox"> Show stack: mean of <span id="stCount"></span></label>
       <div id="saOpts" class="block-inner" hidden>
         <div class="ctl"><label for="saRes">Resolution</label><select id="saRes"></select></div>
-        <div class="row">
+        <div class="row" id="saRangeRow">
           <label for="saRange" class="note" style="flex:none">Range &plusmn;</label>
           <input id="saRange" type="number" min="0" step="any" placeholder="auto" style="width:7em">
           <span id="saUnit" class="note"></span>
           <button id="saAuto" type="button" class="link">Auto</button>
         </div>
-        <div class="row">
+        <div class="row" id="saStepRow">
           <button id="saPrev" type="button">&#9664; Earlier</button>
           <button id="saNext" type="button">Later &#9654;</button>
           <span id="saPos" class="note"></span>
@@ -677,12 +678,14 @@ function setStretch(dlo, dhi) {
   rawLo = toRaw(dlo); rawHi = toRaw(dhi);
   if (!rgbMode) rasterLayer.updateStyleVariables({ lo: rawLo, hi: rawHi });
   if (changed && frames.length) resetAnimation('The color range changed; load the frames again to use it.');
+  if (changed && saShown?.stack) drawStack();
 }
 
 function setColormap(name) {
   if (frames.length) resetAnimation('The color map changed; load the frames again to use it.');
   rasterLayer.setStyle(rasterStyle(cmaps[name], rawLo, rawHi));
   $('bar').style.background = `linear-gradient(90deg, ${cmaps[name].join(', ')})`;
+  if (saShown?.stack) drawStack();
 }
 
 // Percentile stretch: sort the valid pixels of a small overview (about 1000-1500 px across) once per image.
@@ -1322,7 +1325,7 @@ function refreshStaticAnom() {
   const series = timeSeries(), ok = !!selected && series.length >= 2 && !rgbMode;
   $('saBlock').hidden = !ok;
   if (!ok) { if (saShown) clearStaticAnom(); return; }
-  $('saCount').textContent = `${series.length} dates`;
+  $('saCount').textContent = $('stCount').textContent = `${series.length} dates`;
   const pos = series.indexOf(selected);
   $('saPrev').disabled = pos <= 0; $('saNext').disabled = pos < 0 || pos >= series.length - 1;
   $('saPos').textContent = pos >= 0 ? `${pos + 1} of ${series.length}: ${fmtDate(selected.start)}` : '';
@@ -1338,20 +1341,23 @@ function refreshStaticAnom() {
   const ok2 = [...sel.options].filter(o => !o.disabled), extKey = ext.map(Math.round).join(',') + '|' + series.length;
   sel.value = extKey === saExtKey && ok2.some(o => o.value === prev) ? prev : (ok2[0]?.value ?? '');
   saExtKey = extKey; sel.disabled = !ok2.length;
-  if ($('saOn').checked && !saBusy) showStaticAnom();
+  if (saActive() && !saBusy) showStaticAnom();
 }
+// The anomaly and the stack mean share one cached stack of the dates in the time range.
+const saActive = () => $('saOn').checked || $('stOn').checked;
 
 function saKeys() {
   const key = $('asset').value, series = timeSeries(), ext = animExtent(), lvl = levels?.[+$('saRes').value];
   if (!lvl || !selected) return null;
   const base = [key, ext.map(Math.round).join(','), lvl.res.toFixed(3), series.map(s => s.id).join(';')].join('|');
-  return { key, series, ext, res: lvl.res, base, full: base + '|' + selected.id };
+  return { key, series, ext, res: lvl.res, base, full: base + '|' + ($('stOn').checked ? 'stack' : selected.id) };
 }
 
 async function showStaticAnom() {
   const k = saKeys();
   if (!k || saShown?.full === k.full) return;
-  if (!k.series.includes(selected)) { clearStaticAnom('The displayed date is outside the time range.'); return; }
+  const stack = $('stOn').checked;
+  if (!stack && !k.series.includes(selected)) { clearStaticAnom('The displayed date is outside the time range.'); return; }
   const token = ++saToken;
   saBusy = true;
   try {
@@ -1369,10 +1375,10 @@ async function showStaticAnom() {
       for (let j = 0; j < n; j++) mean[j] = cnt[j] ? sum[j] / cnt[j] : NaN;
       const step = Math.max(1, Math.floor(n * values.size / 1e6)), picks = [];
       for (const v of values.values()) for (let j = 0; j < n; j += step) { const d = v[j] - mean[j]; if (!Number.isNaN(d)) picks.push(d); }
-      saCache = { base: k.base, W, H, ext: k.ext, res: k.res, key: k.key, values, mean, sorted: Float32Array.from(picks).sort(),
-                  scale: band.scale ?? 1, unit: band.unit || '' };
+      saCache = { base: k.base, W, H, ext: k.ext, res: k.res, key: k.key, values, mean, cnt, sorted: Float32Array.from(picks).sort(),
+                  scale: band.scale ?? 1, offset: band.offset ?? 0, unit: band.unit || '' };
     }
-    if (token === saToken) drawStaticAnom(k.full);
+    if (token === saToken) (stack ? drawStack(k.full) : drawStaticAnom(k.full));
   } catch (e) {
     if (token === saToken) $('saNote').textContent = `Could not compute the anomaly: ${e.message}`;
   } finally {
@@ -1397,6 +1403,7 @@ function drawStaticAnom(full = saShown?.full) {
   staticLayer.setSource(new ol.source.ImageStatic({ url: canvas.toDataURL('image/png'), imageExtent: c.ext, projection: viewCode }));
   saShown = { full, d, L };
   applyLayers();
+  $('saRangeRow').hidden = $('saStepRow').hidden = false;
   const Ld = +(L * c.scale).toPrecision(3);
   if (!saTyped) $('saRange').value = Ld;
   $('stretchCtl').hidden = true;  // the normal color controls do not apply to the anomaly
@@ -1407,17 +1414,33 @@ function drawStaticAnom(full = saShown?.full) {
     + `${+c.res.toPrecision(4)} m; ±${Ld} ${c.unit} ${saTyped ? '(typed)' : '(auto, 1% clip)'}. Blue below the mean, red above.`;
 }
 
+function drawStack(full = saShown?.full) {
+  // The per-pixel mean of the dates in the time range, colored with the normal stretch and color map.
+  const c = saCache;
+  if (!c || c.key !== $('asset').value) return;
+  const canvas = frameCanvas({ values: c.mean }, c.W, c.H, buildLut(cmaps[$('cmap').value] || cmaps.gray), rawLo, rawHi, '');
+  staticLayer.setSource(new ol.source.ImageStatic({ url: canvas.toDataURL('image/png'), imageExtent: c.ext, projection: viewCode }));
+  saShown = { full, d: c.mean, stack: true };
+  applyLayers();
+  $('stretchCtl').hidden = false; $('saLegend').hidden = true;
+  $('saRangeRow').hidden = $('saStepRow').hidden = true;
+  const dates = [...c.values.keys()];
+  $('saNote').textContent = `Mean of ${dates.length} dates, ${fmtDate(dates[0].start)} to ${fmtDate(dates[dates.length - 1].end)} `
+    + `(each pixel averages the dates with data there); ${c.W} x ${c.H} px at ${+c.res.toPrecision(4)} m. Colors follow the controls above.`;
+}
+
 function clearStaticAnom(note = '') {
   ++saToken; saBusy = false; saShown = null;
   staticLayer.setSource(null); applyLayers();
   $('stretchCtl').hidden = rgbMode; $('saLegend').hidden = true; $('saNote').textContent = note;
 }
 
-$('saOn').onchange = e => {
-  $('saOpts').hidden = !e.target.checked;
-  if (e.target.checked) refreshStaticAnom(); else clearStaticAnom();
+$('saOn').onchange = $('stOn').onchange = e => {
+  if (e.target.checked) (e.target.id === 'saOn' ? $('stOn') : $('saOn')).checked = false;
+  $('saOpts').hidden = !saActive();
+  if (saActive()) { saShown = null; refreshStaticAnom(); } else clearStaticAnom();
 };
-$('saRes').onchange = () => { if ($('saOn').checked) showStaticAnom(); };
+$('saRes').onchange = () => { if (saActive()) showStaticAnom(); };
 $('saRange').onchange = () => { saTyped = +$('saRange').value > 0; if (saShown) drawStaticAnom(); };
 function saStep(dir) {
   const series = timeSeries(), i = series.indexOf(selected), j = i + dir;
@@ -1781,6 +1804,7 @@ const tips = {
   smin: 'Lowest value of the color range (type to override the clip)',
   smax: 'Highest value of the color range (type to override the clip)',
   saOn: 'Show the displayed date minus the per-pixel mean of all dates in its time series',
+  stOn: 'Show the per-pixel mean (stack) of all dates in the time range, with the normal color controls',
   saRes: 'Grid spacing for the anomaly; draw a crop box to get finer levels',
   saRange: 'Color range of the anomaly, ± this value; blank or Auto uses a 1% clip',
   saAuto: 'Go back to the automatic range (1% clip over all dates)',
@@ -1892,7 +1916,11 @@ function readoutCoords(coord) {
 async function readoutValue(coord) {
   if (!frames.length && saShown && saCache) {
     const c = saCache, fx = Math.floor((coord[0] - c.ext[0]) / c.res), fy = Math.floor((c.ext[3] - coord[1]) / c.res);
-    if (fx < 0 || fy < 0 || fx >= c.W || fy >= c.H) return 'outside anomaly area';
+    if (fx < 0 || fy < 0 || fx >= c.W || fy >= c.H) return saShown.stack ? 'outside stack area' : 'outside anomaly area';
+    if (saShown.stack) {
+      const j = fy * c.W + fx, m = c.mean[j];
+      return Number.isNaN(m) ? 'no data' : `<b>${esc(c.key)} mean</b> ${fmtVal(m * c.scale + c.offset)} ${esc(c.unit)} (${c.cnt[j]} of ${c.values.size} dates)`;
+    }
     const d = saShown.d[fy * c.W + fx];
     return Number.isNaN(d) ? 'no data' : `<b>${esc(c.key)} minus mean</b> ${fmtVal(d * c.scale)} ${esc(c.unit)} (${fmtDate(selected.start)})`;
   }

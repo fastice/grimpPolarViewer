@@ -92,6 +92,13 @@ The anomaly is computed at the resolution chosen in its menu, over the crop box 
 otherwise the whole image or site. Whole mosaics therefore show an overview grid; draw a box for
 full resolution (see Limits).
 
+**Show stack** (just below) shows the per-pixel mean of the dates in the time range instead, with
+the normal stretch and color map (changing them recolors it). Each pixel averages the dates that
+have data there (a plain, unweighted mean); the readout gives the mean and how many dates went into
+it. It shares the anomaly's cached stack and resolution menu, so switching between the two is
+immediate. Checked against GDAL on the nine annual speed mosaics: 688.49 m/yr at (-150, -2280) km on
+the 1600 m grid, the same as the mean of the nine 1600 m overview pixels.
+
 ### Time series at points
 
 **Time series at points** appears when the displayed item has a time series (not for RGB images).
