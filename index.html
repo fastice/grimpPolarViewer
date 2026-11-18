@@ -376,7 +376,7 @@ function setStatus(msg, err = false) { $('status').textContent = msg; $('status'
 
 function toItem(r) {
   const epsg = num(r['proj:epsg']);
-  const assets = Object.fromEntries(Object.entries(r.assets || {}).filter(([, a]) => a && a.href));
+  const assets = Object.fromEntries(Object.entries(r.assets || {}).filter(([, a]) => a && /^https?:\/\//i.test(a.href || '')));
   const start = r.start_datetime || r.datetime, end = r.end_datetime || r.datetime;
   const native = r['proj:geometry'];
   return { id: r.id, epsg, assets, start, end, geom: native?.type ? native : null, geom4326: r.geometry, raw: r };
@@ -1420,6 +1420,7 @@ map.on('singleclick', e => {
 // Hover readout: map x/y (km) and lat/lon at once; the pixel value after a short pause, read from
 // the full-resolution COG (or, while an animation is shown, from the current frame).
 let readoutTimer = null, readoutToken = 0;
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const fmtVal = v => Math.abs(v) >= 1e4 || (v !== 0 && Math.abs(v) < 1e-3) ? v.toExponential(3) : String(+v.toPrecision(5));
 function readoutCoords(coord) {
   const [lon, lat] = ol.proj.toLonLat(coord, viewCode);
@@ -1431,7 +1432,7 @@ async function readoutValue(coord) {
     const c = saCache, fx = Math.floor((coord[0] - c.ext[0]) / c.res), fy = Math.floor((c.ext[3] - coord[1]) / c.res);
     if (fx < 0 || fy < 0 || fx >= c.W || fy >= c.H) return 'outside anomaly area';
     const d = saShown.d[fy * c.W + fx];
-    return Number.isNaN(d) ? 'no data' : `<b>${c.key} minus mean</b> ${fmtVal(d * c.scale)} ${c.unit} (${fmtDate(selected.start)})`;
+    return Number.isNaN(d) ? 'no data' : `<b>${esc(c.key)} minus mean</b> ${fmtVal(d * c.scale)} ${esc(c.unit)} (${fmtDate(selected.start)})`;
   }
   if (frames.length && animGrid && frames[animIdx]?.values) {
     const g = animGrid, fx = Math.floor((coord[0] - g.ext[0]) / g.res), fy = Math.floor((g.ext[3] - coord[1]) / g.res);
@@ -1439,7 +1440,7 @@ async function readoutValue(coord) {
     const v = frames[animIdx].values[fy * g.W + fx];
     if (Number.isNaN(v)) return 'no data';
     const shown = g.anomaly ? v * g.scale : v * g.scale + g.offset;
-    return `<b>${g.key}${g.anomaly ? ' minus mean' : ''}</b> ${fmtVal(shown)} ${g.unit} (${fmtDate(frames[animIdx].it.start)})`;
+    return `<b>${esc(g.key)}${g.anomaly ? ' minus mean' : ''}</b> ${fmtVal(shown)} ${esc(g.unit)} (${fmtDate(frames[animIdx].it.start)})`;
   }
   if (!selected || !$('asset').value) return '';
   const key = $('asset').value, a = selected.assets[key], b = a['raster:bands']?.[0] || {};
@@ -1448,10 +1449,10 @@ async function readoutValue(coord) {
   const col = Math.floor((coord[0] - org[0]) / r), row = Math.floor((org[1] - coord[1]) / r);
   if (col < 0 || row < 0 || col >= img.getWidth() || row >= img.getHeight()) return 'outside image';
   const vals = await img.readRasters({ window: [col, row, col + 1, row + 1], interleave: true });
-  if (vals.length >= 3) return `<b>${key}</b> R ${vals[0]} G ${vals[1]} B ${vals[2]}`;
+  if (vals.length >= 3) return `<b>${esc(key)}</b> R ${vals[0]} G ${vals[1]} B ${vals[2]}`;
   const v = vals[0];
-  if (v === b.nodata || !Number.isFinite(v)) return `<b>${key}</b> no data`;
-  return `<b>${key}</b> ${fmtVal(v * (b.scale ?? 1) + (b.offset ?? 0))} ${b.unit || ''}`;
+  if (v === b.nodata || !Number.isFinite(v)) return `<b>${esc(key)}</b> no data`;
+  return `<b>${esc(key)}</b> ${fmtVal(v * (b.scale ?? 1) + (b.offset ?? 0))} ${esc(b.unit || '')}`;
 }
 function updateReadout(e) {
   const ro = $('readout'), coords = readoutCoords(e.coordinate);
@@ -1461,7 +1462,7 @@ function updateReadout(e) {
   const token = ++readoutToken;
   readoutTimer = setTimeout(async () => {
     let val;
-    try { val = await readoutValue(e.coordinate); } catch (err) { val = `value unavailable (${err.message})`; }
+    try { val = await readoutValue(e.coordinate); } catch (err) { val = `value unavailable (${esc(err.message)})`; }
     if (token === readoutToken) ro.innerHTML = val ? `${coords}<br>${val}` : coords;
   }, 150);
 }
