@@ -1774,6 +1774,7 @@ function setTsMode(on) {
 }
 
 $('tsAdd').onclick = () => setTsMode(!tsMode);
+$('tsSec').addEventListener('toggle', () => { if (!$('tsSec').open && tsMode) setTsMode(false); });  // collapsing ends point picking
 $('tsClear').onclick = () => { setTsMode(false); clearTsPoints(); refreshTs(); };
 $('tsRange').onchange = () => refreshTs();
 $('tsErr').onchange = () => refreshTs();
