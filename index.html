@@ -110,6 +110,10 @@ body.nopanel #panel { display: none; }
 :root { --tb-hi: #ffb000; --tb-strip: rgba(12, 16, 20, 0.62); --tb-label-bg: rgba(12, 16, 20, 0.86); --tb-text: #ffffff; }
 #timebar { position: absolute; left: 14px; top: 124px; bottom: 44px; width: 150px; display: flex; flex-direction: column;
            align-items: flex-start; gap: 14px; pointer-events: none; }
+/* Faint box over the time bar's footprint: the bar takes clicks there, so points cannot be placed under it. */
+#timebar::before { content: ""; position: absolute; inset: -12px -8px -8px -8px; border-radius: 8px; z-index: -1;
+                   background: rgba(12, 16, 20, 0.22); border: 1px dashed rgba(255, 255, 255, 0.35); }
+#timebar { isolation: isolate; }
 #ttrack { position: relative; flex: 1; width: 100%; pointer-events: auto; touch-action: none; }
 #ttrack::before { content: ""; position: absolute; left: 1px; top: -6px; bottom: -6px; width: 13px; border-radius: 7px; background: var(--tb-strip); }
 #trange { position: absolute; left: 5px; width: 5px; border-radius: 3px; background: var(--tb-hi); }
@@ -254,6 +258,10 @@ body.nopanel #panel { display: none; }
       </div>
       <label class="optrow"><input id="tsRange" type="checkbox" checked> Only dates in the time range</label>
       <label class="optrow" id="tsErrRow"><input id="tsErr" type="checkbox" checked> Error bars (from ex/ey)</label>
+      <div class="optrow" id="tsItsRow"><label class="optrow"><input id="tsIts" type="checkbox"> ITS_LIVE in grey,</label>
+        <label class="optrow">pairs up to <select id="tsItsDt"><option value="100000">any</option><option value="120">120 d</option>
+        <option value="30">30 d</option><option value="12" selected>12 d</option></select></label></div>
+      <div id="tsItsNote" class="note"></div>
       <div class="row">
         <button id="tsCsv" type="button" disabled>Save CSV</button>
         <button id="tsPng" type="button" disabled>Save plot (PNG)</button>
@@ -1444,9 +1452,11 @@ function refreshTs() {
   if (!ok) { $('tsPlot').hidden = true; return; }
   $('tsCount').textContent = tsPoints.length ? `(${tsPoints.length} point${tsPoints.length > 1 ? 's' : ''})` : '';
   $('tsErrRow').hidden = !tsHasErrors($('asset').value, series);
+  $('tsItsRow').hidden = !($('asset').value in itsVars);
   if (!tsPoints.length) return;
   const key = [$('asset').value, series.map(s => s.id).join(';'), $('tsErr').checked, tsPoints.map(p => p.n).join(',')].join('|');
   if (key !== tsKey) computeTs();
+  refreshIts();
 }
 
 async function pointValue(it, key, coord) {
@@ -1486,6 +1496,61 @@ async function runPool(tasks, n, onDone = null) {
   return out;
 }
 const fmtSecs = s => s < 60 ? `${Math.ceil(s)} s` : `${Math.floor(s / 60)} min ${String(Math.round(s % 60)).padStart(2, '0')} s`;
+
+// ITS_LIVE image-pair velocities at the same points (public its-live-data datacubes, CORS open),
+// drawn as a light grey cloud behind the GrIMP series for comparison. A cube is chosen in the map's
+// projection, so vx/vy are the same components; the cube catalog (7.6 MB) is fetched once.
+const itsCatalogUrl = 'https://its-live-data.s3.amazonaws.com/datacubes/catalog_v02.json';
+const itsVars = { vv: 'v', vx: 'vx', vy: 'vy' };
+let itsCatalog = null;
+const itsCache = new Map();  // `${x},${y}|${var}` -> promise of [{ t, v, dt }] or null (no cube)
+async function itsCubeUrl(coord) {
+  itsCatalog ??= fetch(itsCatalogUrl).then(r => { if (!r.ok) throw new Error(`ITS_LIVE catalog: HTTP ${r.status}`); return r.json(); })
+    .then(c => c.features.map(f => f.properties).filter(q => q.datacube_exist))
+    .catch(e => { itsCatalog = null; throw e; });
+  const epsg = +viewCode.split(':')[1];
+  for (const q of await itsCatalog) {
+    if (q.epsg !== epsg) continue;
+    const ring = q.geometry_epsg.coordinates[0], xs = ring.map(c => c[0]), ys = ring.map(c => c[1]);
+    if (coord[0] >= Math.min(...xs) && coord[0] < Math.max(...xs) && coord[1] >= Math.min(...ys) && coord[1] < Math.max(...ys)) return q.zarr_url;
+  }
+  return null;
+}
+function itsSeries(coord, key) {
+  const ck = `${coord[0]},${coord[1]}|${itsVars[key]}`;
+  if (!itsCache.has(ck)) itsCache.set(ck, (async () => {
+    const url = await itsCubeUrl(coord);
+    if (!url) return null;
+    const zarr = await import('https://cdn.jsdelivr.net/npm/zarrita@0.7.5/+esm');
+    const root = zarr.root(new zarr.FetchStore(url));
+    const read = async (n, sel) => (await zarr.get(await zarr.open.v2(root.resolve(n), { kind: 'array', attrs: false }), sel)).data;
+    const [x, y] = await Promise.all([read('x'), read('y')]);
+    const ix = Math.round((coord[0] - x[0]) / (x[1] - x[0])), iy = Math.round((coord[1] - y[0]) / (y[1] - y[0]));
+    if (ix < 0 || iy < 0 || ix >= x.length || iy >= y.length) return null;
+    const [v, md, dt] = await Promise.all([read(itsVars[key], [null, iy, ix]), read('mid_date'), read('date_dt')]);
+    const out = [];
+    for (let i = 0; i < v.length; i++) if (v[i] !== -32767 && Number.isFinite(md[i])) out.push({ t: md[i] * 86400e3, v: v[i], dt: dt[i] });
+    return out;
+  })().catch(e => { itsCache.delete(ck); throw e; }));
+  return itsCache.get(ck);
+}
+function refreshIts() {
+  const key = $('asset').value, on = $('tsIts').checked && key in itsVars;
+  $('tsItsRow').hidden = !(key in itsVars);
+  if (!on || !tsPoints.length) { $('tsItsNote').textContent = ''; if (tsPlotInfo) drawTsPlot(); return; }
+  $('tsItsNote').textContent = 'ITS_LIVE: reading...';
+  Promise.allSettled(tsPoints.map(async p => {
+    p.its = await itsSeries(p.coord, key); p.itsKey = key;
+    if (tsPlotInfo) drawTsPlot();
+  })).then(rs => {
+    if (!$('tsIts').checked || $('asset').value !== key) return;
+    const failed = rs.find(r => r.status === 'rejected'), maxDt = +$('tsItsDt').value;
+    const n = tsPoints.reduce((a, p) => a + (p.itsKey === key && p.its ? p.its.filter(q => q.dt <= maxDt).length : 0), 0);
+    const none = tsPoints.filter(p => !p.its).map(p => p.n);
+    $('tsItsNote').textContent = failed ? `ITS_LIVE: could not read (${failed.reason.message})`
+      : `ITS_LIVE: ${n} image pairs` + (none.length ? `; no cube at point ${none.join(', ')}` : '') + '.';
+  });
+}
 
 async function computeTs() {
   const series = tsSeries(), key = $('asset').value, token = ++tsToken;
@@ -1556,7 +1621,8 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   const pts = tsPoints.flatMap(p => p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v, e: x.e })));
   const finite = pts.filter(q => Number.isFinite(q.v));
   ctx.font = '12px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = fg; ctx.textBaseline = 'middle';
-  ctx.fillText(`${tsPlotInfo.key}${tsPlotInfo.unit ? ` (${tsPlotInfo.unit})` : ''}${tsPlotInfo.withErr ? ', error bars 1 sigma' : ''}`, L, 14);
+  ctx.fillText(`${tsPlotInfo.key}${tsPlotInfo.unit ? ` (${tsPlotInfo.unit})` : ''}${tsPlotInfo.withErr ? ', error bars 1 sigma' : ''}`
+    + ($('tsIts').checked && tsPlotInfo.key in itsVars ? `; grey: ITS_LIVE pairs${+$('tsItsDt').value < 1e5 ? ` up to ${$('tsItsDt').value} d` : ''}` : ''), L, 14);
   if (!finite.length) { ctx.fillStyle = muted; ctx.fillText($('tsProg').hidden ? 'No data at these points' : 'Reading values...', L + 10, T + ph / 2); return; }
   let y0 = Math.min(...finite.map(q => q.v - (Number.isFinite(q.e) ? q.e : 0)));
   let y1 = Math.max(...finite.map(q => q.v + (Number.isFinite(q.e) ? q.e : 0)));
@@ -1592,6 +1658,17 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
     }
   }
   ctx.strokeStyle = muted; ctx.strokeRect(L, T, pw, ph);
+  // ITS_LIVE image pairs (light grey, clipped to the axes set by the GrIMP values)
+  if ($('tsIts').checked && tsPlotInfo.key in itsVars) {
+    const maxDt = +$('tsItsDt').value;
+    ctx.save(); ctx.beginPath(); ctx.rect(L, T, pw, ph); ctx.clip();
+    ctx.fillStyle = 'rgba(150, 150, 150, 0.45)';
+    for (const p of tsPoints) {
+      if (p.itsKey !== tsPlotInfo.key || !p.its) continue;
+      for (const q of p.its) if (q.dt <= maxDt) ctx.fillRect(X(q.t) - 1.25, Y(q.v) - 1.25, 2.5, 2.5);
+    }
+    ctx.restore();
+  }
   // series: line, error bars, markers
   for (const p of tsPoints) {
     const q = p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v, e: x.e })).filter(x => Number.isFinite(x.v));
@@ -1627,7 +1704,7 @@ function addTsPoint(coord) {
   refreshTs();
 }
 function clearTsPoints() {
-  ++tsToken; tsPoints = []; tsNext = 1; tsKey = ''; tsPlotInfo = null; $('tsProg').hidden = true;
+  ++tsToken; tsPoints = []; tsNext = 1; tsKey = ''; tsPlotInfo = null; $('tsProg').hidden = true; $('tsItsNote').textContent = '';
   tsSource.clear(); tsCache.clear();
   $('tsPlot').hidden = true; $('tsClear').hidden = true; $('tsShow').hidden = true;
   $('tsCsv').disabled = true; $('tsPng').disabled = true; $('tsNote').textContent = ''; $('tsCount').textContent = '';
@@ -1643,6 +1720,8 @@ $('tsAdd').onclick = () => setTsMode(!tsMode);
 $('tsClear').onclick = () => { setTsMode(false); clearTsPoints(); refreshTs(); };
 $('tsRange').onchange = () => refreshTs();
 $('tsErr').onchange = () => refreshTs();
+$('tsIts').onchange = () => refreshIts();
+$('tsItsDt').onchange = () => refreshIts();
 $('tsHide').onclick = () => { $('tsPlot').hidden = true; $('tsShow').hidden = !tsPoints.length; };
 $('tsShow').onclick = () => { $('tsPlot').hidden = false; $('tsShow').hidden = true; drawTsPlot(); };
 window.addEventListener('resize', () => { if (!$('tsPlot').hidden) drawTsPlot(); });
@@ -1728,6 +1807,8 @@ const tips = {
   th0: 'Start of the time range: drag, or use the arrow keys',
   th1: 'End of the time range: drag, or use the arrow keys',
   treset: 'Show the full time range',
+  tsIts: 'Also plot ITS_LIVE image-pair velocities (its-live.jpl.nasa.gov datacubes) at the same points, in grey',
+  tsItsDt: 'Only ITS_LIVE pairs whose images are at most this many days apart',
   panelToggle: 'Hide or show the control panel, giving the map the whole window',
 };
 for (const [id, text] of Object.entries(tips)) {

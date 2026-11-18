@@ -105,6 +105,17 @@ the hover readout gives) and plotted against the middle of each product's date r
 - Changing the asset or the time range redraws the plot; values already read are cached.
 - While values are read, a progress bar under the buttons shows the count and an estimate of the
   time left, and the plot fills in as values arrive (the time axis is fixed to the whole series).
+- **ITS_LIVE in grey** (for vv, vx, vy) adds the ITS_LIVE image-pair velocities at the same points
+  as a light grey cloud behind the GrIMP series, for comparison. The viewer fetches the ITS_LIVE
+  datacube catalog (`its-live-data/datacubes/catalog_v02.json`, 7.6 MB, once), picks the cube in
+  the map's projection that holds the point (so vx/vy are the same components), and reads the nearest
+  120 m pixel's full time series with zarrita 0.7.5 (about 2 s and 3 MB per point). **Pairs up to**
+  limits the image separation (default 12 days, to match the 6/12-day products; ITS_LIVE pairs at
+  Jakobshavn have a median separation of 125 days). The grey points are clipped to the axes set by
+  the GrIMP values and are not in the CSV. Checked against xarray at two Jakobshavn points: 2040
+  pairs of 12 days or less and 16297 in all, identical.
+- The time bar takes clicks across its shaded box, so points cannot be placed under it; pan the map
+  to sample there.
 - **Save CSV**: `point, x_km, y_km, lat, lon, item, start, end, asset, value, unit, error`.
   **Save plot**: a PNG at twice screen resolution.
 
@@ -225,6 +236,7 @@ Everything runs in the browser; there is no server-side code.
 |---|---|
 | Map, projections, COG tiles (WebGL) | OpenLayers 10.11.0 (`ol.js` full build) |
 | COG reading for clip, crops, frames, readout | geotiff.js 3.1.0-beta.0 (the version OpenLayers 10.11 requires) |
+| ITS_LIVE datacube reads (point plot, on demand) | zarrita 0.7.5 |
 | Projection definitions | proj4 2.22.0 |
 | Catalog reading | hyparquet 1.32.0 + hyparquet-compressors 1.1.2 (ZSTD for Scott's catalogs) |
 | MP4 packaging | mp4-muxer 5.2.2 with the browser's WebCodecs H.264 encoder |
