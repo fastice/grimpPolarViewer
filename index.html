@@ -1445,6 +1445,9 @@ for (const [id, text] of Object.entries(tips)) {
 $('animSec').querySelector('summary').title = 'Play the dates of the displayed item as an animation, or save them as a movie';
 $('ttrack').title = 'Ticks are acquisition dates: click one to show it; the handles set the range';
 
+// The map is exposed for scripted use (screenshots for the guide, debugging in the console).
+window.grimpViewer = { map };
+
 setHemi('N');
 showMaintenance();
 setInterval(showMaintenance, 10 * 60 * 1000);

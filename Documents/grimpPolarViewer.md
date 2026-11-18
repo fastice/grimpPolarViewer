@@ -6,6 +6,22 @@ stac-geoparquet catalog, drawn in polar stereographic. Written 2026-11-18.
 - Live: <https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html>
 - Source: this repository (`index.html` is the whole app).
 
+This is the reference and maintainer guide. The illustrated tour for users is the
+[README](../README.md).
+
+## Repository layout
+
+| Path | What it is |
+|---|---|
+| `index.html` | The whole viewer (HTML, CSS and JavaScript in one file). |
+| `tools/deployViewer.sh` | Stamps the build and uploads `index.html` to Kopah with s3cmd. |
+| `tools/makeBksParquet.py` | Catalog builder for the uncalibrated S1 backscatter mosaics. |
+| `tools/makeSingleCogParquet.py` | One-item catalog for a single COG (e.g. a display mosaic). |
+| `tools/guideScreenshots.mjs`, `tools/guideImages.py` | Regenerate the README images. |
+| `kopah/publicReadPolicy.json` | Bucket policy: anonymous read of `public/*` only. |
+| `kopah/cors.xml` | CORS rules so browsers on other sites can read the data. |
+| `Documents/images/` | Screenshots and the animation used by the README. |
+
 ## Why a separate viewer
 
 [stac-map](https://github.com/developmentseed/stac-map) (and Scott Henderson's GrIMP deployment
@@ -212,6 +228,23 @@ python -m http.server 8000
 
 Then open `http://localhost:8000/index.html?href=<catalog URL>`. Deploy with
 `tools/deployViewer.sh` once it works, and check the build stamp under the title.
+
+**Adding a collection to the menu:** append `[title, catalog URL, 'N' or 'S']` to the `presets`
+array near the top of the script, then deploy.
+
+**Scripting hook:** the page sets `window.grimpViewer = { map }` (the OpenLayers map), for the
+screenshot script and for debugging in the browser console.
+
+**Updating the README images** after interface changes:
+
+```bash
+npm install --no-save puppeteer-core
+node tools/guideScreenshots.mjs /tmp/guideShots
+python tools/guideImages.py /tmp/guideShots Documents/images
+```
+
+The script drives the live viewer in headless Google Chrome with software WebGL (about two minutes),
+so deploy first. It frames Jakobshavn Isbræ for the readout, animation and TSX examples.
 
 A link from stac-map to this viewer only needs the same catalog URL:
 `https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=<current catalog>`.
