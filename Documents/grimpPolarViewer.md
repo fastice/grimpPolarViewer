@@ -110,6 +110,9 @@ the hover readout gives) and plotted against the middle of each product's date r
 
 - **Only dates in the time range** follows the time-bar handles; untick it for every date.
 - **Hide plot / Show plot** in the panel toggles the plot; its x also hides it.
+- The plot marks the displayed date with a thin dashed line and rings each point's value there, so
+  clicking a time-bar tick moves the marker. Clicking a point on the plot shows that date's image
+  (as if its tick were clicked). The saved PNG leaves the marker out.
 - **Error bars** (1 sigma): `ex` for `vx`, `ey` for `vy`, and for speed
   $`\sigma_v = \sqrt{(v_x e_x)^2 + (v_y e_y)^2}/v`$ from the four component files.
 - Changing the asset or the time range redraws the plot; values already read are cached.

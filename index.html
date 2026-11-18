@@ -87,7 +87,7 @@ details.block[open] > .block-inner { margin-top: 8px; }
 .readout b { color: var(--tb-hi); font-weight: 600; }
 .tsplot { position: absolute; left: 190px; bottom: 30px; width: min(600px, calc(100% - 220px)); height: 270px;
           background: var(--panel); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
-.tsplot canvas { width: 100%; height: 100%; display: block; }
+.tsplot canvas { width: 100%; height: 100%; display: block; cursor: pointer; }
 progress { width: 100%; height: 8px; accent-color: var(--accent); }
 .tsclose { position: absolute; right: 8px; top: 2px; font-size: 20px; text-decoration: none; }
 .pickblock { display: grid; gap: 4px; padding: 8px 10px; border: 1px solid var(--pick); border-radius: 4px; background: var(--bg); font-size: 13px; }
@@ -632,6 +632,7 @@ function select(it, zoom = false) {
   if (zoom) map.getView().fit(it.feature.getGeometry().getExtent(), { padding: [40, 40, 40, 40], duration: 250 });
   showAsset(pickAsset(it));
   fillCropAssets(it);
+  if (tsPlotInfo && !$('tsPlot').hidden) drawTsPlot();  // move the plot's date marker
 }
 
 let band = {};
@@ -1725,6 +1726,13 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
     }
     ctx.restore();
   }
+  // The displayed date: a thin dashed line (on screen only; the saved PNG leaves it out).
+  const onScreen = canvas === $('tsCanvas'), tSel = selected ? (+selected.start + +selected.end) / 2 : NaN;
+  if (onScreen && tSel >= t0 && tSel <= t1) {
+    ctx.save(); ctx.strokeStyle = fg; ctx.lineWidth = 1; ctx.setLineDash([4, 3]); ctx.globalAlpha = 0.7;
+    ctx.beginPath(); ctx.moveTo(X(tSel), T); ctx.lineTo(X(tSel), T + ph); ctx.stroke(); ctx.restore();
+  }
+  if (onScreen) tsPlotInfo.geom = { X, Y };  // for picking a date by clicking the plot
   // series: line, error bars, markers
   for (const p of tsPoints) {
     const q = p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v, e: x.e })).filter(x => Number.isFinite(x.v));
@@ -1738,6 +1746,13 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
         ctx.moveTo(X(x.t) - 3, Y(x.v + x.e)); ctx.lineTo(X(x.t) + 3, Y(x.v + x.e)); ctx.stroke();
       }
       ctx.beginPath(); ctx.arc(X(x.t), Y(x.v), 3.2, 0, 2 * Math.PI); ctx.fill();
+    }
+  }
+  if (onScreen) {
+    ctx.strokeStyle = fg; ctx.lineWidth = 2;
+    for (const p of tsPoints) {
+      const x = p.values.find(q => q.it === selected);
+      if (x && Number.isFinite(x.v)) { ctx.beginPath(); ctx.arc(X(tSel), Y(x.v), 6.5, 0, 2 * Math.PI); ctx.stroke(); }
     }
   }
   // legend: point numbers in their colors
@@ -1789,6 +1804,19 @@ function setTsPlot(show) {
 $('tsHide').onclick = () => setTsPlot(false);
 $('tsShow').onclick = () => setTsPlot($('tsPlot').hidden);
 window.addEventListener('resize', () => { if (!$('tsPlot').hidden) drawTsPlot(); });
+$('tsCanvas').onclick = e => {
+  // Show the image of the GrIMP point nearest the click (any point's series), as if its time-bar tick were clicked.
+  const g = tsPlotInfo?.geom;
+  if (!g) return;
+  const r = $('tsCanvas').getBoundingClientRect(), cx = e.clientX - r.left, cy = e.clientY - r.top;
+  let best = null, bd = Infinity;
+  for (const p of tsPoints) for (const x of p.values) {
+    if (!Number.isFinite(x.v)) continue;
+    const d = Math.hypot(g.X((+x.it.start + +x.it.end) / 2) - cx, g.Y(x.v) - cy);
+    if (d < bd) { bd = d; best = x.it; }
+  }
+  if (best && best !== selected) select(best);
+};
 $('tsCsv').onclick = () => {
   const info = tsPlotInfo, rows = [['point', 'x_km', 'y_km', 'lat', 'lon', 'item', 'start', 'end', 'asset', 'value', 'unit', 'error']];
   for (const p of tsPoints) {
