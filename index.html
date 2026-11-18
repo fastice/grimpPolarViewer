@@ -1,0 +1,1480 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GrIMP Polar Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@10.11.0/ol.css">
+<style>
+/* Layout: fixed catalog panel on the left, polar map filling the rest; stacks map-over-panel on phones. */
+:root {
+  --bg: #f3f5f7; --panel: #ffffff; --fg: #18222c; --muted: #5b6977; --line: #d7dee5;
+  --accent: #1f6f9f; --accent-soft: #dcebf4; --sel: #e8a33d; --pick: #b0306a;
+  --font-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0e1419; --panel: #151d24; --fg: #e3eaf0; --muted: #94a3b1; --line: #2a3640;
+          --accent: #6cb4de; --accent-soft: #1d3342; --sel: #f0b860; --pick: #e46aa3; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }  /* class display rules (flex/grid) must not override the hidden attribute */
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--fg); font: 14px/1.45 var(--font-body); display: flex; }
+#panel { width: 360px; flex: none; display: flex; flex-direction: column; background: var(--panel); overflow-y: auto;
+         border-right: 1px solid var(--line); min-height: 0; }
+#panel header { padding: 16px 16px 12px; border-bottom: 1px solid var(--line); display: grid; gap: 10px; }
+h1 { font-size: 17px; margin: 0; text-wrap: balance; }
+h1 small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 2px; }
+label.lab { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); display: block; margin-bottom: 4px; }
+select, input[type=text], input[type=number], button {
+  font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; }
+select, input[type=text] { width: 100%; }
+button { cursor: pointer; background: var(--accent); color: var(--panel); border-color: var(--accent); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.row { display: flex; gap: 6px; align-items: center; }
+.row > input[type=text] { flex: 1; min-width: 0; }
+#status { font-size: 12px; color: var(--muted); min-height: 1.4em; }
+#status.err { color: #c0392b; }
+section.block { padding: 12px 16px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr); }
+.dates { font-family: var(--font-mono); font-size: 12px; display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+#items { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; min-height: 72px; }
+#items li { padding: 7px 16px; border-bottom: 1px solid var(--line); cursor: pointer; display: grid; gap: 1px; }
+#items li:hover { background: var(--accent-soft); }
+#items li.sel { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--sel); }
+#items .id { font-family: var(--font-mono); font-size: 11.5px; word-break: break-all; }
+#items .when { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+#count { font-size: 12px; color: var(--muted); }
+#mapwrap { flex: 1; position: relative; min-width: 0; }
+#map { position: absolute; inset: 0; background: var(--bg); }
+#legend { font-size: 12px; }
+.block-inner { display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr); }
+.seg { display: flex; }
+.seg button { flex: 1; background: var(--bg); color: var(--fg); border-color: var(--line); border-radius: 0; }
+.seg button:first-child { border-radius: 4px 0 0 4px; }
+.seg button:last-child { border-radius: 0 4px 4px 0; border-left: 0; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--panel); border-color: var(--accent); }
+#legend[hidden] { display: none; }
+#bar { height: 10px; border-radius: 2px; background: linear-gradient(90deg, #000, #fff); border: 1px solid var(--line); }
+#legend .ends { display: flex; justify-content: space-between; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+#legend .stretch { display: flex; gap: 8px; }
+#legend .stretch label { flex: 1; display: flex; align-items: center; gap: 4px; color: var(--muted); min-width: 0; }
+#legend .stretch input { flex: 1; width: 0; min-width: 0; font-family: var(--font-mono); font-size: 12px; }
+.ctl { display: grid; gap: 2px; color: var(--muted); font-size: 12px; }
+.ctl select { width: 100%; }
+.note { color: var(--muted); font-size: 11px; min-height: 1em; }
+button:disabled { opacity: .45; cursor: default; }
+#boxInfo { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.checks { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--fg); font-size: 13px; }
+.checks label { display: flex; align-items: center; gap: 4px; }
+.optrow { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.allbox { display: flex; align-items: center; gap: 4px; font-weight: 700; }
+.maint { margin: 0; font-size: 11px; line-height: 1.4; color: var(--muted); }
+.maint.now { font-size: 12px; font-weight: 700; color: var(--fg); background: var(--accent-soft);
+             border-left: 3px solid var(--sel); padding: 6px 8px; border-radius: 3px; }
+details.block { padding: 10px 16px; border-bottom: 1px solid var(--line); }
+details.block > summary { cursor: pointer; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+details.block > summary #animCount { text-transform: none; letter-spacing: 0; }
+details.block[open] > .block-inner { margin-top: 8px; }
+.readout { position: absolute; right: 12px; bottom: 30px; pointer-events: none; white-space: nowrap;
+           font: 12px/1.5 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--tb-text);
+           background: var(--tb-label-bg); border-radius: 4px; padding: 4px 8px; }
+.readout b { color: var(--tb-hi); font-weight: 600; }
+.pickblock { display: grid; gap: 4px; padding: 8px 10px; border: 1px solid var(--pick); border-radius: 4px; background: var(--bg); font-size: 13px; }
+#items li input, .countrow .allbox input { margin-left: 0; }
+.countrow { padding: 8px 16px 4px; justify-content: space-between; }
+button.link { background: none; border: 0; color: var(--accent); padding: 0; font-size: 12px; text-decoration: underline; }
+#items li { grid-template-columns: auto 1fr; column-gap: 8px; align-items: start; }
+#items li input { margin-top: 2px; grid-row: span 2; }
+#items li.picked { box-shadow: inset 3px 0 0 var(--pick); }
+#items li.sel.picked { box-shadow: inset 3px 0 0 var(--sel), inset 6px 0 0 var(--pick); }
+#legend .name { font-family: var(--font-mono); font-size: 11px; word-break: break-all; }
+.toggles { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; }
+.ol-zoom { top: 12px; left: 12px; }
+/* Vertical time range on the left edge of the map (next to the panel): newest at the top, one tick per
+   acquisition window. Fixed amber-on-dark colors in both themes so it reads over Blue Marble's blues and whites. */
+:root { --tb-hi: #ffb000; --tb-strip: rgba(12, 16, 20, 0.62); --tb-label-bg: rgba(12, 16, 20, 0.86); --tb-text: #ffffff; }
+#timebar { position: absolute; left: 14px; top: 92px; bottom: 44px; width: 150px; display: flex; flex-direction: column;
+           align-items: flex-start; gap: 14px; pointer-events: none; }
+#ttrack { position: relative; flex: 1; width: 100%; pointer-events: auto; touch-action: none; }
+#ttrack::before { content: ""; position: absolute; left: 1px; top: -6px; bottom: -6px; width: 13px; border-radius: 7px; background: var(--tb-strip); }
+#trange { position: absolute; left: 5px; width: 5px; border-radius: 3px; background: var(--tb-hi); }
+.tick { position: absolute; left: 18px; width: 11px; height: 9px; margin-top: -4.5px; cursor: pointer;
+        background: linear-gradient(var(--tb-text), var(--tb-text)) center / 100% 2px no-repeat; opacity: .6;
+        filter: drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000); }
+.tick.on { opacity: 1; background-image: linear-gradient(var(--tb-hi), var(--tb-hi)); }
+.tick.cur { width: 18px; background-image: linear-gradient(var(--tb-text), var(--tb-text)); background-size: 100% 3px; opacity: 1; }
+.tick:hover { width: 18px; opacity: 1; }
+.thumb { position: absolute; left: 0; width: 15px; height: 15px; margin-top: -7.5px; border-radius: 50%; cursor: grab;
+         background: var(--tb-hi); border: 2px solid #111; box-shadow: 0 0 0 1px rgba(255,255,255,.7); }
+.thumb:focus-visible { outline: 2px solid var(--tb-text); outline-offset: 2px; }
+.thumb span { position: absolute; left: 36px; top: 50%; transform: translateY(-50%); white-space: nowrap; pointer-events: none;
+              font: 600 11px var(--font-mono); font-variant-numeric: tabular-nums; background: var(--tb-label-bg); color: var(--tb-text);
+              border-radius: 3px; padding: 2px 6px; }
+#treset { pointer-events: auto; font-size: 12px; padding: 3px 10px; background: var(--tb-label-bg); color: var(--tb-text); border-color: transparent; }
+@media (max-width: 760px) {
+  body { flex-direction: column; }
+  #mapwrap { flex: none; height: 60vh; order: -1; }
+  #panel { width: 100%; border-right: 0; border-top: 1px solid var(--line); }
+}
+</style>
+</head>
+<body>
+<aside id="panel">
+  <header>
+    <h1 id="title">GrIMP Polar Map<small>stac-geoparquet catalogs in polar stereographic · build dev</small></h1>
+    <div class="seg" role="group" aria-label="Hemisphere">
+      <button id="hemN" type="button" aria-pressed="true">Northern</button>
+      <button id="hemS" type="button" aria-pressed="false">Southern</button>
+    </div>
+    <div>
+      <label class="lab" for="preset">Collections</label>
+      <select id="preset"></select>
+    </div>
+    <div>
+      <label class="lab" for="href">Catalog URL (.parquet)</label>
+      <div class="row"><input id="href" type="text" spellcheck="false"><button id="load" type="button">Load</button></div>
+    </div>
+    <div id="status" role="status"></div>
+    <div id="maintNow" class="maint now" role="alert" hidden></div>
+    <p class="maint">Data are served from UW Kopah storage, which is offline for scheduled maintenance on the
+      second Tuesday of each month, 9 a.m.&ndash;5 p.m. Pacific. In January, April, July and October the window
+      runs 24 hours, to 9 a.m. the next day.</p>
+  </header>
+  <section class="block">
+    <div class="row"><label class="lab" for="asset" style="margin:0;flex:none">Asset</label><select id="asset"></select></div>
+    <div class="row"><label class="lab" for="opacity" style="margin:0;flex:none">Opacity</label><input id="opacity" type="range" min="0" max="1" step="0.05" value="1"></div>
+    <div class="toggles">
+      <label><input id="baseOn" type="checkbox" checked> Blue Marble</label>
+      <label><input id="coastOn" type="checkbox" checked> Coastlines</label>
+      <label><input id="footOn" type="checkbox" checked> Footprints</label>
+    </div>
+  </section>
+  <section id="legend" class="block" hidden>
+    <div class="name" id="lname"></div>
+    <div id="rgbNote" class="note" hidden>RGB image, shown as stored.</div>
+    <div id="stretchCtl" class="block-inner">
+    <div id="bar"></div>
+    <div class="ends"><span id="lmin"></span><span id="lunit"></span><span id="lmax"></span></div>
+    <div class="ctl"><label for="cmap">Color map</label><select id="cmap"></select></div>
+    <div class="ctl"><label for="clip">Clip <span id="clipv">1%</span> <span id="clipwhere">each end</span></label>
+      <input id="clip" type="range" min="0" max="10" step="0.1" value="1"></div>
+    <div class="stretch">
+      <label>Min <input id="smin" type="number" step="any"></label>
+      <label>Max <input id="smax" type="number" step="any"></label>
+    </div>
+    <div id="clipnote" class="note"></div>
+    </div>
+    <div id="saBlock" class="block-inner" hidden>
+      <label class="optrow"><input id="saOn" type="checkbox"> Show as anomaly: minus the mean of <span id="saCount"></span></label>
+      <div id="saOpts" class="block-inner" hidden>
+        <div class="ctl"><label for="saRes">Resolution</label><select id="saRes"></select></div>
+        <div class="row">
+          <label for="saRange" class="note" style="flex:none">Range &plusmn;</label>
+          <input id="saRange" type="number" min="0" step="any" placeholder="auto" style="width:7em">
+          <span id="saUnit" class="note"></span>
+          <button id="saAuto" type="button" class="link">Auto</button>
+        </div>
+        <div class="row">
+          <button id="saPrev" type="button">&#9664; Earlier</button>
+          <button id="saNext" type="button">Later &#9654;</button>
+          <span id="saPos" class="note"></span>
+        </div>
+        <div id="saLegend" hidden>
+          <div id="saBar" style="height:10px;border-radius:2px;border:1px solid var(--line)"></div>
+          <div class="ends"><span id="saMin"></span><span>0</span><span id="saMax"></span></div>
+        </div>
+        <div id="saNote" class="note"></div>
+      </div>
+    </div>
+  </section>
+  <details id="animSec" class="block" hidden>
+    <summary>Animate time series <span id="animCount"></span></summary>
+    <div class="block-inner">
+      <div id="animInfo" class="note"></div>
+      <div class="row" id="animAreaRow">
+        <span class="note" style="flex:none">Area:</span><b id="animArea" class="note" style="flex:1"></b>
+        <button id="animDrawBox" type="button">Draw box</button>
+        <button id="animWhole" type="button" class="link" hidden>Whole image</button>
+      </div>
+      <div class="ctl"><label for="animRes">Frame resolution</label><select id="animRes"></select></div>
+      <label class="optrow" id="animAnomRow"><input id="animAnom" type="checkbox"> Anomaly: difference from the mean of the frames</label>
+      <div class="row" id="animRangeRow" hidden>
+        <label for="animRange" class="note" style="flex:none">Anomaly range &plusmn;</label>
+        <input id="animRange" type="number" min="0" step="any" placeholder="auto" style="width:7em">
+        <span id="animRangeUnit" class="note"></span>
+        <button id="animRangeAuto" type="button" class="link">Auto</button>
+      </div>
+      <label class="optrow" id="animBarRow"><input id="animBar" type="checkbox"> Color bar on the frames</label>
+      <div class="row">
+        <label for="animFps" class="note" style="flex:none">Speed</label>
+        <select id="animFps"><option value="1">1 frame/s</option><option value="2" selected>2 frames/s</option>
+          <option value="4">4 frames/s</option><option value="8">8 frames/s</option></select>
+        <label class="optrow"><input id="animLoop" type="checkbox" checked> Loop</label>
+      </div>
+      <div class="row">
+        <button id="animBuild" type="button">Load frames</button>
+        <button id="animPlay" type="button" disabled>Play</button>
+        <button id="animClose" type="button" class="link" hidden>Close animation</button>
+      </div>
+      <input id="animPos" type="range" min="0" max="0" value="0" aria-label="Animation frame" hidden>
+      <button id="animExport" type="button" disabled>Save movie (MP4, opens in QuickTime)</button>
+      <div id="animNote" class="note"></div>
+    </div>
+  </details>
+  <section id="cropSec" class="block" hidden>
+    <label class="lab" id="dlTitle">Download</label>
+    <div id="pickBlock" class="pickblock" hidden>
+      <label class="allbox"><input id="pickAllSites" type="checkbox"> Select all sites in the time range</label>
+      <div class="note">Or tick sites in the list below, or Shift-click a box on the map. <b id="pickCount"></b></div>
+    </div>
+    <div class="ctl"><span>Assets (one file each)</span>
+      <div class="checks"><label class="allbox"><input id="assetsAll" type="checkbox"> All</label><span id="cropAssets" class="checks"></span></div></div>
+    <label class="optrow" id="cropRow"><input id="cropOn" type="checkbox"> Crop to a box</label>
+    <div id="cropOpts" class="block-inner" hidden>
+      <div class="row"><button id="drawBox" type="button">Draw box</button><button id="clearBox" type="button" class="link" hidden>Clear</button><span id="boxInfo" class="note"></span></div>
+      <div class="ctl"><label for="cropRes">Resolution</label><select id="cropRes" disabled></select></div>
+    </div>
+    <button id="dlImage" type="button">Download this image</button>
+    <button id="dlSel" type="button">Download selection</button>
+    <div id="cropNote" class="note"></div>
+  </section>
+  <div class="row countrow"><label class="allbox"><input id="pickAll" type="checkbox" aria-label="Pick every item in the time range"> <span id="count"></span></label><button id="clearPicks" type="button" class="link" hidden>Clear picks</button></div>
+  <ul id="items"></ul>
+</aside>
+<div id="mapwrap">
+  <div id="map"></div>
+  <div id="readout" class="readout" hidden></div>
+  <div id="timebar" hidden>
+    <div id="ttrack">
+      <div id="trange"></div>
+      <div id="tticks"></div>
+      <div class="thumb" id="th0" role="slider" tabindex="0" aria-label="Start of time range"><span></span></div>
+      <div class="thumb" id="th1" role="slider" tabindex="0" aria-label="End of time range"><span></span></div>
+    </div>
+    <button id="treset" type="button">Reset</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/proj4@2.22.0/dist/proj4.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/geotiff@3.1.0-beta.0/dist-browser/geotiff.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ol@10.11.0/dist/ol.js"></script>
+<script type="module">
+import { parquetReadObjects } from 'https://cdn.jsdelivr.net/npm/hyparquet@1.32.0/+esm';
+import { compressors } from 'https://cdn.jsdelivr.net/npm/hyparquet-compressors@1.1.2/+esm';
+
+// [title, catalog URL, hemisphere]; the Collections menu lists only the selected hemisphere.
+const presets = [
+  ['Greenland S1 backscatter 2024 (uncalibrated)', 'https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0723/v04/nsidc-0723.parquet', 'N'],
+  ['NSIDC-0723 S1 backscatter mosaics (gaia)', 'https://s3.kopah.uw.edu/gaia/public/grimp/nsidc-0723/v04/nsidc-0723.parquet', 'N'],
+  ['NSIDC-0725 annual velocity mosaics (gaia)', 'https://s3.kopah.uw.edu/gaia/public/grimp/nsidc-0725/v05/nsidc-0725.parquet', 'N'],
+  ['NSIDC-0481 TSX/TDX glacier site velocity (gaia)', 'https://s3.kopah.uw.edu/gaia/public/grimp/nsidc-0481/v04/nsidc-0481.parquet', 'N'],
+  ['Antarctica NISAR gamma0 25 m (Aug-Sep 2026)', 'https://s3.kopah.uw.edu/ianj-grimp/public/display/nisar-gcov-ant-25m.parquet', 'S'],
+];
+let hemi = 'N';
+
+function setHemi(h) {
+  hemi = h;
+  $('hemN').setAttribute('aria-pressed', String(h === 'N'));
+  $('hemS').setAttribute('aria-pressed', String(h === 'S'));
+  $('preset').replaceChildren(new Option('Custom URL', ''),
+    ...presets.map(([t, , ph], i) => [t, i, ph]).filter(([, , ph]) => ph === h).map(([t, i]) => new Option(t, String(i))));
+}
+function pickHemi(h) {
+  // Switching hemisphere opens that hemisphere's first collection.
+  if (h === hemi) return;
+  setHemi(h);
+  const first = presets.find(p => p[2] === h);
+  if (first) loadCatalog(first[1]);
+}
+
+// Polar stereographic grids; GIBS serves both on the same +/-4194304 m extent.
+const projDefs = {
+  'EPSG:3031': ['+proj=stere +lat_0=-90 +lat_ts=-71 +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs', 'epsg3031'],
+  'EPSG:3413': ['+proj=stere +lat_0=90 +lat_ts=70 +lon_0=-45 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs', 'epsg3413'],
+};
+for (const [code, [def]] of Object.entries(projDefs)) proj4.defs(code, def);
+ol.proj.proj4.register(proj4);
+const gibsExtent = [-4194304, -4194304, 4194304, 4194304];
+for (const code of Object.keys(projDefs)) ol.proj.get(code).setExtent(gibsExtent);
+
+const $ = id => document.getElementById(id);
+const num = v => typeof v === 'bigint' ? Number(v) : v;
+const fmtDate = d => d.toISOString().slice(0, 10);
+
+let items = [], dates = [], selected = null, viewCode = null;
+
+const footStyle = new ol.style.Style({ stroke: new ol.style.Stroke({ color: 'rgba(31,111,159,0.9)', width: 1.2 }) });
+const selStyle = new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#e8a33d', width: 2.5 }) });
+const footSource = new ol.source.Vector();
+const pickStyle = new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#b0306a', width: 2.2 }) });
+const picks = new Set();  // items ticked for "Download selection"
+const footLayer = new ol.layer.Vector({ source: footSource, zIndex: 3,
+  style: f => f.get('item') === selected ? selStyle : picks.has(f.get('item')) ? pickStyle : footStyle });
+const cmaps = {
+  gray: ['#000000', '#ffffff'],
+  viridis: ['#440154', '#482878', '#3e4989', '#31688e', '#26828e', '#1f9e89', '#35b779', '#6ece58', '#b5de2b', '#fde725'],
+  magma: ['#000004', '#180f3d', '#440f76', '#721f81', '#9e2f7f', '#cd4071', '#f1605d', '#fd9668', '#feca8d', '#fcfdbf'],
+  cividis: ['#00224e', '#123570', '#3b496c', '#575d6d', '#707173', '#8a8678', '#a59c74', '#c3b369', '#e1cc55', '#fee838'],
+  // Diverging for signed velocity: blue negative, white exactly at 0 (middle stop), red positive.
+  'blue-white-red': ['#053061', '#2166ac', '#4393c3', '#92c5de', '#d1e5f0', '#ffffff', '#fddbc7', '#f4a582', '#d6604d', '#b2182b', '#67001f'],
+};
+const hexRgba = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16), 1];
+function rasterStyle(stops, lo, hi) {
+  // Normalize to 0-1 between lo and hi, then look up the color map; band 2 is the nodata mask.
+  const t = ['clamp', ['/', ['-', ['band', 1], ['var', 'lo']], ['-', ['var', 'hi'], ['var', 'lo']]], 0, 1];
+  const ramp = ['interpolate', ['linear'], t];
+  stops.forEach((c, i) => ramp.push(i / (stops.length - 1), hexRgba(c)));
+  return { variables: { lo, hi }, color: ['case', ['==', ['band', 2], 0], [0, 0, 0, 0], ramp] };
+}
+let rawLo = 0, rawHi = 1, rgbMode = false;
+const rasterLayer = new ol.layer.WebGLTile({ zIndex: 2, style: rasterStyle(cmaps.gray, 0, 1) });
+const baseLayer = new ol.layer.Tile({ zIndex: 0 });
+const coastLayer = new ol.layer.Tile({ zIndex: 4 });
+const map = new ol.Map({ target: 'map', layers: [baseLayer, rasterLayer, footLayer, coastLayer],
+                         controls: ol.control.defaults.defaults({ attribution: false }).extend([new ol.control.ScaleLine()]) });
+
+function gibs(code, layer, format) {
+  return new ol.source.TileWMS({ url: `https://gibs.earthdata.nasa.gov/wms/${projDefs[code][1]}/best/wms.cgi`,
+    params: { LAYERS: layer, FORMAT: format, TRANSPARENT: format === 'image/png', VERSION: '1.1.1' },
+    projection: code, crossOrigin: 'anonymous' });
+}
+
+function setView(code) {
+  if (code === viewCode) return;
+  viewCode = code;
+  map.setView(new ol.View({ projection: code, center: [0, 0], zoom: 2, maxZoom: 22, extent: gibsExtent, constrainOnlyCenter: true }));
+  const polar = code in projDefs;
+  baseLayer.setSource(polar ? gibs(code, 'BlueMarble_ShadedRelief_Bathymetry', 'image/jpeg') : new ol.source.OSM());
+  coastLayer.setSource(polar ? gibs(code, 'Coastlines', 'image/png') : null);
+}
+
+// Kopah maintenance: 2nd Tuesday monthly 9:00-17:00 Pacific; Jan/Apr/Jul/Oct 9:00 Tue to 9:00 Wed.
+function kopahMaintenance(now = new Date()) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', weekday: 'short',
+    year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', hourCycle: 'h23' }).formatToParts(now).map(x => [x.type, x.value]));
+  const day = +parts.day, month = +parts.month, hour = +parts.hour;
+  const secondTue = parts.weekday === 'Tue' && day >= 8 && day <= 14;
+  const quarterly = [1, 4, 7, 10].includes(month);
+  if (secondTue && hour >= 9 && (quarterly || hour < 17)) return quarterly ? '9 a.m. Wednesday' : '5 p.m.';
+  if (quarterly && parts.weekday === 'Wed' && day >= 9 && day <= 15 && hour < 9) return '9 a.m. today';
+  return null;
+}
+function showMaintenance() {
+  const until = kopahMaintenance();
+  $('maintNow').hidden = !until;
+  if (until) $('maintNow').textContent = `Kopah is in its scheduled maintenance window until about ${until} Pacific; data may not load.`;
+}
+
+function setStatus(msg, err = false) { $('status').textContent = msg; $('status').className = err ? 'err' : ''; }
+
+function toItem(r) {
+  const epsg = num(r['proj:epsg']);
+  const assets = Object.fromEntries(Object.entries(r.assets || {}).filter(([, a]) => a && a.href));
+  const start = r.start_datetime || r.datetime, end = r.end_datetime || r.datetime;
+  const native = r['proj:geometry'];
+  return { id: r.id, epsg, assets, start, end, geom: native?.type ? native : null, geom4326: r.geometry, raw: r };
+}
+
+async function loadCatalog(href, push = true) {
+  $('href').value = href;
+  const p = presets.findIndex(([, u]) => u === href);
+  if (p >= 0 && presets[p][2] !== hemi) setHemi(presets[p][2]);
+  $('preset').value = p >= 0 ? String(p) : '';
+  if (push) {
+    const u = new URL(location.href); u.searchParams.set('href', href);
+    if (u.href !== location.href) history.pushState({ href }, '', u);
+  }
+  setStatus('Loading catalog...');
+  try {
+    const resp = await fetch(href);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status} reading ${href}`);
+    const rows = await parquetReadObjects({ file: await resp.arrayBuffer(), compressors });
+    items = rows.map(toItem).sort((a, b) => a.start - b.start);
+  } catch (e) {
+    setStatus(`Could not load catalog: ${e.message}. If Kopah is in its maintenance window (below), try again later.`, true); return;
+  }
+  const codes = [...new Set(items.map(i => i.epsg).filter(Boolean))];
+  const code = codes.length ? `EPSG:${codes[0]}` : 'EPSG:3857';
+  setView(ol.proj.get(code) ? code : 'EPSG:3857');
+  if (p < 0 && code in projDefs) {
+    // A custom catalog sets the hemisphere from its own projection.
+    setHemi(code === 'EPSG:3031' ? 'S' : 'N');
+    $('preset').value = '';
+  }
+  footSource.clear();
+  for (const it of items) {
+    const useNative = it.geom && it.epsg && `EPSG:${it.epsg}` === viewCode;
+    const f = new ol.format.GeoJSON().readFeature({ type: 'Feature', geometry: useNative ? it.geom : it.geom4326 },
+      { dataProjection: useNative ? viewCode : 'EPSG:4326', featureProjection: viewCode });
+    f.set('item', it); it.feature = f;
+  }
+  dates = [...new Set(items.map(i => +i.start))].sort((a, b) => a - b);
+  buildTimebar();
+  // Cropping only makes sense for large products (mosaics); small site products such as the TSX
+  // glacier boxes (median footprint under 100 km across) are downloaded whole.
+  const spans = items.map(i => { const e = i.feature.getGeometry().getExtent(); return Math.max(e[2] - e[0], e[3] - e[1]); })
+                     .sort((a, b) => a - b);
+  const cropAllowed = spans.length > 0 && spans[Math.floor(spans.length / 2)] > 100e3;
+  $('cropRow').hidden = !cropAllowed;
+  siteMode = !cropAllowed;
+  $('pickBlock').hidden = !siteMode;
+  $('dlTitle').textContent = siteMode ? 'Download sites' : 'Download';
+  if (!cropAllowed && $('cropOn').checked) { $('cropOn').checked = false; $('cropOn').dispatchEvent(new Event('change')); }
+  const name = href.split('/').pop();
+  $('title').firstChild.textContent = name;
+  setStatus(`${items.length} items, ${code}${codes.length > 1 ? ` (catalog mixes ${codes.join(', ')}; showing first)` : ''}`);
+  selected = null; rasterLayer.setSource(null); $('legend').hidden = true;
+  $('asset').replaceChildren();
+  stopDraw(); boxSource.clear(); cropBox = null; picks.clear(); saCache = null; clearStaticAnom(); updateCropInfo();
+  applyFilter(true);
+  // Open on the newest item so a catalog shows data straight away, as stac-map does on a click.
+  if (items.length) select(items[items.length - 1]);
+}
+
+// Time range: indices into the sorted unique start dates.
+let i0 = 0, i1 = 0;
+const datePos = t => {
+  const span = dates[dates.length - 1] - dates[0];
+  return span ? 100 * (1 - (t - dates[0]) / span) : 50;
+};
+
+function buildTimebar() {
+  i0 = 0; i1 = Math.max(dates.length - 1, 0);
+  $('timebar').hidden = dates.length < 2;
+  $('tticks').replaceChildren(...dates.map((t, k) => {
+    const d = document.createElement('div');
+    d.className = 'tick'; d.style.top = `${datePos(t)}%`; d.title = fmtDate(new Date(t));
+    d.onclick = () => {
+      // Ticks pick the focus date; the handles set the range. A tick outside the range widens the
+      // range just enough to include it.
+      if (k < i0 || k > i1) { i0 = Math.min(i0, k); i1 = Math.max(i1, k); applyFilter(); }
+      const here = timeSeries().filter(i => +i.start === t);  // same place as the current image
+      const hit = here.length ? here : items.filter(i => +i.start === t);
+      if (hit.length) select(hit[hit.length - 1]);
+    };
+    return d;
+  }));
+}
+
+function drawTimebar() {
+  const p0 = datePos(dates[i0]), p1 = datePos(dates[i1]);
+  $('th0').style.top = `${p0}%`; $('th1').style.top = `${p1}%`;
+  $('trange').style.top = `${p1}%`; $('trange').style.height = `${p0 - p1}%`;
+  $('th0').querySelector('span').textContent = fmtDate(new Date(dates[i0]));
+  $('th1').querySelector('span').textContent = fmtDate(new Date(dates[i1]));
+  $('th0').querySelector('span').hidden = i0 === i1;
+  $('th0').setAttribute('aria-valuetext', fmtDate(new Date(dates[i0])));
+  $('th1').setAttribute('aria-valuetext', fmtDate(new Date(dates[i1])));
+  [...$('tticks').children].forEach((d, k) => {
+    d.classList.toggle('on', k >= i0 && k <= i1);
+    d.classList.toggle('cur', (animDate ?? (selected ? +selected.start : null)) === dates[k]);
+  });
+}
+
+function nearestDate(clientY) {
+  const r = $('ttrack').getBoundingClientRect();
+  const f = 1 - Math.min(1, Math.max(0, (clientY - r.top) / r.height));
+  const t = dates[0] + f * (dates[dates.length - 1] - dates[0]);
+  let best = 0;
+  dates.forEach((d, k) => { if (Math.abs(d - t) < Math.abs(dates[best] - t)) best = k; });
+  return best;
+}
+
+for (const [id, which] of [['th0', 0], ['th1', 1]]) {
+  const th = $(id);
+  const set = k => {
+    if (which === 0) i0 = Math.min(k, i1); else i1 = Math.max(k, i0);
+    applyFilter();
+  };
+  th.onpointerdown = e => { th.setPointerCapture(e.pointerId); th.style.cursor = 'grabbing'; };
+  th.onpointermove = e => { if (th.hasPointerCapture(e.pointerId)) set(nearestDate(e.clientY)); };
+  th.onpointerup = e => { th.releasePointerCapture(e.pointerId); th.style.cursor = ''; };
+  th.onkeydown = e => {
+    const step = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1 }[e.key];
+    if (!step) return;
+    e.preventDefault();
+    set(Math.min(dates.length - 1, Math.max(0, (which === 0 ? i0 : i1) + step)));
+  };
+}
+$('treset').onclick = () => { i0 = 0; i1 = dates.length - 1; applyFilter(); };
+
+function inRange() {
+  if (!dates.length) return [];
+  const lo = dates[i0], hi = dates[i1];
+  return items.filter(i => +i.start >= lo && +i.start <= hi);
+}
+
+function applyFilter(fit = false) {
+  const shown = inRange();
+  if (dates.length) drawTimebar();
+  footSource.clear(); footSource.addFeatures(shown.map(i => i.feature));
+  $('count').textContent = `${shown.length} of ${items.length} items`;
+  const ul = $('items'); ul.replaceChildren();
+  for (const it of shown) {
+    const li = document.createElement('li'); li.tabIndex = 0;
+    li.innerHTML = `<input type="checkbox"><span class="id"></span><span class="when"></span>`;
+    li.querySelector('.id').textContent = it.id;
+    li.querySelector('.when').textContent = `${fmtDate(it.start)} to ${fmtDate(it.end)}`;
+    const box = li.querySelector('input');
+    box.checked = picks.has(it); box.setAttribute('aria-label', `Pick ${it.id} for download`);
+    box.onclick = e => { e.stopPropagation(); togglePick(it, box.checked); };
+    li.classList.toggle('picked', picks.has(it));
+    if (it === selected) li.classList.add('sel');
+    li.onclick = () => select(it, true);
+    li.onkeydown = e => { if (e.key === 'Enter') select(it, true); };
+    it.li = li; ul.append(li);
+  }
+  if (fit && footSource.getFeatures().length) map.getView().fit(footSource.getExtent(), { padding: [40, 40, 40, 40], maxZoom: 8 });
+  updateDownloadButtons();
+  if (frames.length) resetAnimation('The time range changed; load the frames again.');
+  else refreshAnimInfo();
+}
+
+function togglePick(it, on = !picks.has(it)) {
+  if (on) picks.add(it); else picks.delete(it);
+  if (it.li) { it.li.classList.toggle('picked', on); it.li.querySelector('input').checked = on; }
+  footLayer.changed();
+  updateDownloadButtons();
+}
+
+function pickAsset(it) {
+  const keys = tiffAssetKeys(it);
+  const prev = $('asset').value;
+  $('asset').replaceChildren(...keys.map(k => new Option(it.assets[k].title || k, k)));
+  // A link can choose the starting asset with &asset=<name>; it applies to the first item shown.
+  const wanted = startAsset && keys.includes(startAsset) ? startAsset : null;
+  startAsset = null;
+  $('asset').value = wanted || (keys.includes(prev) ? prev : (['image', 'vv', 'gamma0'].find(k => keys.includes(k)) || keys[0] || ''));
+  return $('asset').value;
+}
+
+function select(it, zoom = false) {
+  selected = it;
+  for (const li of $('items').children) li.classList.remove('sel');
+  it.li?.classList.add('sel'); it.li?.scrollIntoView({ block: 'nearest' });
+  footLayer.changed();
+  if (dates.length) drawTimebar();
+  if (zoom) map.getView().fit(it.feature.getGeometry().getExtent(), { padding: [40, 40, 40, 40], duration: 250 });
+  showAsset(pickAsset(it));
+  fillCropAssets(it);
+}
+
+let band = {};
+let startAsset = new URL(location.href).searchParams.get('asset');
+function toRaw(v) { return (v - (band.offset ?? 0)) / (band.scale ?? 1); }
+function toDisp(v) { return v * (band.scale ?? 1) + (band.offset ?? 0); }
+
+function showAsset(key) {
+  if (!selected || !key) return;
+  saReady = false;  // wait for this asset's levels before computing a static anomaly
+  clearStaticAnom();
+  resetAnimation();
+  const a = selected.assets[key];
+  band = a['raster:bands']?.[0] || {};
+  const nodata = band.nodata ?? undefined;
+  const projection = selected.epsg ? `EPSG:${selected.epsg}` : undefined;
+  rgbMode = (a['raster:bands']?.length ?? 1) >= 3;
+  $('stretchCtl').hidden = rgbMode; $('rgbNote').hidden = !rgbMode;
+  $('lname').textContent = a.href.split('/').pop();
+  $('legend').hidden = false;
+  if (rgbMode) {
+    // RGB(A) browse images: let OpenLayers scale each 8-bit band to 0-1 and draw it as color.
+    const alpha = a['raster:bands'].length >= 4 ? ['band', 4] : 1;
+    rasterLayer.setStyle({ color: ['array', ['band', 1], ['band', 2], ['band', 3], alpha] });
+    rasterLayer.setSource(new ol.source.GeoTIFF({ sources: [{ url: a.href, nodata }], normalize: true, interpolate: true, projection }));
+    loadSample(a.href, nodata);
+    return;
+  }
+  // Speeds and errors start at a hard 0; velocity components are stretched symmetrically about 0.
+  stretchMode = zeroFloorAssets.has(key) ? 'zero' : signedAssets.has(key) ? 'symmetric' : 'both';
+  $('clipwhere').textContent = { zero: 'at the top (min fixed at 0)', symmetric: 'each end, centered on 0', both: 'each end' }[stretchMode];
+  if (stretchMode === 'symmetric') {
+    if ($('cmap').value !== 'blue-white-red') { lastSeqCmap = $('cmap').value; $('cmap').value = 'blue-white-red'; }
+  } else if ($('cmap').value === 'blue-white-red') {
+    $('cmap').value = lastSeqCmap;
+  }
+  setColormap($('cmap').value || 'gray');
+  const st = band.statistics || {};
+  let lo = num(st.minimum) ?? 0, hi = num(st.maximum) ?? 255;
+  if (st.mean != null && st.stddev) { lo = Math.max(lo, st.mean - 2 * st.stddev); hi = Math.min(hi, st.mean + 2 * st.stddev); }
+  if (stretchMode === 'zero') lo = toRaw(0);
+  if (stretchMode === 'symmetric') { const L = Math.max(Math.abs(toDisp(lo)), Math.abs(toDisp(hi))); lo = toRaw(-L); hi = toRaw(L); }
+  rasterLayer.setSource(new ol.source.GeoTIFF({ sources: [{ url: a.href, nodata }], normalize: false, interpolate: true, projection }));
+  setStretch(toDisp(lo), toDisp(hi));
+  $('lunit').textContent = band.unit || '';
+  loadSample(a.href, nodata);
+}
+
+function setStretch(dlo, dhi) {
+  const r = v => +v.toPrecision(4);
+  $('smin').value = r(dlo); $('smax').value = r(dhi);
+  $('lmin').textContent = r(dlo); $('lmax').textContent = r(dhi);
+  const changed = rawLo !== toRaw(dlo) || rawHi !== toRaw(dhi);
+  rawLo = toRaw(dlo); rawHi = toRaw(dhi);
+  if (!rgbMode) rasterLayer.updateStyleVariables({ lo: rawLo, hi: rawHi });
+  if (changed && frames.length) resetAnimation('The color range changed; load the frames again to use it.');
+}
+
+function setColormap(name) {
+  if (frames.length) resetAnimation('The color map changed; load the frames again to use it.');
+  rasterLayer.setStyle(rasterStyle(cmaps[name], rawLo, rawHi));
+  $('bar').style.background = `linear-gradient(90deg, ${cmaps[name].join(', ')})`;
+}
+
+// Percentile stretch: sort the valid pixels of a small overview (about 1000-1500 px across) once per image.
+// The same pass records every resolution level (full image + overviews) for the area download.
+let sample = null, sampleToken = 0, levels = null, origin = null;
+const tiffCache = new Map();
+function assetLevels(href) {
+  // Every resolution level of one COG (full image first, then overviews), opened once per page.
+  if (!tiffCache.has(href)) tiffCache.set(href, (async () => {
+    const tiff = await GeoTIFF.fromUrl(href);
+    const n = await tiff.getImageCount();
+    const base = await tiff.getImage(0), r0 = base.getResolution()[0];
+    const found = [];
+    for (let i = 0; i < n; i++) {
+      const im = await tiff.getImage(i);
+      found.push({ img: im, res: r0 * base.getWidth() / im.getWidth() });
+    }
+    return { levels: found, origin: base.getOrigin() };
+  })().catch(e => { tiffCache.delete(href); throw e; }));
+  return tiffCache.get(href);
+}
+async function loadSample(href, nodata) {
+  const token = ++sampleToken;
+  sample = null; levels = null; updateCropInfo();
+  $('clipnote').textContent = 'Reading overview for clip...';
+  try {
+    const info = await assetLevels(href);
+    if (token !== sampleToken) return;
+    const found = info.levels;
+    levels = found; origin = info.origin; saReady = true;
+    updateCropInfo();
+    const small = found.filter(l => l.img.getWidth() <= 1500);
+    const img = (small.length ? small[0] : found[found.length - 1]).img;
+    const [values] = await img.readRasters({ samples: [0] });
+    if (token !== sampleToken) return;
+    const valid = Float64Array.from(values).filter(v => Number.isFinite(v) && v !== nodata);
+    valid.sort();
+    sample = valid;
+    $('clipnote').textContent = `Clip from ${img.getWidth()} x ${img.getHeight()} overview, ${valid.length.toLocaleString()} valid pixels`;
+    applyClip();
+  } catch (e) {
+    if (token === sampleToken) $('clipnote').textContent = `Could not read overview (${e.message}); using catalog statistics`;
+  }
+}
+
+// Download: originals or crops of the ticked assets, for the displayed image or for a selection of items.
+const maxCropPixels = 64e6, maxSelectionCrops = 100;
+const boxSource = new ol.source.Vector();
+const boxLayer = new ol.layer.Vector({ source: boxSource, zIndex: 5, visible: false, style: new ol.style.Style({
+  stroke: new ol.style.Stroke({ color: '#e8a33d', width: 2.5 }),
+  fill: new ol.style.Fill({ color: 'rgba(232,163,61,0.08)' }) }) });
+map.addLayer(boxLayer);
+let draw = null, cropBox = null;
+
+function stopDraw() {
+  if (draw) map.removeInteraction(draw);
+  draw = null; $('drawBox').textContent = 'Draw box';
+}
+$('drawBox').onclick = () => {
+  if (draw) { stopDraw(); return; }
+  boxSource.clear(); cropBox = null; updateCropInfo();
+  draw = new ol.interaction.Draw({ source: boxSource, type: 'Circle', geometryFunction: ol.interaction.Draw.createBox() });
+  draw.on('drawend', e => { cropBox = e.feature.getGeometry().getExtent(); setTimeout(() => { stopDraw(); refreshAnimInfo(); }); updateCropInfo(); });
+  map.addInteraction(draw);
+  $('drawBox').textContent = 'Cancel';
+  $('cropNote').textContent = 'Click one corner, then the opposite corner.';
+};
+$('assetsAll').onchange = e => {
+  for (const box of document.querySelectorAll('#cropAssets input')) box.checked = e.target.checked;
+  updateDownloadButtons();
+};
+$('pickAll').onchange = $('pickAllSites').onchange = e => {
+  const on = e.target.checked;  // read once: each togglePick refreshes this box's state
+  for (const it of inRange()) togglePick(it, on);
+};
+$('clearBox').onclick =() => { stopDraw(); boxSource.clear(); cropBox = null; updateCropInfo(); };
+$('cropOn').onchange = e => {
+  $('cropOpts').hidden = !e.target.checked;
+  boxLayer.setVisible(e.target.checked);
+  if (!e.target.checked) stopDraw();
+  updateCropInfo();
+};
+
+function cropWindow(level, org = origin) {
+  const W = level.img.getWidth(), H = level.img.getHeight(), r = level.res, [ox, oy] = org;
+  const c0 = Math.max(0, Math.floor((cropBox[0] - ox) / r)), c1 = Math.min(W, Math.ceil((cropBox[2] - ox) / r));
+  const r0 = Math.max(0, Math.floor((oy - cropBox[3]) / r)), r1 = Math.min(H, Math.ceil((oy - cropBox[1]) / r));
+  return c1 > c0 && r1 > r0 ? [c0, r0, c1, r1] : null;
+}
+
+function updateCropInfo() {
+  $('cropSec').hidden = !selected;
+  if (frames.length && cropBox !== frameBox) resetAnimation('The crop box changed; load the frames again.');
+  else refreshAnimInfo();
+  const sel = $('cropRes');
+  $('boxInfo').textContent = cropBox ? `${((cropBox[2] - cropBox[0]) / 1000).toFixed(1)} x ${((cropBox[3] - cropBox[1]) / 1000).toFixed(1)} km` : '';
+  $('clearBox').hidden = !cropBox;
+  if (!cropBox || !levels) {
+    sel.replaceChildren(); sel.disabled = true;
+    if (!draw) $('cropNote').textContent = $('cropOn').checked && levels ? 'Draw a box on the map to choose the area.' : '';
+    updateDownloadButtons();
+    return;
+  }
+  const bytes = (band.scale ?? 1) !== 1 || (band.offset ?? 0) !== 0 ? 4 : levels[0].img.getBytesPerPixel();
+  const prev = sel.value;
+  sel.replaceChildren(...levels.map((l, i) => {
+    const w = cropWindow(l), px = w ? (w[2] - w[0]) * (w[3] - w[1]) : 0;
+    const o = new Option(w ? `${+l.res.toPrecision(4)} m: ${w[2] - w[0]} x ${w[3] - w[1]} px, ${(px * bytes / 1e6).toFixed(1)} MB` : `${l.res} m: outside image`, String(i));
+    o.disabled = !w || px > maxCropPixels;
+    return o;
+  }));
+  const ok = [...sel.options].filter(o => !o.disabled);
+  sel.value = ok.some(o => o.value === prev) ? prev : (ok[0]?.value ?? '');
+  sel.disabled = !ok.length;
+  $('cropNote').textContent = ok.length ? '' : 'The box is outside this image.';
+  if (ok.length && ok[0].value !== '0') $('cropNote').textContent = `Finer levels exceed ${maxCropPixels / 1e6}M pixels; draw a smaller box for full resolution.`;
+  updateDownloadButtons();
+}
+
+function tiffAssetKeys(it) {
+  return Object.keys(it.assets).filter(k => /tiff/.test(it.assets[k].type || '') || /\.tif$/.test(it.assets[k].href));
+}
+
+function fillCropAssets(it) {
+  // Keep ticks across items that share asset names; otherwise tick the asset being displayed.
+  const prev = new Set([...document.querySelectorAll('#cropAssets input:checked')].map(i => i.value));
+  const keys = tiffAssetKeys(it);
+  const keep = keys.filter(k => prev.has(k));
+  const ticked = new Set(keep.length ? keep : [$('asset').value]);
+  $('cropAssets').replaceChildren(...keys.map(k => {
+    const lab = document.createElement('label'), box = document.createElement('input');
+    box.type = 'checkbox'; box.value = k; box.checked = ticked.has(k);
+    box.onchange = updateDownloadButtons;
+    lab.append(box, ' ' + k);
+    return lab;
+  }));
+  updateDownloadButtons();
+}
+
+function checkedAssets() {
+  return [...document.querySelectorAll('#cropAssets input:checked')].map(i => i.value);
+}
+
+function selectionItems() {
+  // Picked items when there are any; otherwise every item in the current time range.
+  return picks.size ? items.filter(i => picks.has(i)) : inRange();
+}
+
+let busy = false, siteMode = false;
+function updateDownloadButtons() {
+  const n = checkedAssets().length, crop = $('cropOn').checked;
+  const cropReady = !crop || (!$('cropRes').disabled && $('cropRes').value !== '');
+  const selItems = selectionItems();
+  $('dlImage').disabled = busy || !selected || !n || !cropReady;
+  $('dlSel').disabled = busy || !selItems.length || !n || !cropReady || (crop && selItems.length * n > maxSelectionCrops);
+  if (siteMode) {
+    // Small site products (TSX glacier boxes) are downloaded whole, chosen by picking sites.
+    $('dlImage').textContent = 'Download the displayed site';
+    $('dlSel').textContent = picks.size ? `Download ${picks.size} picked site${picks.size > 1 ? 's' : ''}`
+                                        : `Download all ${selItems.length} sites in time range`;
+    $('pickCount').textContent = picks.size ? `${picks.size} picked.` : '';
+  } else {
+    $('dlImage').textContent = crop ? 'Download crop of this image' : 'Download this image';
+    const what = picks.size ? `${picks.size} picked item${picks.size > 1 ? 's' : ''}` : `all ${selItems.length} in time range`;
+    $('dlSel').textContent = crop ? `Download crops: ${what}` : `Download selection: ${what}`;
+  }
+  $('clearPicks').hidden = !picks.size;
+  const boxes = [...document.querySelectorAll('#cropAssets input')], on = boxes.filter(b => b.checked).length;
+  $('assetsAll').checked = boxes.length > 0 && on === boxes.length;
+  $('assetsAll').indeterminate = on > 0 && on < boxes.length;
+  const shown = inRange(), shownPicked = shown.filter(i => picks.has(i)).length;
+  for (const id of ['pickAll', 'pickAllSites']) {
+    $(id).checked = shown.length > 0 && shownPicked === shown.length;
+    $(id).indeterminate = shownPicked > 0 && shownPicked < shown.length;
+  }
+}
+$('clearPicks').onclick = () => { for (const it of [...picks]) togglePick(it, false); };
+
+async function cropAsset(it, key, res) {
+  // Cut one asset to the box at the level nearest the chosen resolution, on that asset's own grid.
+  const a = it.assets[key];
+  if (!a) throw new Error(`${it.id} has no ${key} asset`);
+  const b = a['raster:bands']?.[0] || {};
+  const { levels: lv, origin: org } = await assetLevels(a.href);
+  const level = lv.reduce((best, l) => Math.abs(l.res - res) < Math.abs(best.res - res) ? l : best);
+  const w = cropWindow(level, org);
+  if (!w) return null;
+  const r = level.res, scale = b.scale ?? 1, offset = b.offset ?? 0, nodata = b.nodata;
+  const nb = level.img.getSamplesPerPixel();
+  // Multi-band (RGB browse) assets keep every band, pixel-interleaved, in their stored 8-bit form.
+  const raw = nb > 1 ? await level.img.readRasters({ window: w, interleave: true })
+                     : (await level.img.readRasters({ window: w, samples: [0] }))[0];
+  let data = raw, outNodata = nodata;
+  if (nb === 1 && (scale !== 1 || offset !== 0)) {
+    // Write physical units (e.g. dB) as float32 so the file needs no scale/offset to read.
+    data = new Float32Array(raw.length);
+    for (let k = 0; k < raw.length; k++) data[k] = raw[k] * scale + offset;
+    if (nodata != null) {
+      outNodata = nodata * scale + offset;
+      for (let k = 0; k < raw.length; k++) if (raw[k] === nodata) data[k] = outNodata;
+    }
+  }
+  const meta = { width: w[2] - w[0], height: w[3] - w[1],
+    ModelPixelScale: [r, r, 0], ModelTiepoint: [0, 0, 0, org[0] + w[0] * r, org[1] - w[1] * r, 0],
+    GTModelTypeGeoKey: 1, GTRasterTypeGeoKey: 1, ProjectedCSTypeGeoKey: it.epsg };
+  if (outNodata != null) meta.GDAL_NODATA = String(outNodata);
+  const blob = new Blob([GeoTIFF.writeArrayBuffer(data, meta)], { type: 'image/tiff' });
+  const stem = a.href.split('/').pop().replace(/\.tif$/, '');
+  return { blob, name: `${stem}_crop_${Math.round(meta.ModelTiepoint[3])}_${Math.round(meta.ModelTiepoint[4])}_${+r.toPrecision(4)}m.tif` };
+}
+
+function saveUrl(url, name) {
+  const link = document.createElement('a');
+  link.href = url; link.download = name || '';
+  if (new URL(url, location.href).origin !== location.origin) link.target = '_blank';  // download= only works same-origin
+  document.body.append(link); link.click(); link.remove();
+}
+function saveBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  saveUrl(url, name);
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+const pause = ms => new Promise(r => setTimeout(r, ms));
+
+async function runDownload(list, crop) {
+  // list: [{ it, key }] in order. Originals are saved straight from Kopah; crops are cut in the browser.
+  busy = true; updateDownloadButtons();
+  const res = crop ? levels[+$('cropRes').value].res : null;
+  let saved = 0, skipped = 0, mb = 0;
+  try {
+    for (const [i, { it, key }] of list.entries()) {
+      $('cropNote').textContent = `${crop ? 'Cropping' : 'Saving'} ${it.id} ${key} (${i + 1} of ${list.length})...`;
+      if (crop) {
+        const out = await cropAsset(it, key, res);
+        if (!out) { skipped++; continue; }
+        saveBlob(out.blob, out.name); mb += out.blob.size / 1e6;
+      } else {
+        saveUrl(it.assets[key].href, it.assets[key].href.split('/').pop());
+      }
+      saved++;
+      await pause(crop ? 400 : 800);
+    }
+    $('cropNote').textContent = `Saved ${saved} file${saved === 1 ? '' : 's'}${crop ? ` (${mb.toFixed(1)} MB)` : ''}`
+      + (skipped ? `; ${skipped} skipped because the box is outside them` : '') + '.';
+  } catch (e) {
+    $('cropNote').textContent = `Download failed after ${saved} file(s): ${e.message}`;
+  }
+  busy = false; updateDownloadButtons();
+}
+
+$('dlImage').onclick = () => runDownload(checkedAssets().filter(k => selected.assets[k]).map(key => ({ it: selected, key })), $('cropOn').checked);
+
+$('dlSel').onclick = () => {
+  const keys = checkedAssets(), its = selectionItems();
+  const list = its.flatMap(it => keys.filter(k => it.assets[k]).map(key => ({ it, key })));
+  if ($('cropOn').checked) { runDownload(list, true); return; }
+  // Full files for a selection can be large, so save a URL list for wget/curl rather than many browser downloads.
+  const text = list.map(({ it, key }) => it.assets[key].href).join('\n') + '\n';
+  saveBlob(new Blob([text], { type: 'text/plain' }), `${(items[0]?.raw?.collection || 'grimp')}_selection_urls.txt`);
+  $('cropNote').textContent = `Saved a list of ${list.length} file URLs. Fetch them with: wget -i ${(items[0]?.raw?.collection || 'grimp')}_selection_urls.txt`;
+};
+
+const zeroFloorAssets = new Set(['vv', 'ex', 'ey']), signedAssets = new Set(['vx', 'vy']);
+let stretchMode = 'both', lastSeqCmap = 'gray';
+// Animation: one frame per item of the selected item's time series (items in the time range that
+// cover the same area), cut to the crop box or the whole image/site, drawn with the color range and
+// color map in force when the frames are loaded, so every frame is directly comparable.
+const maxFramePixels = 2.5e6, maxAnimPixels = 40e6;
+const animLayer = new ol.layer.Image({ zIndex: 2, visible: false });
+map.addLayer(animLayer);
+let animExtKey = '', frames = [], frameBox = null, animIdx = 0, animTimer = null, animDate = null, animBuilding = false, animToken = 0;
+
+function timeSeries() {
+  if (!selected) return [];
+  const key = $('asset').value, e0 = selected.feature.getGeometry().getExtent();
+  const overlap = e => {
+    const i = ol.extent.getIntersection(e, e0);
+    return ol.extent.isEmpty(i) ? 0 : ol.extent.getArea(i) / Math.min(ol.extent.getArea(e), ol.extent.getArea(e0));
+  };
+  return inRange().filter(it => it.assets[key] && overlap(it.feature.getGeometry().getExtent()) >= 0.5)
+                  .sort((a, b) => a.start - b.start);
+}
+function animExtent() {
+  return !siteMode && $('cropOn').checked && cropBox ? cropBox : selected.feature.getGeometry().getExtent();
+}
+function frameSize(ext, res) { return [Math.ceil((ext[2] - ext[0]) / res), Math.ceil((ext[3] - ext[1]) / res)]; }
+
+function refreshAnimInfo() {
+  refreshStaticAnom();
+  if (animBuilding) return;
+  const series = timeSeries();
+  $('animSec').hidden = series.length < 2;
+  if (series.length < 2) return;
+  $('animCount').textContent = `(${series.length} dates)`;
+  // The animation area is the same box as the download crop; mosaics only (sites are animated whole).
+  const box = !siteMode && $('cropOn').checked && cropBox;
+  $('animAreaRow').hidden = siteMode;
+  $('animArea').textContent = box ? `box, ${((cropBox[2] - cropBox[0]) / 1000).toFixed(0)} x ${((cropBox[3] - cropBox[1]) / 1000).toFixed(0)} km` : 'whole image';
+  $('animWhole').hidden = !box;
+  $('animDrawBox').textContent = draw ? 'Cancel' : box ? 'Redraw box' : 'Draw box';
+  if (frames.length) return;
+  const ext = animExtent(), where = ext === cropBox ? 'inside the box' : siteMode ? 'the whole site' : 'the whole image';
+  $('animAnomRow').hidden = rgbMode; $('animBarRow').hidden = rgbMode;
+  $('animRangeRow').hidden = rgbMode || !$('animAnom').checked;
+  $('animRangeUnit').textContent = band.unit || '';
+  $('animInfo').textContent = `${fmtDate(series[0].start)} to ${fmtDate(series[series.length - 1].start)}, ${where}. `
+    + (rgbMode ? 'RGB images are shown as stored.'
+       : $('animAnom').checked ? 'Each frame minus the per-pixel mean, centered on 0 in blue-white-red, using the current clip %.'
+       : 'Every frame uses the current color range and color map.');
+  const sel = $('animRes'), prev = sel.value;
+  if (!levels) { sel.replaceChildren(new Option('Reading image...', '')); sel.disabled = true; $('animBuild').disabled = true; return; }
+  sel.replaceChildren(...levels.map((l, i) => {
+    const [w, h] = frameSize(ext, l.res), px = w * h;
+    const o = new Option(`${+l.res.toPrecision(4)} m: ${w} x ${h} px per frame`, String(i));
+    o.disabled = px > maxFramePixels || px * series.length > maxAnimPixels;
+    return o;
+  }));
+  const ok = [...sel.options].filter(o => !o.disabled);
+  // Keep the user's choice while the area is unchanged; a new area starts at the finest level that fits.
+  const extKey = ext.map(Math.round).join(',') + '|' + series.length, keep = extKey === animExtKey;
+  animExtKey = extKey;
+  sel.value = keep && ok.some(o => o.value === prev) ? prev : (ok[0]?.value ?? '');
+  sel.disabled = !ok.length; $('animBuild').disabled = !ok.length;
+  if (!ok.length) $('animNote').textContent = 'Too large to animate; draw a smaller crop box.';
+}
+
+function buildLut(stops) {
+  const lut = new Uint8ClampedArray(256 * 3), n = stops.length - 1, rgb = stops.map(hexRgba);
+  for (let i = 0; i < 256; i++) {
+    const t = i / 255 * n, k = Math.min(n - 1, Math.floor(t)), f = t - k;
+    for (let j = 0; j < 3; j++) lut[i * 3 + j] = rgb[k][j] + (rgb[k + 1][j] - rgb[k][j]) * f;
+  }
+  return lut;
+}
+
+async function readFrame(it, key, ext, res, W, H) {
+  // One item's asset on the common W x H frame grid (nearest neighbour), from the level nearest res.
+  // Single band: { values } in stored units, NaN where no data. RGB(A): { rgba } bytes as stored.
+  const a = it.assets[key], b = a['raster:bands']?.[0] || {}, nodata = b.nodata;
+  const { levels: lv, origin: org } = await assetLevels(a.href);
+  const level = lv.reduce((best, l) => Math.abs(l.res - res) < Math.abs(best.res - res) ? l : best);
+  const r = level.res, IW = level.img.getWidth(), IH = level.img.getHeight(), nb = level.img.getSamplesPerPixel();
+  const c0 = Math.max(0, Math.floor((ext[0] - org[0]) / r)), c1 = Math.min(IW, Math.ceil((ext[2] - org[0]) / r));
+  const r0 = Math.max(0, Math.floor((org[1] - ext[3]) / r)), r1 = Math.min(IH, Math.ceil((org[1] - ext[1]) / r));
+  const rgb = nb >= 3, out = rgb ? new Uint8ClampedArray(W * H * 4) : new Float32Array(W * H).fill(NaN);
+  if (c1 <= c0 || r1 <= r0) return rgb ? { rgba: out } : { values: out };
+  const w = c1 - c0, h = r1 - r0;
+  const raw = rgb ? await level.img.readRasters({ window: [c0, r0, c1, r1], interleave: true })
+                  : (await level.img.readRasters({ window: [c0, r0, c1, r1], samples: [0] }))[0];
+  const sx = new Int32Array(W), sy = new Int32Array(H);
+  for (let x = 0; x < W; x++) sx[x] = Math.floor((ext[0] + (x + 0.5) * res - org[0]) / r) - c0;
+  for (let y = 0; y < H; y++) sy[y] = Math.floor((org[1] - (ext[3] - (y + 0.5) * res)) / r) - r0;
+  for (let y = 0; y < H; y++) {
+    const yy = sy[y];
+    if (yy < 0 || yy >= h) continue;
+    for (let x = 0; x < W; x++) {
+      const xx = sx[x];
+      if (xx < 0 || xx >= w) continue;
+      const k = yy * w + xx, o = y * W + x;
+      if (rgb) {
+        const m = k * nb;
+        out[o * 4] = raw[m]; out[o * 4 + 1] = raw[m + 1]; out[o * 4 + 2] = raw[m + 2]; out[o * 4 + 3] = nb >= 4 ? raw[m + 3] : 255;
+      } else {
+        const v = raw[k];
+        if (v !== nodata && Number.isFinite(v)) out[o] = v;
+      }
+    }
+  }
+  return rgb ? { rgba: out } : { values: out };
+}
+
+function frameCanvas(frame, W, H, lut, lo, hi, label, bar = null) {
+  const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d'), img = ctx.createImageData(W, H), px = img.data;
+  if (frame.rgba) px.set(frame.rgba);
+  else {
+    const v = frame.values, span = hi - lo || 1;
+    for (let k = 0; k < v.length; k++) {
+      if (Number.isNaN(v[k])) continue;  // alpha stays 0
+      const q = Math.min(255, Math.max(0, Math.round((v[k] - lo) / span * 255))) * 3;
+      px[k * 4] = lut[q]; px[k * 4 + 1] = lut[q + 1]; px[k * 4 + 2] = lut[q + 2]; px[k * 4 + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  // Label burned into the frame so it travels with the movie.
+  let fs = Math.max(12, Math.round(Math.min(W, H) / 22));
+  ctx.font = `600 ${fs}px "JetBrains Mono", monospace`;
+  let tw = ctx.measureText(label).width;
+  if (tw > W - fs * 2) {  // shrink to fit narrow frames
+    fs = Math.max(8, Math.floor(fs * (W - fs * 2) / tw));
+    ctx.font = `600 ${fs}px "JetBrains Mono", monospace`;
+    tw = ctx.measureText(label).width;
+  }
+  if (label) {
+    ctx.fillStyle = 'rgba(12,16,20,0.75)'; ctx.fillRect(fs * 0.5, H - fs * 2.1, tw + fs, fs * 1.6);
+    ctx.fillStyle = '#ffffff'; ctx.textBaseline = 'middle'; ctx.fillText(label, fs, H - fs * 1.3);
+  }
+  if (bar) drawColorBar(ctx, W, fs, bar);
+  return canvas;
+}
+
+function drawColorBar(ctx, W, fs, { stops, dlo, dhi, title, centered }) {
+  // Top-right legend: title (with unit), gradient, and end values (plus 0 when centered).
+  const bf = Math.max(8, Math.round(fs * 0.75)), pad = Math.round(bf * 0.6);
+  const bw = Math.round(Math.min(W - fs * 2 - pad * 2, Math.max(bf * 12, W * 0.32))), bh = Math.round(bf * 0.9);
+  const x0 = W - bw - fs - pad, y0 = Math.round(fs * 0.5);
+  const fmt = v => String(+v.toPrecision(3));
+  ctx.fillStyle = 'rgba(12,16,20,0.78)';
+  ctx.fillRect(x0 - pad, y0, bw + pad * 2, pad + bf * 1.2 + bh + bf * 1.5 + pad * 0.5);
+  ctx.font = `600 ${bf}px "JetBrains Mono", monospace`; ctx.fillStyle = '#ffffff'; ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left'; ctx.fillText(title, x0, y0 + pad + bf * 0.6, bw);
+  const yb = y0 + pad + bf * 1.2, grad = ctx.createLinearGradient(x0, 0, x0 + bw, 0);
+  stops.forEach((c, i) => grad.addColorStop(i / (stops.length - 1), c));
+  ctx.fillStyle = grad; ctx.fillRect(x0, yb, bw, bh);
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, yb + 0.5, bw - 1, bh - 1);
+  const yl = yb + bh + bf * 0.8;
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'left'; ctx.fillText(fmt(dlo), x0, yl);
+  ctx.textAlign = 'right'; ctx.fillText(fmt(dhi), x0 + bw, yl);
+  if (centered) { ctx.textAlign = 'center'; ctx.fillText('0', x0 + bw / 2, yl); }
+  ctx.textAlign = 'left';
+}
+
+async function buildFrames() {
+  const key = $('asset').value, series = timeSeries(), ext = animExtent(), res = levels[+$('animRes').value].res;
+  const anomaly = $('animAnom').checked && !rgbMode;
+  const [W, H] = frameSize(ext, res);
+  const lut = rgbMode ? null : buildLut(anomaly ? cmaps['blue-white-red'] : (cmaps[$('cmap').value] || cmaps.gray));
+  const scale = band.scale ?? 1, unit = band.unit || '';
+  const withBar = $('animBar').checked && !rgbMode;
+  const barStops = anomaly ? cmaps['blue-white-red'] : (cmaps[$('cmap').value] || cmaps.gray);
+  resetAnimation();
+  const token = ++animToken;  // after the reset, which bumps the token itself
+  animBuilding = true; frameBox = ext === cropBox ? cropBox : null;
+  $('animBuild').disabled = true; $('animRes').disabled = true;
+  const built = [], label = it => `${fmtDate(it.start)} to ${fmtDate(it.end)}${anomaly ? '  minus mean' : ''}`;
+  const add = (it, canvas, values = null) => {
+    // toDataURL is synchronous: toBlob's callback can be dropped while the tab is in the background.
+    built.push({ it, canvas, values, source: new ol.source.ImageStatic({ url: canvas.toDataURL('image/png'), imageExtent: ext, projection: viewCode }) });
+  };
+  let summary = '';
+  try {
+    if (!anomaly) {
+      for (const [i, it] of series.entries()) {
+        $('animNote').textContent = `Loading frame ${i + 1} of ${series.length} (${fmtDate(it.start)})...`;
+        const f = await readFrame(it, key, ext, res, W, H);
+        if (token !== animToken) return;
+        add(it, frameCanvas(f, W, H, lut, rawLo, rawHi, label(it), withBar ? {
+          stops: barStops, dlo: toDisp(rawLo), dhi: toDisp(rawHi), centered: stretchMode === 'symmetric',
+          title: `${key}${unit ? ` (${unit})` : ''}` } : null), f.values || null);
+        await pause(0);  // let the page repaint the progress note
+      }
+    } else {
+      // Anomaly: subtract the per-pixel mean over all frames that have data there, then stretch
+      // symmetrically about 0 using the clip percentage, in blue-white-red.
+      const stack = [];
+      for (const [i, it] of series.entries()) {
+        $('animNote').textContent = `Reading frame ${i + 1} of ${series.length} (${fmtDate(it.start)})...`;
+        stack.push((await readFrame(it, key, ext, res, W, H)).values);
+        if (token !== animToken) return;
+        await pause(0);
+      }
+      const n = W * H, sum = new Float64Array(n), cnt = new Uint16Array(n);
+      for (const v of stack) for (let k = 0; k < n; k++) if (!Number.isNaN(v[k])) { sum[k] += v[k]; cnt[k]++; }
+      const step = Math.max(1, Math.floor(n * stack.length / 1e6)), picks = [];
+      for (const v of stack) {
+        for (let k = 0; k < n; k++) v[k] = cnt[k] ? v[k] - sum[k] / cnt[k] : NaN;
+        for (let k = 0; k < n; k += step) if (!Number.isNaN(v[k])) picks.push(v[k]);
+      }
+      const sorted = Float32Array.from(picks).sort(), p = +$('clip').value / 100;
+      const at = q => sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(q * (sorted.length - 1))))] ?? 0;
+      const autoL = Math.max(Math.abs(at(p)), Math.abs(at(1 - p))) || 1;
+      const typed = +$('animRange').value;
+      const L = animRangeTyped && typed > 0 ? typed / scale : autoL;
+      // Kept so a new ± range can recolor the frames without reading them again.
+      anomState = { stack, autoL, W, H, lut, scale, unit, key, ext, withBar, barStops, label, n: series.length };
+      for (const [i, it] of series.entries()) {
+        $('animNote').textContent = `Drawing anomaly frame ${i + 1} of ${series.length}...`;
+        add(it, anomalyCanvas(i, L, it), stack[i]);
+        await pause(0);
+      }
+      $('animRange').value = +(L * scale).toPrecision(3);
+      summary = anomalySummary(L);
+    }
+  } catch (e) {
+    animBuilding = false;
+    $('animNote').textContent = `Could not load frames: ${e.message}`; refreshAnimInfo(); return;
+  }
+  animBuilding = false; frames = built;
+  animGrid = { ext, res, W, H, anomaly, key, scale: band.scale ?? 1, offset: band.offset ?? 0, unit: band.unit || '' };
+  applyLayers();
+  $('animPos').max = frames.length - 1; $('animPos').hidden = false;
+  $('animPlay').disabled = false; $('animExport').disabled = false; $('animClose').hidden = false;
+  $('animBuild').disabled = false; $('animBuild').textContent = 'Reload frames'; $('animRes').disabled = false;
+  $('animNote').textContent = `${frames.length} frames loaded, ${W} x ${H} px at ${+res.toPrecision(4)} m.${summary}`;
+  showFrame(frames.length - 1);
+}
+
+let anomState = null, animRangeTyped = false, animGrid = null;
+function anomalyCanvas(i, L, it = frames[i].it) {
+  const a = anomState;
+  return frameCanvas({ values: a.stack[i] }, a.W, a.H, a.lut, -L, L, a.label(it), a.withBar ? {
+    stops: a.barStops, dlo: -L * a.scale, dhi: L * a.scale, centered: true,
+    title: `${a.key} minus mean${a.unit ? ` (${a.unit})` : ''}` } : null);
+}
+function anomalySummary(L) {
+  const a = anomState;
+  return ` Anomaly from the ${a.n}-frame mean; color range ±${+(L * a.scale).toPrecision(3)} ${a.unit}`.trimEnd()
+    + (animRangeTyped ? ' (typed)' : ` (auto, ${$('clip').value}% clip)`) + '; blue below the mean, red above.';
+}
+async function recolorAnomaly() {
+  // Redraw the loaded anomaly frames with the ± range now in the box (or the automatic one).
+  if (!anomState || !frames.length) return;
+  const typed = +$('animRange').value;
+  const L = animRangeTyped && typed > 0 ? typed / anomState.scale : anomState.autoL;
+  if (!animRangeTyped) $('animRange').value = +(L * anomState.scale).toPrecision(3);
+  for (const [i, f] of frames.entries()) {
+    f.canvas = anomalyCanvas(i, L);
+    f.source = new ol.source.ImageStatic({ url: f.canvas.toDataURL('image/png'), imageExtent: anomState.ext, projection: viewCode });
+  }
+  showFrame(animIdx);
+  $('animNote').textContent = `${frames.length} frames, ${anomState.W} x ${anomState.H} px.${anomalySummary(L)}`;
+}
+
+function showFrame(i) {
+  animIdx = i;
+  const f = frames[i];
+  animLayer.setSource(f.source);
+  $('animPos').value = i;
+  $('animInfo').textContent = `Frame ${i + 1} of ${frames.length}: ${fmtDate(f.it.start)} to ${fmtDate(f.it.end)}`;
+  animDate = +f.it.start;
+  if (dates.length) drawTimebar();
+}
+function pauseAnim() { clearInterval(animTimer); animTimer = null; $('animPlay').textContent = 'Play'; }
+function playAnim() {
+  pauseAnim();
+  if (animIdx >= frames.length - 1 && !$('animLoop').checked) showFrame(0);
+  animTimer = setInterval(() => {
+    if (animIdx + 1 < frames.length) showFrame(animIdx + 1);
+    else if ($('animLoop').checked) showFrame(0);
+    else pauseAnim();
+  }, 1000 / +$('animFps').value);
+  $('animPlay').textContent = 'Pause';
+}
+
+function resetAnimation(note = '') {
+  ++animToken; animBuilding = false; pauseAnim();
+  frames = []; frameBox = null; animDate = null; anomState = null; animGrid = null;
+  animLayer.setSource(null); applyLayers();
+  $('animPos').hidden = true; $('animPlay').disabled = true; $('animExport').disabled = true; $('animClose').hidden = true;
+  $('animBuild').textContent = 'Load frames';
+  $('animNote').textContent = note;
+  if (dates.length) drawTimebar();
+  refreshAnimInfo();
+}
+
+async function exportMovie() {
+  if (!('VideoEncoder' in window)) {
+    $('animNote').textContent = 'This browser cannot encode video; use a recent Chrome, Edge, Safari (16.4+) or Firefox (130+).';
+    return;
+  }
+  const fps = +$('animFps').value, W = frames[0].canvas.width + (frames[0].canvas.width % 2), H = frames[0].canvas.height + (frames[0].canvas.height % 2);
+  const bitrate = Math.round(Math.min(20e6, Math.max(2e6, W * H * fps * 0.2)));
+  let codec = null;
+  for (const c of ['avc1.640034', 'avc1.4d0034', 'avc1.42003e', 'avc1.42001f']) {
+    try { if ((await VideoEncoder.isConfigSupported({ codec: c, width: W, height: H, bitrate, framerate: fps })).supported) { codec = c; break; } } catch (e) {}
+  }
+  if (!codec) { $('animNote').textContent = `This browser cannot encode H.264 at ${W} x ${H}; choose a coarser resolution.`; return; }
+  $('animExport').disabled = true; pauseAnim();
+  const muxer = new Mp4Muxer.Muxer({ target: new Mp4Muxer.ArrayBufferTarget(), video: { codec: 'avc', width: W, height: H, frameRate: fps }, fastStart: 'in-memory' });
+  let failure = null;
+  const enc = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: e => { failure = e; } });
+  enc.configure({ codec, width: W, height: H, bitrate, framerate: fps });
+  const vc = document.createElement('canvas'); vc.width = W; vc.height = H;
+  const vctx = vc.getContext('2d');
+  try {
+    for (const [i, f] of frames.entries()) {
+      $('animNote').textContent = `Encoding frame ${i + 1} of ${frames.length}...`;
+      vctx.fillStyle = '#000000'; vctx.fillRect(0, 0, W, H);  // no-data areas are black in the movie
+      vctx.drawImage(f.canvas, 0, 0);
+      const vf = new VideoFrame(vc, { timestamp: Math.round(i * 1e6 / fps), duration: Math.round(1e6 / fps) });
+      enc.encode(vf, { keyFrame: i % Math.max(1, fps * 2) === 0 });
+      vf.close();
+      while (enc.encodeQueueSize > 4) await pause(20);
+      if (failure) throw failure;
+    }
+    await enc.flush();
+    if (failure) throw failure;
+    muxer.finalize();
+    const blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
+    const key = $('asset').value, coll = items[0]?.raw?.collection || 'grimp';
+    const name = `${coll}_${key}_${fmtDate(frames[0].it.start)}_${fmtDate(frames[frames.length - 1].it.start)}.mp4`;
+    saveBlob(blob, name);
+    $('animNote').textContent = `Saved ${name} (${(blob.size / 1e6).toFixed(1)} MB, ${frames.length} frames at ${fps} frames/s).`;
+  } catch (e) {
+    $('animNote').textContent = `Movie export failed: ${e.message}`;
+  } finally {
+    if (enc.state !== 'closed') enc.close();
+    $('animExport').disabled = !frames.length;
+  }
+}
+
+$('animBuild').onclick = buildFrames;
+$('animAnom').onchange = () => { if (frames.length) resetAnimation('Load the frames again to switch between values and anomalies.'); else refreshAnimInfo(); };
+$('animRange').onchange = () => { animRangeTyped = $('animRange').value !== '' && +$('animRange').value > 0; recolorAnomaly(); };
+$('animRangeAuto').onclick = () => { animRangeTyped = false; $('animRange').value = ''; recolorAnomaly(); };
+$('animBar').onchange = () => { if (frames.length) resetAnimation('Load the frames again to add or remove the color bar.'); };
+$('animDrawBox').onclick = () => {
+  if (!$('cropOn').checked) { $('cropOn').checked = true; $('cropOn').dispatchEvent(new Event('change')); }
+  $('drawBox').click();  // same box as the download crop
+  $('animNote').textContent = draw ? 'Click one corner on the map, then the opposite corner.' : '';
+  refreshAnimInfo();
+};
+$('animWhole').onclick = () => { $('clearBox').click(); $('cropOn').checked = false; $('cropOn').dispatchEvent(new Event('change')); };
+$('animPlay').onclick = () => (animTimer ? pauseAnim() : playAnim());
+$('animFps').onchange = () => { if (animTimer) playAnim(); };
+$('animPos').oninput = e => { pauseAnim(); showFrame(+e.target.value); };
+$('animClose').onclick = () => resetAnimation();
+$('animExport').onclick = exportMovie;
+$('animRes').onchange = () => {};
+
+// Static anomaly view: the selected date minus the per-pixel mean of its time series, at an overview
+// resolution, over the crop box or the whole image/site, in blue-white-red. The series stack is kept,
+// so other dates of the same series show at once.
+const staticLayer = new ol.layer.Image({ zIndex: 2, visible: false });
+map.addLayer(staticLayer);
+let saCache = null, saShown = null, saToken = 0, saBusy = false, saTyped = false, saReady = false, saExtKey = '';
+
+function applyLayers() {
+  const anim = frames.length > 0, sa = !anim && !!saShown;
+  animLayer.setVisible(anim); staticLayer.setVisible(sa); rasterLayer.setVisible(!anim && !sa);
+}
+
+function refreshStaticAnom() {
+  const series = timeSeries(), ok = !!selected && series.length >= 2 && !rgbMode;
+  $('saBlock').hidden = !ok;
+  if (!ok) { if (saShown) clearStaticAnom(); return; }
+  $('saCount').textContent = `${series.length} dates`;
+  const pos = series.indexOf(selected);
+  $('saPrev').disabled = pos <= 0; $('saNext').disabled = pos < 0 || pos >= series.length - 1;
+  $('saPos').textContent = pos >= 0 ? `${pos + 1} of ${series.length}: ${fmtDate(selected.start)}` : '';
+  $('saUnit').textContent = band.unit || '';
+  if (!saReady || !levels) return;
+  const ext = animExtent(), sel = $('saRes'), prev = sel.value;
+  sel.replaceChildren(...levels.map((l, i) => {
+    const [w, h] = frameSize(ext, l.res), px = w * h;
+    const o = new Option(`${+l.res.toPrecision(4)} m: ${w} x ${h} px`, String(i));
+    o.disabled = px > maxFramePixels || px * series.length > maxAnimPixels;
+    return o;
+  }));
+  const ok2 = [...sel.options].filter(o => !o.disabled), extKey = ext.map(Math.round).join(',') + '|' + series.length;
+  sel.value = extKey === saExtKey && ok2.some(o => o.value === prev) ? prev : (ok2[0]?.value ?? '');
+  saExtKey = extKey; sel.disabled = !ok2.length;
+  if ($('saOn').checked && !saBusy) showStaticAnom();
+}
+
+function saKeys() {
+  const key = $('asset').value, series = timeSeries(), ext = animExtent(), lvl = levels?.[+$('saRes').value];
+  if (!lvl || !selected) return null;
+  const base = [key, ext.map(Math.round).join(','), lvl.res.toFixed(3), series.map(s => s.id).join(';')].join('|');
+  return { key, series, ext, res: lvl.res, base, full: base + '|' + selected.id };
+}
+
+async function showStaticAnom() {
+  const k = saKeys();
+  if (!k || saShown?.full === k.full) return;
+  if (!k.series.includes(selected)) { clearStaticAnom('The displayed date is outside the time range.'); return; }
+  const token = ++saToken;
+  saBusy = true;
+  try {
+    if (!saCache || saCache.base !== k.base) {
+      saCache = null;
+      const [W, H] = frameSize(k.ext, k.res), values = new Map();
+      for (const [i, it] of k.series.entries()) {
+        $('saNote').textContent = `Reading date ${i + 1} of ${k.series.length} (${fmtDate(it.start)})...`;
+        values.set(it, (await readFrame(it, k.key, k.ext, k.res, W, H)).values);
+        if (token !== saToken) return;
+        await pause(0);
+      }
+      const n = W * H, sum = new Float64Array(n), cnt = new Uint16Array(n), mean = new Float32Array(n);
+      for (const v of values.values()) for (let j = 0; j < n; j++) if (!Number.isNaN(v[j])) { sum[j] += v[j]; cnt[j]++; }
+      for (let j = 0; j < n; j++) mean[j] = cnt[j] ? sum[j] / cnt[j] : NaN;
+      const step = Math.max(1, Math.floor(n * values.size / 1e6)), picks = [];
+      for (const v of values.values()) for (let j = 0; j < n; j += step) { const d = v[j] - mean[j]; if (!Number.isNaN(d)) picks.push(d); }
+      saCache = { base: k.base, W, H, ext: k.ext, res: k.res, key: k.key, values, mean, sorted: Float32Array.from(picks).sort(),
+                  scale: band.scale ?? 1, unit: band.unit || '' };
+    }
+    if (token === saToken) drawStaticAnom(k.full);
+  } catch (e) {
+    if (token === saToken) $('saNote').textContent = `Could not compute the anomaly: ${e.message}`;
+  } finally {
+    if (token === saToken) saBusy = false;
+  }
+}
+
+function saRange() {
+  // Typed ± value, or automatic: the larger tail at 1% over all dates' anomalies.
+  const c = saCache, s = c.sorted, typed = +$('saRange').value;
+  const at = q => s[Math.min(s.length - 1, Math.max(0, Math.round(q * (s.length - 1))))] ?? 0;
+  return saTyped && typed > 0 ? typed / c.scale : (Math.max(Math.abs(at(0.01)), Math.abs(at(0.99))) || 1);
+}
+
+function drawStaticAnom(full = saShown?.full) {
+  const c = saCache, v = c.values.get(selected);
+  if (!v) return;
+  const n = c.W * c.H, d = new Float32Array(n);
+  for (let j = 0; j < n; j++) d[j] = v[j] - c.mean[j];
+  const L = saRange(), stops = cmaps['blue-white-red'];
+  const canvas = frameCanvas({ values: d }, c.W, c.H, buildLut(stops), -L, L, '');
+  staticLayer.setSource(new ol.source.ImageStatic({ url: canvas.toDataURL('image/png'), imageExtent: c.ext, projection: viewCode }));
+  saShown = { full, d, L };
+  applyLayers();
+  const Ld = +(L * c.scale).toPrecision(3);
+  if (!saTyped) $('saRange').value = Ld;
+  $('stretchCtl').hidden = true;  // the normal color controls do not apply to the anomaly
+  $('saLegend').hidden = false;
+  $('saBar').style.background = `linear-gradient(90deg, ${stops.join(', ')})`;
+  $('saMin').textContent = -Ld; $('saMax').textContent = `${Ld} ${c.unit}`.trim();
+  $('saNote').textContent = `${fmtDate(selected.start)} minus the mean of ${c.values.size} dates; ${c.W} x ${c.H} px at `
+    + `${+c.res.toPrecision(4)} m; ±${Ld} ${c.unit} ${saTyped ? '(typed)' : '(auto, 1% clip)'}. Blue below the mean, red above.`;
+}
+
+function clearStaticAnom(note = '') {
+  ++saToken; saBusy = false; saShown = null;
+  staticLayer.setSource(null); applyLayers();
+  $('stretchCtl').hidden = rgbMode; $('saLegend').hidden = true; $('saNote').textContent = note;
+}
+
+$('saOn').onchange = e => {
+  $('saOpts').hidden = !e.target.checked;
+  if (e.target.checked) refreshStaticAnom(); else clearStaticAnom();
+};
+$('saRes').onchange = () => { if ($('saOn').checked) showStaticAnom(); };
+$('saRange').onchange = () => { saTyped = +$('saRange').value > 0; if (saShown) drawStaticAnom(); };
+function saStep(dir) {
+  const series = timeSeries(), i = series.indexOf(selected), j = i + dir;
+  if (i >= 0 && j >= 0 && j < series.length) select(series[j]);
+}
+$('saPrev').onclick = () => saStep(-1);
+$('saNext').onclick = () => saStep(1);
+$('saAuto').onclick = () => { saTyped = false; $('saRange').value = ''; if (saShown) drawStaticAnom(); };
+
+function applyClip() {
+  const p = +$('clip').value;
+  $('clipv').textContent = `${p}%`;
+  if (rgbMode || !sample || !sample.length) return;
+  const at = q => sample[Math.min(sample.length - 1, Math.max(0, Math.round(q * (sample.length - 1))))];
+  const lo = toDisp(at(p / 100)), hi = toDisp(at(1 - p / 100));
+  if (stretchMode === 'zero') setStretch(0, hi);
+  else if (stretchMode === 'symmetric') {
+    // Same limit both sides: the larger of the two tails, so neither end clips more than p%.
+    const L = Math.max(Math.abs(lo), Math.abs(hi));
+    setStretch(-L, L);
+  } else setStretch(lo, hi);
+}
+
+setHemi('N');
+showMaintenance();
+setInterval(showMaintenance, 10 * 60 * 1000);
+$('hemN').onclick = () => pickHemi('N');
+$('hemS').onclick = () => pickHemi('S');
+$('preset').onchange = e => { if (e.target.value !== '') loadCatalog(presets[+e.target.value][1]); };
+$('load').onclick = () => $('href').value.trim() && loadCatalog($('href').value.trim());
+$('href').onkeydown = e => { if (e.key === 'Enter') $('load').click(); };
+$('asset').onchange = e => showAsset(e.target.value);
+$('opacity').oninput = e => rasterLayer.setOpacity(+e.target.value);
+$('baseOn').onchange = e => baseLayer.setVisible(e.target.checked);
+$('coastOn').onchange = e => coastLayer.setVisible(e.target.checked);
+$('footOn').onchange = e => footLayer.setVisible(e.target.checked);
+$('smin').onchange = $('smax').onchange = () => setStretch(+$('smin').value, +$('smax').value);
+$('cmap').replaceChildren(...Object.keys(cmaps).map(k => new Option(k, k)));
+$('cmap').onchange = e => { if (e.target.value !== 'blue-white-red') lastSeqCmap = e.target.value; setColormap(e.target.value); };
+$('clip').oninput = applyClip;
+
+map.on('singleclick', e => {
+  if (draw) return;
+  // Test against the footprint geometry rather than rendered pixels, since footprints are outline-only.
+  const hits = footLayer.getVisible() ? footSource.getFeaturesAtCoordinate(e.coordinate) : [];
+  if (!hits.length) return;
+  // Smallest footprint first; identical footprints step back in time from the newest.
+  hits.sort((a, b) => (a.getGeometry().getArea() - b.getGeometry().getArea()) || (b.get('item').start - a.get('item').start));
+  if (e.originalEvent.shiftKey || e.originalEvent.ctrlKey || e.originalEvent.metaKey) {
+    // Shift/Ctrl/Cmd-click picks the displayed footprint if it is under the cursor, else the smallest
+    // (newest) one, so a single TSX site box can be picked even where dates overlap.
+    const shown = hits.find(f => f.get('item') === selected);
+    togglePick((shown || hits[0]).get('item'));
+    return;
+  }
+  const cur = hits.findIndex(f => f.get('item') === selected);
+  select(hits[(cur + 1) % hits.length].get('item'));
+});
+// Hover readout: map x/y (km) and lat/lon at once; the pixel value after a short pause, read from
+// the full-resolution COG (or, while an animation is shown, from the current frame).
+let readoutTimer = null, readoutToken = 0;
+const fmtVal = v => Math.abs(v) >= 1e4 || (v !== 0 && Math.abs(v) < 1e-3) ? v.toExponential(3) : String(+v.toPrecision(5));
+function readoutCoords(coord) {
+  const [lon, lat] = ol.proj.toLonLat(coord, viewCode);
+  const km = viewCode === 'EPSG:3857' ? '' : `x ${(coord[0] / 1000).toFixed(2)} km, y ${(coord[1] / 1000).toFixed(2)} km   `;
+  return `${km}${Math.abs(lat).toFixed(4)}°${lat >= 0 ? 'N' : 'S'} ${Math.abs(lon).toFixed(4)}°${lon >= 0 ? 'E' : 'W'}`;
+}
+async function readoutValue(coord) {
+  if (!frames.length && saShown && saCache) {
+    const c = saCache, fx = Math.floor((coord[0] - c.ext[0]) / c.res), fy = Math.floor((c.ext[3] - coord[1]) / c.res);
+    if (fx < 0 || fy < 0 || fx >= c.W || fy >= c.H) return 'outside anomaly area';
+    const d = saShown.d[fy * c.W + fx];
+    return Number.isNaN(d) ? 'no data' : `<b>${c.key} minus mean</b> ${fmtVal(d * c.scale)} ${c.unit} (${fmtDate(selected.start)})`;
+  }
+  if (frames.length && animGrid && frames[animIdx]?.values) {
+    const g = animGrid, fx = Math.floor((coord[0] - g.ext[0]) / g.res), fy = Math.floor((g.ext[3] - coord[1]) / g.res);
+    if (fx < 0 || fy < 0 || fx >= g.W || fy >= g.H) return 'outside frame';
+    const v = frames[animIdx].values[fy * g.W + fx];
+    if (Number.isNaN(v)) return 'no data';
+    const shown = g.anomaly ? v * g.scale : v * g.scale + g.offset;
+    return `<b>${g.key}${g.anomaly ? ' minus mean' : ''}</b> ${fmtVal(shown)} ${g.unit} (${fmtDate(frames[animIdx].it.start)})`;
+  }
+  if (!selected || !$('asset').value) return '';
+  const key = $('asset').value, a = selected.assets[key], b = a['raster:bands']?.[0] || {};
+  const { levels: lv, origin: org } = await assetLevels(a.href);
+  const img = lv[0].img, r = lv[0].res;
+  const col = Math.floor((coord[0] - org[0]) / r), row = Math.floor((org[1] - coord[1]) / r);
+  if (col < 0 || row < 0 || col >= img.getWidth() || row >= img.getHeight()) return 'outside image';
+  const vals = await img.readRasters({ window: [col, row, col + 1, row + 1], interleave: true });
+  if (vals.length >= 3) return `<b>${key}</b> R ${vals[0]} G ${vals[1]} B ${vals[2]}`;
+  const v = vals[0];
+  if (v === b.nodata || !Number.isFinite(v)) return `<b>${key}</b> no data`;
+  return `<b>${key}</b> ${fmtVal(v * (b.scale ?? 1) + (b.offset ?? 0))} ${b.unit || ''}`;
+}
+function updateReadout(e) {
+  const ro = $('readout'), coords = readoutCoords(e.coordinate);
+  ro.hidden = false;
+  ro.innerHTML = `${coords}<br><span class="note" style="color:inherit">reading value...</span>`;
+  clearTimeout(readoutTimer);
+  const token = ++readoutToken;
+  readoutTimer = setTimeout(async () => {
+    let val;
+    try { val = await readoutValue(e.coordinate); } catch (err) { val = `value unavailable (${err.message})`; }
+    if (token === readoutToken) ro.innerHTML = val ? `${coords}<br>${val}` : coords;
+  }, 150);
+}
+map.on('pointermove', e => { if (!e.dragging) updateReadout(e); });
+map.getViewport().addEventListener('pointerleave', () => { clearTimeout(readoutTimer); ++readoutToken; $('readout').hidden = true; });
+
+map.on('pointermove', e => {
+  const over = !draw && footLayer.getVisible() && footSource.getFeaturesAtCoordinate(e.coordinate).length > 0;
+  map.getTargetElement().style.cursor = over ? 'pointer' : '';
+});
+window.addEventListener('popstate', () => loadCatalog(new URL(location.href).searchParams.get('href') || presets[0][1], false));
+
+loadCatalog(new URL(location.href).searchParams.get('href') || presets[0][1], false);
+</script>
+</body>
+</html>
