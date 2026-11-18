@@ -1563,7 +1563,7 @@ async function computeTs() {
   const band0 = selected.assets[key]?.['raster:bands']?.[0] || {};
   tsPlotInfo = { key, unit: band0.unit || '', withErr, n: series.length, times: series.map(it => (+it.start + +it.end) / 2) };
   for (const p of tsPoints) p.values = [];
-  $('tsPlot').hidden = false; $('tsShow').hidden = true;
+  setTsPlot(true);
   drawTsPlot();
   const t0 = performance.now();
   // Progress and the plot update as values arrive (redrawn at most every 0.3 s); values already in
@@ -1722,8 +1722,14 @@ $('tsRange').onchange = () => refreshTs();
 $('tsErr').onchange = () => refreshTs();
 $('tsIts').onchange = () => refreshIts();
 $('tsItsDt').onchange = () => refreshIts();
-$('tsHide').onclick = () => { $('tsPlot').hidden = true; $('tsShow').hidden = !tsPoints.length; };
-$('tsShow').onclick = () => { $('tsPlot').hidden = false; $('tsShow').hidden = true; drawTsPlot(); };
+// One button in the panel hides or shows the plot; the plot's own x also hides it.
+function setTsPlot(show) {
+  $('tsPlot').hidden = !show;
+  $('tsShow').hidden = false; $('tsShow').textContent = show ? 'Hide plot' : 'Show plot';
+  if (show) drawTsPlot();
+}
+$('tsHide').onclick = () => setTsPlot(false);
+$('tsShow').onclick = () => setTsPlot($('tsPlot').hidden);
 window.addEventListener('resize', () => { if (!$('tsPlot').hidden) drawTsPlot(); });
 $('tsCsv').onclick = () => {
   const info = tsPlotInfo, rows = [['point', 'x_km', 'y_km', 'lat', 'lon', 'item', 'start', 'end', 'asset', 'value', 'unit', 'error']];
@@ -1807,6 +1813,7 @@ const tips = {
   th0: 'Start of the time range: drag, or use the arrow keys',
   th1: 'End of the time range: drag, or use the arrow keys',
   treset: 'Show the full time range',
+  tsShow: 'Hide or show the time-series plot',
   tsIts: 'Also plot ITS_LIVE image-pair velocities (its-live.jpl.nasa.gov datacubes) at the same points, in grey',
   tsItsDt: 'Only ITS_LIVE pairs whose images are at most this many days apart',
   panelToggle: 'Hide or show the control panel, giving the map the whole window',

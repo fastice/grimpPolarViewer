@@ -100,6 +100,7 @@ at full resolution from every date of the series (one-pixel reads, six at a time
 the hover readout gives) and plotted against the middle of each product's date range.
 
 - **Only dates in the time range** follows the time-bar handles; untick it for every date.
+- **Hide plot / Show plot** in the panel toggles the plot; its x also hides it.
 - **Error bars** (1 sigma): `ex` for `vx`, `ey` for `vy`, and for speed
   $`\sigma_v = \sqrt{(v_x e_x)^2 + (v_y e_y)^2}/v`$ from the four component files.
 - Changing the asset or the time range redraws the plot; values already read are cached.
