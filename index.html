@@ -275,6 +275,7 @@ body.nopanel #panel { display: none; }
         <option value="30">30 d</option><option value="12" selected>12 d</option></select></label></div>
       <div id="tsItsNote" class="note"></div>
       <div id="tsYRow" class="block-inner" hidden>
+        <label class="optrow"><input id="tsXBar" type="checkbox" checked> Plot x axis follows the time-bar range</label>
         <div class="ctl"><label for="tsYMax">Plot y max <b id="tsYMaxV"></b></label><input id="tsYMax" type="range" min="0" max="1000" step="1"></div>
         <div class="ctl"><label for="tsYMin">Plot y min <b id="tsYMinV"></b> <button id="tsYAuto" type="button" class="link">Auto</button></label>
           <input id="tsYMin" type="range" min="0" max="1000" step="1"></div>
@@ -451,6 +452,7 @@ function toItem(r) {
 }
 
 async function loadCatalog(href, push = true) {
+  const prevCode = viewCode, prevName = tsCollectionName();
   $('href').value = href;
   const p = presets.findIndex(([, u]) => u === href);
   if (p >= 0 && presets[p][2] !== hemi) setHemi(presets[p][2]);
@@ -500,10 +502,13 @@ async function loadCatalog(href, push = true) {
   setStatus(`${items.length} items, ${code}${codes.length > 1 ? ` (catalog mixes ${codes.join(', ')}; showing first)` : ''}`);
   selected = null; rasterLayer.setSource(null); $('legend').hidden = true;
   $('asset').replaceChildren();
+  // Points carry over to a catalog in the same projection; the old catalog's series stay on the plot.
+  const carry = tsPoints.length && prevCode === viewCode ? snapshotTsPoints(prevName) : null;
   stopDraw(); boxSource.clear(); cropBox = null; areaSource.clear(); areaBox = null; picks.clear(); saCache = null; clearStaticAnom(); clearTsPoints(); updateCropInfo();
   applyFilter(true);
   // Open on the newest item so a catalog shows data straight away, as stac-map does on a click.
   if (items.length) select(items[items.length - 1]);
+  if (carry) restoreTsPoints(carry);
 }
 
 // Time range: indices into the sorted unique start dates.
@@ -1516,7 +1521,7 @@ function refreshTs() {
   $('tsItsRow').hidden = !($('asset').value in itsVars);
   if (!tsPoints.length) return;
   const key = [$('asset').value, series.map(s => s.id).join(';'), $('tsErr').checked, tsPoints.map(p => p.n).join(',')].join('|');
-  if (key !== tsKey) computeTs();
+  if (key !== tsKey) computeTs(); else if (tsPlotInfo && !$('tsPlot').hidden) drawTsPlot();
   refreshIts();
 }
 
@@ -1623,7 +1628,7 @@ async function computeTs() {
   $('tsProg').hidden = false; $('tsProg').value = 0;
   const band0 = selected.assets[key]?.['raster:bands']?.[0] || {};
   if (tsPlotInfo?.key !== key) tsYTyped = null;
-  tsPlotInfo = { key, unit: band0.unit || '', withErr, n: series.length, times: series.map(it => (+it.start + +it.end) / 2) };
+  tsPlotInfo = { key, unit: band0.unit || '', withErr, n: series.length, times: series.map(it => (+it.start + +it.end) / 2), name: tsCollectionName() };
   $('tsYRow').hidden = false;
   for (const p of tsPoints) p.values = [];
   setTsPlot(true);
@@ -1708,13 +1713,27 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   const css = getComputedStyle(document.documentElement), tok = n => css.getPropertyValue(n).trim();
   const fg = tok('--fg'), muted = tok('--muted'), line = tok('--line');
   ctx.fillStyle = tok('--panel'); ctx.fillRect(0, 0, W, H);
-  const L = 64, R = 14, T = 30, B = 30, pw = W - L - R, ph = H - T - B;
-  const pts = tsPoints.flatMap(p => p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v, e: x.e })));
+  const ovs = tsOverlays(), ovNames = [...new Set(ovs.map(o => o.l.name))];
+  const L = 64, R = 14, T = ovs.length ? 46 : 30, B = 30, pw = W - L - R, ph = H - T - B;
+  const pts = tsPoints.flatMap(p => p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v, e: x.e })))
+    .concat(ovs.flatMap(o => o.l.values));
   const finite = pts.filter(q => Number.isFinite(q.v));
   ctx.font = '12px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = fg; ctx.textBaseline = 'middle';
   const itsOn = $('tsIts').checked && tsPlotInfo.key in itsVars;
   ctx.fillText(`GrIMP (color): ${tsPlotInfo.key}${tsPlotInfo.unit ? ` (${tsPlotInfo.unit})` : ''}${tsPlotInfo.withErr ? ', error bars 1 sigma' : ''}`
     + (itsOn ? `; ITS_LIVE (grey): pairs${+$('tsItsDt').value < 1e5 ? ` up to ${$('tsItsDt').value} d` : ''}` : ''), L, 14);
+  if (ovs.length) {
+    // Which line style is which catalog: filled circles = the catalog shown now.
+    ctx.save(); ctx.font = '11px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = muted; ctx.strokeStyle = muted;
+    let lx = L;
+    const entry = (shape, fill, dash, text) => {
+      ctx.setLineDash(dash); ctx.beginPath(); ctx.moveTo(lx, 32); ctx.lineTo(lx + 18, 32); ctx.stroke(); ctx.setLineDash([]);
+      tsMarker(ctx, shape, lx + 9, 32, 3.2, fill); ctx.fillText(text, lx + 23, 32); lx += 23 + ctx.measureText(text).width + 14;
+    };
+    entry('circle', true, [], `${tsPlotInfo.name} (shown)`);
+    ovNames.forEach((n, k) => entry(ovStyles[k % ovStyles.length].shape, false, ovStyles[k % ovStyles.length].dash, n));
+    ctx.restore();
+  }
   if (!finite.length) { ctx.fillStyle = muted; ctx.fillText($('tsProg').hidden ? 'No data at these points' : 'Reading values...', L + 10, T + ph / 2); return; }
   let y0 = Math.min(...finite.map(q => q.v - (Number.isFinite(q.e) ? q.e : 0)));
   let y1 = Math.max(...finite.map(q => q.v + (Number.isFinite(q.e) ? q.e : 0)));
@@ -1722,7 +1741,9 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   const yp = (y1 - y0) * 0.06; y0 -= yp; y1 += yp;
   if (canvas === $('tsCanvas')) tsYSliders(y0, y1, itsOn);
   if (tsYTyped) [y0, y1] = tsYTyped;
-  const ts = tsPlotInfo.times;  // the whole series, so the time axis stays put while values arrive
+  // x axis: the time-bar range, or every date plotted (both fixed while values arrive)
+  const inR = $('tsXBar').checked ? inRange() : [];
+  const ts = inR.length ? inR.flatMap(it => [+it.start, +it.end]) : tsPlotInfo.times.concat(ovs.flatMap(o => o.l.values.map(x => x.t)));
   let t0 = Math.min(...ts), t1 = Math.max(...ts);
   const tp = Math.max((t1 - t0) * 0.04, 86400e3 * 5); t0 -= tp; t1 += tp;
   const X = t => L + (t - t0) / (t1 - t0) * pw, Y = v => T + (1 - (v - y0) / (y1 - y0)) * ph;
@@ -1771,6 +1792,25 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   }
   if (onScreen) tsPlotInfo.geom = { X, Y };  // for picking a date by clicking the plot
   ctx.save(); ctx.beginPath(); ctx.rect(L, T, pw, ph); ctx.clip();
+
+  // Earlier catalogs, under the catalog shown (which is drawn on top): dashed lines and large hollow
+  // markers in the point's color, haloed in the panel color so they stay visible through the newer series.
+  const halo = tok('--panel');
+  for (const { p, l, k } of ovs) {
+    const st = ovStyles[k % ovStyles.length], q = l.values.filter(x => Number.isFinite(x.v));
+    const path = () => { ctx.beginPath(); q.forEach((x, i) => (i ? ctx.lineTo(X(x.t), Y(x.v)) : ctx.moveTo(X(x.t), Y(x.v)))); ctx.stroke(); };
+    ctx.setLineDash(st.dash);
+    ctx.strokeStyle = halo; ctx.lineWidth = 3.5; path();
+    ctx.strokeStyle = p.color; ctx.lineWidth = 1.5; path();
+    ctx.setLineDash([]);
+    for (const x of q) {
+      if (tsPlotInfo.withErr && Number.isFinite(x.e) && x.e > 0) {
+        ctx.strokeStyle = p.color; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(X(x.t), Y(x.v - x.e)); ctx.lineTo(X(x.t), Y(x.v + x.e)); ctx.stroke();
+      }
+      ctx.strokeStyle = halo; ctx.lineWidth = 3.5; tsMarker(ctx, st.shape, X(x.t), Y(x.v), 5, false);
+      ctx.strokeStyle = p.color; ctx.lineWidth = 1.6; tsMarker(ctx, st.shape, X(x.t), Y(x.v), 5, false);
+    }
+  }
   // series: line, error bars, markers
   for (const p of tsPoints) {
     const q = p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v, e: x.e })).filter(x => Number.isFinite(x.v));
@@ -1803,6 +1843,44 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
     if (itsOn && p.its) { ctx.fillStyle = itsGrey(p); ctx.fillRect(lx - 4, 22, 8, 5); }  // this point's ITS_LIVE grey
     lx -= 18;
   }
+}
+
+// Series from earlier catalogs ("layers" on each point) are kept when the catalog changes and drawn
+// with their own line and marker style; only the asset shown when leaving a catalog is kept.
+const tsCollectionName = () => items[0]?.raw?.collection || ($('title').firstChild?.textContent || 'catalog').replace(/\.parquet$/, '');
+function snapshotTsPoints(name) {
+  return tsPoints.map(p => {
+    const layers = (p.layers || []).filter(l => !(tsPlotInfo && l.name === name && l.key === tsPlotInfo.key));
+    if (tsPlotInfo && p.values.some(x => Number.isFinite(x.v))) layers.push({ name, key: tsPlotInfo.key, unit: tsPlotInfo.unit,
+      values: p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, start: x.it.start, end: x.it.end, id: x.it.id, v: x.v, e: x.e })) });
+    return { n: p.n, coord: p.coord, label: p.label, its: p.its, itsKey: p.itsKey, layers };
+  });
+}
+function restoreTsPoints(carry) {
+  for (const q of carry) {
+    tsNext = q.n; addTsPoint(q.coord, q.label, false);
+    Object.assign(tsPoints[tsPoints.length - 1], { layers: q.layers, its: q.its, itsKey: q.itsKey });
+  }
+  tsNext = Math.max(...carry.map(q => q.n)) + 1;
+  $('tsLoadNote').textContent = `${carry.length} point${carry.length > 1 ? 's' : ''} kept from the previous collection; its series stay on the plot.`;
+  refreshTs();
+}
+function tsOverlays() {
+  // [{ p, l, k }]: earlier catalogs' series for the asset now plotted; k numbers the catalogs for styling.
+  if (!tsPlotInfo) return [];
+  const out = tsPoints.flatMap(p => (p.layers || []).filter(l => l.key === tsPlotInfo.key && l.name !== tsPlotInfo.name).map(l => ({ p, l })));
+  const names = [...new Set(out.map(o => o.l.name))];
+  for (const o of out) o.k = names.indexOf(o.l.name);
+  return out;
+}
+const ovStyles = [{ dash: [6, 4], shape: 'square' }, { dash: [2, 3], shape: 'triangle' }, { dash: [10, 3, 2, 3], shape: 'diamond' }];
+function tsMarker(ctx, shape, x, y, r, fill) {
+  ctx.beginPath();
+  if (shape === 'circle') ctx.arc(x, y, r, 0, 2 * Math.PI);
+  else if (shape === 'square') ctx.rect(x - r, y - r, 2 * r, 2 * r);
+  else if (shape === 'triangle') { ctx.moveTo(x, y - r * 1.2); ctx.lineTo(x + r * 1.1, y + r * 0.8); ctx.lineTo(x - r * 1.1, y + r * 0.8); ctx.closePath(); }
+  else { ctx.moveTo(x, y - r * 1.3); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r * 1.3); ctx.lineTo(x - r, y); ctx.closePath(); }
+  if (fill) ctx.fill(); else ctx.stroke();
 }
 
 function addTsPoint(coord, label = '', refresh = true) {
@@ -1913,6 +1991,7 @@ $('tsHide').onclick = () => setTsPlot(false);
 $('tsShow').onclick = () => setTsPlot($('tsPlot').hidden);
 window.addEventListener('resize', () => { if (!$('tsPlot').hidden) drawTsPlot(); });
 $('tsYMin').oninput = $('tsYMax').oninput = tsYInput;
+$('tsXBar').onchange = () => drawTsPlot();
 $('tsYAuto').onclick = () => { tsYTyped = null; drawTsPlot(); };
 $('tsCanvas').onclick = e => {
   // Show the image of the GrIMP point nearest the click (any point's series), as if its time-bar tick were clicked.
@@ -1928,13 +2007,19 @@ $('tsCanvas').onclick = e => {
   if (best && best !== selected) select(best);
 };
 $('tsCsv').onclick = () => {
-  const info = tsPlotInfo, rows = [['point', 'label', 'x_km', 'y_km', 'lat', 'lon', 'item', 'start', 'end', 'asset', 'value', 'unit', 'error']];
+  const info = tsPlotInfo, rows = [['point', 'label', 'x_km', 'y_km', 'lat', 'lon', 'item', 'start', 'end', 'asset', 'value', 'unit', 'error', 'collection']];
   const csvText = t => /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
   for (const p of tsPoints) {
     const [lon, lat] = ol.proj.toLonLat(p.coord, viewCode);
+    const pos = [p.n, csvText(p.label || ''), (p.coord[0] / 1000).toFixed(3), (p.coord[1] / 1000).toFixed(3), lat.toFixed(5), lon.toFixed(5)];
     for (const x of p.values) {
-      rows.push([p.n, csvText(p.label || ''), (p.coord[0] / 1000).toFixed(3), (p.coord[1] / 1000).toFixed(3), lat.toFixed(5), lon.toFixed(5), x.it.id,
-                 fmtDate(x.it.start), fmtDate(x.it.end), info.key, Number.isNaN(x.v) ? '' : x.v, info.unit, Number.isFinite(x.e) ? x.e : '']);
+      rows.push([...pos, x.it.id, fmtDate(x.it.start), fmtDate(x.it.end), info.key, Number.isNaN(x.v) ? '' : x.v, info.unit,
+                 Number.isFinite(x.e) ? x.e : '', csvText(info.name)]);
+    }
+    for (const l of p.layers || []) {
+      if (l.name === info.name && l.key === info.key) continue;
+      for (const x of l.values) rows.push([...pos, x.id, fmtDate(x.start), fmtDate(x.end), l.key, Number.isNaN(x.v) ? '' : x.v, l.unit,
+                                           Number.isFinite(x.e) ? x.e : '', csvText(l.name)]);
     }
   }
   const coll = items[0]?.raw?.collection || 'grimp';
@@ -2017,6 +2102,7 @@ const tips = {
   tsYMax: 'Top of the plot y axis (drag down to zoom in)',
   tsYMin: 'Bottom of the plot y axis (drag up to zoom in)',
   tsYAuto: 'Fit the y axis to the GrIMP values again',
+  tsXBar: 'Limit the plot x axis to the time-bar range; untick to show every date plotted',
   tsLoad: 'Load points from a CSV or text file: lat/lon or x/y (km or m) columns, optional label; a saved CSV loads back',
   tsIts: 'Also plot ITS_LIVE image-pair velocities (its-live.jpl.nasa.gov datacubes) at the same points, in grey',
   tsItsDt: 'Only ITS_LIVE pairs whose images are at most this many days apart',

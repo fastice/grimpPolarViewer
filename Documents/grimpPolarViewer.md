@@ -110,7 +110,9 @@ the hover readout gives) and plotted against the middle of each product's date r
 
 - **Only dates in the time range** follows the time-bar handles; untick it for every date.
 - **Hide plot / Show plot** in the panel toggles the plot; its x also hides it.
-- **Plot y max / y min** sliders set the y axis (the time range sets the x axis). They span the
+- **Plot x axis follows the time-bar range** (on by default) limits the x axis to the time bar's
+  handles; untick it to show every date plotted, including earlier collections' (below).
+- **Plot y max / y min** sliders set the y axis. They span the
   GrIMP values and the 1st-99th percentile of the ITS_LIVE values shown, plus half that span each
   way; **Auto** fits the GrIMP values again. A new asset or Clear points returns to Auto.
 - The plot marks the displayed date with a thin dashed line and rings each point's value there, so
@@ -145,7 +147,14 @@ the hover readout gives) and plotted against the middle of each product's date r
   Jakobshavn trunk,69.1317,-48.7640
   Upstream,69.20,-48.60
   ```
-- **Save CSV**: `point, label, x_km, y_km, lat, lon, item, start, end, asset, value, unit, error`.
+- **Switching collections keeps the points** when the new collection is in the same projection (e.g.
+  annual to 6/12-day velocity): the new collection's values are read and drawn on top (filled circles,
+  solid lines), and the previous collection's series stay underneath as dashed lines with large hollow
+  markers (squares, then triangles, diamonds), with a legend line under the title. Only the asset
+  plotted when leaving a collection is kept, and it shows while the same asset is plotted. Switching
+  hemisphere clears the points.
+- **Save CSV**: `point, label, x_km, y_km, lat, lon, item, start, end, asset, value, unit, error,
+  collection`, including the earlier collections' rows.
   **Save plot**: a PNG at twice screen resolution.
 
 Checked against GDAL at one point (2014-15 annual mosaic): speed 625.9329 m/yr and speed error
