@@ -18,6 +18,10 @@ scientists draw them: centered on the pole, in polar stereographic coordinates.
 | Amundsen Sea (Pine Island, Thwaites) annual ice velocity, 2015-2026 | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/pig/annual/ase-annual.parquet&asset=vv) |
 | Antarctica, NISAR 25 m radar mosaic | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/display/nisar-gcov-ant-25m.parquet) |
 
+These links only choose where to start. Once the viewer is open, switch to any other data set with
+the **Collections** menu at the top of the panel, and between Greenland and Antarctica with the
+**Northern** / **Southern** buttons above it.
+
 Nothing to install: it runs in any current desktop browser (Chrome, Edge, Firefox, Safari).
 Hover over any control for a short explanation.
 
@@ -27,7 +31,8 @@ Hover over any control for a short explanation.
 
 <img src="Documents/images/panel-catalog.png" align="right" width="300" alt="Hemisphere buttons, collection menu and catalog URL box">
 
-Choose **Northern** or **Southern**, then a collection from the **Collections** menu. The newest
+Choose **Northern** or **Southern**, then a collection from the **Collections** menu (the
+highlighted box near the top of the panel; it lists every data set for that hemisphere). The newest
 product opens on the map. Every product in the collection is listed at the bottom of the panel
 and outlined on the map; click either to show it.
 
