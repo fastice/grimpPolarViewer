@@ -524,6 +524,8 @@ function applyFilter(fit = false) {
     li.querySelector('.when').textContent = `${fmtDate(it.start)} to ${fmtDate(it.end)}`;
     const box = li.querySelector('input');
     box.checked = picks.has(it); box.setAttribute('aria-label', `Pick ${it.id} for download`);
+    box.title = 'Pick for download (Shift-click its box on the map does the same)';
+    li.title = 'Click to show this item';
     box.onclick = e => { e.stopPropagation(); togglePick(it, box.checked); };
     li.classList.toggle('picked', picks.has(it));
     if (it === selected) li.classList.add('sel');
@@ -758,6 +760,7 @@ function fillCropAssets(it) {
   $('cropAssets').replaceChildren(...keys.map(k => {
     const lab = document.createElement('label'), box = document.createElement('input');
     box.type = 'checkbox'; box.value = k; box.checked = ticked.has(k);
+    lab.title = `Include ${k} in downloads`;
     box.onchange = updateDownloadButtons;
     lab.append(box, ' ' + k);
     return lab;
@@ -1381,6 +1384,66 @@ function applyClip() {
     setStretch(-L, L);
   } else setStretch(lo, hi);
 }
+
+// Hover tooltips for the controls. A checkbox's tooltip also goes on its label, so hovering the text shows it.
+const tips = {
+  hemN: 'Greenland and other Arctic collections (polar stereographic EPSG:3413)',
+  hemS: 'Antarctic collections (polar stereographic EPSG:3031)',
+  preset: 'Collections for the selected hemisphere; pick one to open its catalog',
+  href: 'URL of any public stac-geoparquet catalog (.parquet); press Enter or Load',
+  load: 'Open the catalog URL',
+  asset: 'Which file of the item to show (e.g. vv speed, vx/vy components, browse image)',
+  opacity: 'Transparency of the image over the basemap',
+  baseOn: 'NASA GIBS Blue Marble basemap',
+  coastOn: 'Coastline overlay',
+  footOn: 'Outlines of the items in the time range; click one to show it',
+  cmap: 'Color map for single-band images',
+  clip: 'Percent of pixels saturated at each end of the color range (only the top for speeds; symmetric for vx/vy)',
+  smin: 'Lowest value of the color range (type to override the clip)',
+  smax: 'Highest value of the color range (type to override the clip)',
+  saOn: 'Show the displayed date minus the per-pixel mean of all dates in its time series',
+  saRes: 'Grid spacing for the anomaly; draw a crop box to get finer levels',
+  saRange: 'Color range of the anomaly, ± this value; blank or Auto uses a 1% clip',
+  saAuto: 'Go back to the automatic range (1% clip over all dates)',
+  saPrev: 'Show the anomaly for the previous date in the series',
+  saNext: 'Show the anomaly for the next date in the series',
+  animDrawBox: 'Draw the area to animate: click one corner on the map, then the opposite corner',
+  animWhole: 'Animate the whole image instead of the box',
+  animRes: 'Grid spacing of the frames; finer levels need a smaller box',
+  animAnom: 'Animate each date minus the per-pixel mean of all frames',
+  animRange: 'Anomaly color range, ± this value; changing it recolors the loaded frames',
+  animRangeAuto: 'Go back to the automatic anomaly range (current clip %)',
+  animBar: 'Draw a color bar into each frame (also in the saved movie)',
+  animFps: 'Playback speed, and the frame rate of the saved movie',
+  animLoop: 'Start again from the first frame after the last',
+  animBuild: 'Read every date in the series and draw the frames',
+  animPlay: 'Play or pause the animation',
+  animClose: 'Remove the animation and show the normal image again',
+  animPos: 'Drag to show a single frame',
+  animExport: 'Save the loaded frames as an H.264 MP4 (plays in QuickTime, Windows Media Player, browsers, PowerPoint)',
+  assetsAll: 'Tick or untick every asset',
+  cropOn: 'Download a cropped area instead of whole files',
+  drawBox: 'Draw the crop box: click one corner on the map, then the opposite corner',
+  clearBox: 'Remove the box',
+  cropRes: 'Grid spacing of the cropped files; levels over 64 million pixels are disabled',
+  dlImage: 'Save the ticked assets of the displayed item',
+  dlSel: 'Picked items, or every item in the time range; without a crop this saves a URL list for wget -i',
+  pickAllSites: 'Pick every site in the time range for download',
+  pickAll: 'Pick every item in the time range for download',
+  clearPicks: 'Unpick all items',
+  th0: 'Start of the time range: drag, or use the arrow keys',
+  th1: 'End of the time range: drag, or use the arrow keys',
+  treset: 'Show the full time range',
+};
+for (const [id, text] of Object.entries(tips)) {
+  const el = $(id);
+  if (!el) continue;
+  el.title = text;
+  const label = el.closest('label');
+  if (label) label.title = text;
+}
+$('animSec').querySelector('summary').title = 'Play the dates of the displayed item as an animation, or save them as a movie';
+$('ttrack').title = 'Ticks are acquisition dates: click one to show it; the handles set the range';
 
 setHemi('N');
 showMaintenance();
