@@ -146,7 +146,7 @@ product's date range, one color per point.
   time left, and the plot fills in as values arrive. Values already read are cached, so changing
   the asset or the time range redraws quickly.
 - **Only dates in the time range** follows the time-bar handles; untick it for every date.
-- **Error bars** (1 sigma): `ex` for `vx`, `ey` for `vy`, and for speed
+- **Error bars** (1 sigma; off by default, since speed errors read four more files per date): `ex` for `vx`, `ey` for `vy`, and for speed
   $`\sigma_v = \sqrt{(v_x e_x)^2 + (v_y e_y)^2}/v`$ from the four component files.
 - **Axes:** **Plot x axis follows the time-bar range** (on by default) limits the x axis to the time
   bar's handles; untick it to show every date plotted. **Plot y range** sets the y axis with two handles
@@ -366,7 +366,7 @@ These are the viewer's own limits (`maxFramePixels`, `maxAnimPixels`), not the b
   speed error bars (vv, vx, vy, ex, ey), and each read fetches the tile around the pixel. Measured:
   3 points over the 9 annual mosaics in about 4 s; 1 point over the 516 six-day windows (with error
   bars, 2580 files) in about 1 minute; 2 points in about 3 minutes. A 100-point file on the 6/12-day
-  series would take well over an hour, so narrow the time range or untick Error bars first.
+  series would take well over an hour, so narrow the time range or leave Error bars off.
 - **On touch screens a tap reads the value,** so tapping cannot step through overlapping dates;
   use the time bar or the item list.
 - `mp4-muxer` is superseded by Mediabunny, and geotiff.js 3.1 is a beta pinned to match OpenLayers.

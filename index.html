@@ -194,7 +194,9 @@ body.nopanel #panel { display: none; }
       <label><input id="footOn" type="checkbox" checked> Footprints</label>
     </div>
   </section>
-  <section id="legend" class="block" hidden>
+  <details id="legend" class="block" open hidden>
+    <summary>Color bar</summary>
+    <div class="block-inner">
     <div class="name" id="lname"></div>
     <div id="rgbNote" class="note" hidden>RGB image, shown as stored.</div>
     <div id="stretchCtl" class="block-inner">
@@ -209,7 +211,8 @@ body.nopanel #panel { display: none; }
     </div>
     <div id="clipnote" class="note"></div>
     </div>
-  </section>
+    </div>
+  </details>
   <details id="saBlock" class="block" hidden>
     <summary>Anomaly and stack <span id="saSecCount"></span></summary>
     <div class="block-inner">
@@ -292,7 +295,7 @@ body.nopanel #panel { display: none; }
       </div>
       <div id="tsLoadNote" class="note"></div>
       <label class="optrow"><input id="tsRange" type="checkbox" checked> Only dates in the time range</label>
-      <label class="optrow" id="tsErrRow"><input id="tsErr" type="checkbox" checked> Error bars (from ex/ey)</label>
+      <label class="optrow" id="tsErrRow"><input id="tsErr" type="checkbox"> Error bars (from ex/ey; slower)</label>
       <div class="optrow" id="tsItsRow"><label class="optrow"><input id="tsIts" type="checkbox"> ITS_LIVE in grey,</label>
         <label class="optrow">pairs up to <select id="tsItsDt"><option value="100000">any</option><option value="120">120 d</option>
         <option value="30">30 d</option><option value="12" selected>12 d</option></select></label></div>
