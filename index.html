@@ -306,23 +306,25 @@ body.nopanel #panel { display: none; }
       <div id="tsNote" class="note"></div>
     </div>
   </details>
-  <section id="cropSec" class="block" hidden>
-    <label class="lab" id="dlTitle">Download</label>
-    <div id="pickBlock" class="pickblock" hidden>
-      <label class="allbox"><input id="pickAllSites" type="checkbox"> Select all sites in the time range</label>
-      <div class="note">Or tick sites in the list below, or Shift-click a box on the map. <b id="pickCount"></b></div>
+  <details id="cropSec" class="block" open hidden>
+    <summary id="dlTitle">Download</summary>
+    <div class="block-inner">
+      <div id="pickBlock" class="pickblock" hidden>
+        <label class="allbox"><input id="pickAllSites" type="checkbox"> Select all sites in the time range</label>
+        <div class="note">Or tick sites in the list below, or Shift-click a box on the map. <b id="pickCount"></b></div>
+      </div>
+      <div class="ctl"><span>Assets (one file each)</span>
+        <div class="checks"><label class="allbox"><input id="assetsAll" type="checkbox"> All</label><span id="cropAssets" class="checks"></span></div></div>
+      <label class="optrow" id="cropRow"><input id="cropOn" type="checkbox"> Crop to a box</label>
+      <div id="cropOpts" class="block-inner" hidden>
+        <div class="row"><button id="drawBox" type="button">Draw box</button><button id="clearBox" type="button" class="link" hidden>Clear</button><span id="boxInfo" class="note"></span></div>
+        <div class="ctl"><label for="cropRes">Resolution</label><select id="cropRes" disabled></select></div>
+      </div>
+      <button id="dlImage" type="button">Download this image</button>
+      <button id="dlSel" type="button">Download selection</button>
+      <div id="cropNote" class="note"></div>
     </div>
-    <div class="ctl"><span>Assets (one file each)</span>
-      <div class="checks"><label class="allbox"><input id="assetsAll" type="checkbox"> All</label><span id="cropAssets" class="checks"></span></div></div>
-    <label class="optrow" id="cropRow"><input id="cropOn" type="checkbox"> Crop to a box</label>
-    <div id="cropOpts" class="block-inner" hidden>
-      <div class="row"><button id="drawBox" type="button">Draw box</button><button id="clearBox" type="button" class="link" hidden>Clear</button><span id="boxInfo" class="note"></span></div>
-      <div class="ctl"><label for="cropRes">Resolution</label><select id="cropRes" disabled></select></div>
-    </div>
-    <button id="dlImage" type="button">Download this image</button>
-    <button id="dlSel" type="button">Download selection</button>
-    <div id="cropNote" class="note"></div>
-  </section>
+  </details>
   <div class="row countrow"><label class="allbox"><input id="pickAll" type="checkbox" aria-label="Pick every item in the time range"> <span id="count"></span></label><button id="clearPicks" type="button" class="link" hidden>Clear picks</button></div>
   <ul id="items"></ul>
 </aside>
@@ -2102,6 +2104,7 @@ $('tsAdd').onclick = () => setTsMode(!tsMode);
 $('tsLoad').onclick = () => $('tsFile').click();
 $('tsFile').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) loadTsPoints(f); };
 $('tsSec').addEventListener('toggle', () => { if (!$('tsSec').open && tsMode) setTsMode(false); });  // collapsing ends point picking
+$('cropSec').addEventListener('toggle', () => { if (!$('cropSec').open && drawKind === 'crop') stopDraw(); });  // and crop-box drawing
 $('tsClear').onclick = () => { setTsMode(false); clearTsPoints(); refreshTs(); };
 $('tsRange').onchange = () => refreshTs();
 $('tsErr').onchange = () => refreshTs();
