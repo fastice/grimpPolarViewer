@@ -8,18 +8,43 @@ scientists draw them: centered on the pole, in polar stereographic coordinates.
 
 ## Open the viewer
 
-| Start with | Link |
-|---|---|
-| Greenland annual ice velocity, 2015-2024 (NSIDC-0725 v6) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0725/v06/nsidc-0725.parquet&asset=vv) |
-| Greenland monthly ice velocity, 2015-2026 (NSIDC-0731 v6) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0731/v06/nsidc-0731.parquet&asset=vv) |
-| Greenland quarterly ice velocity, 2015-2026 (NSIDC-0727 v6) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0727/v06/nsidc-0727.parquet&asset=vv) |
-| Greenland radar backscatter, 2024 | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0723/v04/nsidc-0723.parquet) |
-| Greenland 6/12-day ice velocity, 2015-2026 (NSIDC-0766 v3) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0766/v03/nsidc-0766.parquet&asset=vv) |
-| Greenland glacier sites from TerraSAR-X, 2008-2026 (NSIDC-0481 v5) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0481/v05/nsidc-0481.parquet&asset=vv) |
-| Amundsen Sea (Pine Island, Thwaites) quarterly ice velocity, 2015-2026 | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/pig/quarterly/ase-quarterly.parquet&asset=vv) |
-| Amundsen Sea (Pine Island, Thwaites) radar backscatter, 2015 to Feb 2026 | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/pig/backscatter/v04/ase-backscatter.parquet) |
-| Amundsen Sea (Pine Island, Thwaites) annual ice velocity, 2015-2026 | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/pig/annual/ase-annual.parquet&asset=vv) |
-| Antarctica, NISAR 25 m radar mosaic | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/display/nisar-gcov-ant-25m.parquet) |
+| Start with | Link | NSIDC data set |
+|---|---|---|
+| Greenland annual ice velocity, 2015-2024 (NSIDC-0725 v6) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0725/v06/nsidc-0725.parquet&asset=vv) | [NSIDC-0725 v5](https://doi.org/10.5067/USBL3Z8KF9C3) |
+| Greenland monthly ice velocity, 2015-2026 (NSIDC-0731 v6) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0731/v06/nsidc-0731.parquet&asset=vv) | [NSIDC-0731 v5](https://doi.org/10.5067/EGKZX6FXXM4P) |
+| Greenland quarterly ice velocity, 2015-2026 (NSIDC-0727 v6) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0727/v06/nsidc-0727.parquet&asset=vv) | [NSIDC-0727 v5](https://doi.org/10.5067/V5KW64S63OSN) |
+| Greenland radar backscatter, 2024 | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0723/v04/nsidc-0723.parquet) | [NSIDC-0723 v4](https://doi.org/10.5067/WXQ366CP8YDE) |
+| Greenland 6/12-day ice velocity, 2015-2026 (NSIDC-0766 v3) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0766/v03/nsidc-0766.parquet&asset=vv) | [NSIDC-0766 v2](https://doi.org/10.5067/1AMEDB6VJ1NZ) |
+| Greenland glacier sites from TerraSAR-X, 2008-2026 (NSIDC-0481 v5) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0481/v05/nsidc-0481.parquet&asset=vv) | [NSIDC-0481 v4](https://doi.org/10.5067/GQZQY2M5507Z) |
+| Amundsen Sea (Pine Island, Thwaites) quarterly ice velocity, 2015-2026 | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/pig/quarterly/ase-quarterly.parquet&asset=vv) | |
+| Amundsen Sea (Pine Island, Thwaites) radar backscatter, 2015 to Feb 2026 | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/pig/backscatter/v04/ase-backscatter.parquet) | |
+| Amundsen Sea (Pine Island, Thwaites) annual ice velocity, 2015-2026 | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/pig/annual/ase-annual.parquet&asset=vv) | |
+| Antarctica, NISAR 25 m radar mosaic | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/display/nisar-gcov-ant-25m.parquet) | |
+
+The NSIDC column links to each product's DOI landing page at NSIDC. The viewer's copies may be one
+version ahead of NSIDC (annual, quarterly and monthly v6, 6/12-day v3 and TerraSAR-X v5, while
+NSIDC holds v5, v5, v5, v2 and v4), so the DOI and reference are for the latest version released
+at NSIDC. To cite the data, use NSIDC's references:
+
+- Joughin, I. (2023). MEaSUREs Greenland Annual Ice Sheet Velocity Mosaics from SAR and Landsat.
+  (NSIDC-0725, Version 5). [Data Set]. Boulder, Colorado USA. NASA National Snow and Ice Data
+  Center Distributed Active Archive Center. https://doi.org/10.5067/USBL3Z8KF9C3.
+- Joughin, I. (2023). MEaSUREs Greenland Monthly Ice Sheet Velocity Mosaics from SAR and Landsat.
+  (NSIDC-0731, Version 5). [Data Set]. Boulder, Colorado USA. NASA National Snow and Ice Data
+  Center Distributed Active Archive Center. https://doi.org/10.5067/EGKZX6FXXM4P.
+- Joughin, I. (2023). MEaSUREs Greenland Quarterly Ice Sheet Velocity Mosaics from SAR and Landsat.
+  (NSIDC-0727, Version 5). [Data Set]. Boulder, Colorado USA. NASA National Snow and Ice Data
+  Center Distributed Active Archive Center. https://doi.org/10.5067/V5KW64S63OSN.
+- Joughin, I. (2021). MEaSUREs Greenland Image Mosaics from Sentinel-1A and -1B. (NSIDC-0723,
+  Version 4). [Data Set]. Boulder, Colorado USA. NASA National Snow and Ice Data Center Distributed
+  Active Archive Center. https://doi.org/10.5067/WXQ366CP8YDE.
+- Joughin, I. (2022). MEaSUREs Greenland 6 and 12 day Ice Sheet Velocity Mosaics from SAR.
+  (NSIDC-0766, Version 2). [Data Set]. Boulder, Colorado USA. NASA National Snow and Ice Data
+  Center Distributed Active Archive Center. https://doi.org/10.5067/1AMEDB6VJ1NZ.
+- Joughin, I., Howat, I., Smith, B. & Scambos, T. (2021). MEaSUREs Greenland Ice Velocity: Selected
+  Glacier Site Velocity Maps from InSAR. (NSIDC-0481, Version 4). [Data Set]. Boulder, Colorado
+  USA. NASA National Snow and Ice Data Center Distributed Active Archive Center.
+  https://doi.org/10.5067/GQZQY2M5507Z.
 
 These links only choose where to start. Once the viewer is open, switch to any other data set with
 the **Collections** menu at the top of the panel, and between Greenland and Antarctica with the
