@@ -259,6 +259,10 @@ python tools/makeBksParquet.py all ase-backscatter.parquet \
 python tools/makeVelocityParquet.py nsidc-0766.parquet \
     /Volumes/insar9/ian/Sentinel1/Release/sixDayVelocities/Vel-2026-09-07.2026-09-18
 
+# Greenland annual (quarterly and monthly the same with 0727/quarterlyMosaics, 0731/monthlyMosaics).
+python tools/makeVelocityParquet.py nsidc-0725.parquet /Volumes/insar9/ian/Sentinel1/Release/annualMosaics/Vel-* \
+    --baseUrl https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0725/v06 --collection nsidc-0725-v6
+
 # Amundsen Sea (PIG) quarterly; annual is the same with annual in place of quarterly.
 python tools/makeVelocityParquet.py ase-quarterly.parquet /Volumes/insar10/ian/SentinelPIG/Release/quarterly/Vel-* \
     --baseUrl https://s3.kopah.uw.edu/ianj-grimp/public/pig/quarterly --collection ase-vel-quarterly
@@ -302,6 +306,8 @@ on every host.
   sites, such as stac-map on github.io, read the data and make range requests.
 - **Layout:** `public/viewer/index.html` (the viewer), `public/nsidc-0723/v04/` (2024 backscatter),
   `public/nsidc-0766/v03/` (Greenland 6/12-day velocity, 516 windows, 409 GB),
+  `public/nsidc-0725/v06/`, `public/nsidc-0727/v06/`, `public/nsidc-0731/v06/` (Greenland annual,
+  quarterly and monthly velocity; rebuilt 2026-11-19 with the floating-point predictor),
   `public/pig/quarterly/` and `public/pig/annual/` (Amundsen Sea velocity, 12 GB),
   `public/pig/backscatter/v04/` (Amundsen Sea S1 backscatter, 524 windows to 2026-02-13, 256 GB),
   `public/nsidc-0481/v05/` (TSX glacier sites, full v5 release, 4996 products 2008-2026, 19 GB),
