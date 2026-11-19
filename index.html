@@ -96,7 +96,7 @@ details.block[open] > .block-inner { margin-top: 8px; }
            font: 12px/1.5 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--tb-text);
            background: var(--tb-label-bg); border-radius: 4px; padding: 4px 8px; }
 .readout b { color: var(--tb-hi); font-weight: 600; }
-.tsplot { position: absolute; left: 190px; bottom: 30px; width: min(600px, calc(100% - 220px)); height: 270px;
+.tsplot { position: absolute; left: 190px; bottom: 30px; width: min(600px, calc(100% - 220px)); height: 285px;
           background: var(--panel); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
 .tsplot canvas { width: 100%; height: 100%; display: block; cursor: pointer; }
 progress { width: 100%; height: 8px; accent-color: var(--accent); }
@@ -154,7 +154,7 @@ body.nopanel #panel { display: none; }
   #mapwrap { flex: 1; min-height: 0; order: -1; }
   #panel { width: 100%; flex: none; max-height: 45vh; border-right: 0; border-top: 1px solid var(--line); }
   .readout { top: 12px; bottom: auto; white-space: normal; max-width: calc(100% - 150px); }
-  .tsplot { left: 8px; right: 8px; width: auto; height: 210px; bottom: 28px; }
+  .tsplot { left: 8px; right: 8px; width: auto; height: 225px; bottom: 28px; }
 }
 /* Touch screens: bigger targets on the time bar. */
 @media (pointer: coarse) {
@@ -1871,7 +1871,7 @@ function niceStep(span, target) {
 }
 function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1) {
   if (!tsPlotInfo) return;
-  const W = canvas.clientWidth || 600, H = canvas.clientHeight || 270;
+  const W = canvas.clientWidth || 600, H = canvas.clientHeight || 285;
   canvas.width = W * scale; canvas.height = H * scale;
   const ctx = canvas.getContext('2d');
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
@@ -1879,7 +1879,7 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   const fg = tok('--fg'), muted = tok('--muted'), line = tok('--line');
   ctx.fillStyle = tok('--panel'); ctx.fillRect(0, 0, W, H);
   const ovs = tsOverlays(), ovNames = [...new Set(ovs.map(o => o.l.name))];
-  const L = 64, R = 14, T = ovs.length ? 46 : 30, B = 30, pw = W - L - R, ph = H - T - B;
+  const L = 82, R = 14, T = ovs.length ? 46 : 30, B = 42, pw = W - L - R, ph = H - T - B;
   const pts = tsPoints.flatMap(p => p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v, e: x.e })))
     .concat(ovs.flatMap(o => o.l.values));
   const finite = pts.filter(q => Number.isFinite(q.v));
@@ -1919,6 +1919,11 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
     ctx.beginPath(); ctx.moveTo(L, Y(v)); ctx.lineTo(L + pw, Y(v)); ctx.stroke();
     ctx.fillText(fmtVal(+v.toPrecision(6)), L - 6, Y(v));
   }
+  // axis titles: the asset and unit up the left side, Date along the bottom
+  ctx.save(); ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.translate(12, T + ph / 2); ctx.rotate(-Math.PI / 2);
+  ctx.fillText(`${tsPlotInfo.key}${tsPlotInfo.unit ? ` (${tsPlotInfo.unit})` : ''}`, 0, 0); ctx.restore();
+  ctx.save(); ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText('Date', L + pw / 2, H - 3); ctx.restore();
   // x labels: years for long spans, months otherwise
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
   const d0 = new Date(t0), d1 = new Date(t1), years = (t1 - t0) / (365.25 * 86400e3);
