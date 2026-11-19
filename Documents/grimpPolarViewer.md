@@ -82,6 +82,11 @@ The vertical bar at the left edge of the map has one tick per acquisition date (
   pointer read from the full-resolution COG (exact native value, with units). During an animation,
   anomaly or stack it reports that layer's value instead (for the stack, the mean and how many dates
   went into it).
+- **Pixel size** (beside the scale bar, bottom left): the pixel size the map is drawing. For the
+  product this is the COG level OpenLayers picks for the zoom (`getZForResolution` with the source's
+  `zDirection`, as its WebGL tile renderer does): an overview such as `Pixels 3,200 m (overview; full
+  200 m)` zoomed out, `Pixels 200 m (full resolution)` once zoomed in. During an animation, anomaly or
+  stack it gives that grid's pixel size.
 
 ### Anomaly and stack
 

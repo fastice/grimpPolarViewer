@@ -105,6 +105,11 @@ button.link { background: none; border: 0; color: var(--accent); padding: 0; fon
 #legend .name { font-family: var(--font-mono); font-size: 11px; word-break: break-all; }
 .toggles { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; }
 .ol-zoom { top: 52px; left: 12px; }
+/* Scale bar and the pixel size of what is drawn, side by side at the bottom left of the map. */
+#mapfoot { position: absolute; left: 8px; bottom: 8px; display: flex; align-items: flex-end; gap: 8px; pointer-events: none; }
+#mapfoot .ol-scale-line { position: static; }
+#pixRes { font: 11px/1.4 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--tb-text);
+          background: var(--tb-label-bg); border-radius: 4px; padding: 2px 6px; white-space: nowrap; order: 1; }
 /* Hide/show the control panel; with it hidden the map fills the window (most useful on phones). */
 #panelToggle { position: absolute; top: 12px; left: 12px; z-index: 2; font-size: 13px; padding: 4px 10px;
                background: var(--tb-label-bg); color: var(--tb-text); border-color: transparent; }
@@ -321,6 +326,7 @@ body.nopanel #panel { display: none; }
   <div id="map"></div>
   <button id="panelToggle" type="button" aria-controls="panel" aria-expanded="true">&lsaquo; Hide controls</button>
   <div id="readout" class="readout" hidden></div>
+  <div id="mapfoot"><span id="pixRes" hidden></span></div>
   <div id="tsPlot" class="tsplot" hidden>
     <button id="tsHide" type="button" class="link tsclose" title="Hide the plot (Show plot brings it back)">&times;</button>
     <canvas id="tsCanvas"></canvas>
@@ -417,7 +423,7 @@ const rasterLayer = new ol.layer.WebGLTile({ zIndex: 2, style: rasterStyle(cmaps
 const baseLayer = new ol.layer.Tile({ zIndex: 0 });
 const coastLayer = new ol.layer.Tile({ zIndex: 4 });
 const map = new ol.Map({ target: 'map', layers: [baseLayer, rasterLayer, footLayer, coastLayer],
-                         controls: ol.control.defaults.defaults({ attribution: false }).extend([new ol.control.ScaleLine()]) });
+                         controls: ol.control.defaults.defaults({ attribution: false }).extend([new ol.control.ScaleLine({ target: 'mapfoot' })]) });
 
 function gibs(code, layer, format) {
   return new ol.source.TileWMS({ url: `https://gibs.earthdata.nasa.gov/wms/${projDefs[code][1]}/best/wms.cgi`,
@@ -1390,6 +1396,27 @@ function applyLayers() {
   const anim = frames.length > 0, sa = !anim && !!saShown;
   animLayer.setVisible(anim); staticLayer.setVisible(sa); rasterLayer.setVisible(!anim && !sa);
 }
+
+// Pixel size of what the map draws: the COG level OpenLayers picks for this zoom (full image or an
+// overview, chosen as in its WebGL tile renderer), or the animation / anomaly / stack grid.
+function pixelNote() {
+  const m = r => `${Math.round(r).toLocaleString()} m`, view = map.getView();
+  if (animLayer.getVisible() && animGrid) return `Frame pixels ${m(animGrid.res)}`;
+  if (staticLayer.getVisible() && saCache) return `${saShown?.stack ? 'Stack' : 'Anomaly'} pixels ${m(saCache.res)}`;
+  const src = rasterLayer.getSource(), tg = rasterLayer.getVisible() && src?.getState() === 'ready' && src.getTileGrid();
+  if (!tg) return '';
+  const full = tg.getResolution(tg.getMaxZoom());
+  if (src.getProjection()?.getCode() !== view.getProjection().getCode()) return `Full resolution ${m(full)}`;
+  const r = tg.getResolution(tg.getZForResolution(view.getResolution(), src.zDirection));
+  return r > full * 1.01 ? `Pixels ${m(r)} (overview; full ${m(full)})` : `Pixels ${m(full)} (full resolution)`;
+}
+function updatePixelNote() {
+  const t = pixelNote(), el = $('pixRes');
+  el.hidden = !t;
+  if (el.textContent !== t) el.textContent = t;
+}
+map.on('moveend', updatePixelNote);
+map.on('rendercomplete', updatePixelNote);
 
 function refreshStaticAnom() {
   const series = timeSeries(), ok = !!selected && series.length >= 2 && !rgbMode;
