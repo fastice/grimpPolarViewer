@@ -149,8 +149,9 @@ product's date range, one color per point.
 - **Error bars** (1 sigma): `ex` for `vx`, `ey` for `vy`, and for speed
   $`\sigma_v = \sqrt{(v_x e_x)^2 + (v_y e_y)^2}/v`$ from the four component files.
 - **Axes:** **Plot x axis follows the time-bar range** (on by default) limits the x axis to the time
-  bar's handles; untick it to show every date plotted. **Plot y max / y min** sliders set the y axis;
-  they span the GrIMP values and the 1st-99th percentile of the ITS_LIVE values shown, plus half that
+  bar's handles; untick it to show every date plotted. **Plot y range** sets the y axis with two handles
+  on one track (drag a handle, click the track to move the nearer one, or drag the band between them to
+  shift the range keeping its height; arrow keys and Page Up/Down on a focused handle or the band); it spans the GrIMP values and the 1st-99th percentile of the ITS_LIVE values shown, plus half that
   span each way. **Auto** fits the GrIMP values again; a new asset or Clear points returns to Auto.
   Everything outside the axes is clipped.
 - **Linked to the map:** a thin dashed line marks the displayed date and each point's value there is

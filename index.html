@@ -47,6 +47,13 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 section.block { padding: 12px 16px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr); }
 .dates { font-family: var(--font-mono); font-size: 12px; display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
 input[type=range] { width: 100%; accent-color: var(--accent); }
+/* Plot y range: two handles on one track; the band between them drags both. */
+.yslider { position: relative; height: 22px; margin: 0 8px; touch-action: none; cursor: pointer; }
+.yslider::before { content: ""; position: absolute; left: -8px; right: -8px; top: 50%; height: 6px; margin-top: -3px; border-radius: 3px; background: var(--line); }
+#tsYBand { position: absolute; top: 50%; height: 10px; margin-top: -5px; border-radius: 5px; background: var(--accent); opacity: .45; cursor: grab; }
+.ythumb { position: absolute; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; box-sizing: border-box; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--panel); box-shadow: 0 0 0 1px var(--accent); cursor: grab; }
+.ythumb:focus-visible, #tsYBand:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
 #items { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; min-height: 72px; }
 #items li { padding: 7px 16px; border-bottom: 1px solid var(--line); cursor: pointer; display: grid; gap: 1px; }
 #items li:hover { background: var(--accent-soft); }
@@ -292,11 +299,12 @@ body.nopanel #panel { display: none; }
       <div id="tsItsNote" class="note"></div>
       <div id="tsYRow" class="block-inner" hidden>
         <label class="optrow"><input id="tsXBar" type="checkbox" checked> Plot x axis follows the time-bar range</label>
-        <label class="optrow">Plot style <select id="tsStyle"><option value="both" selected>lines and points</option>
+        <label class="optrow"><span style="white-space:nowrap">Plot style</span> <select id="tsStyle"><option value="both" selected>lines and points</option>
           <option value="points">points only</option><option value="lines">lines only</option></select></label>
-        <div class="ctl"><label for="tsYMax">Plot y max <b id="tsYMaxV"></b></label><input id="tsYMax" type="range" min="0" max="1000" step="1"></div>
-        <div class="ctl"><label for="tsYMin">Plot y min <b id="tsYMinV"></b> <button id="tsYAuto" type="button" class="link">Auto</button></label>
-          <input id="tsYMin" type="range" min="0" max="1000" step="1"></div>
+        <div class="ctl"><span>Plot y range <b id="tsYMinV"></b> to <b id="tsYMaxV"></b> <button id="tsYAuto" type="button" class="link">Auto</button></span>
+          <div id="tsYTrack" class="yslider"><div id="tsYBand" tabindex="0" role="group" aria-label="Plot y range"></div>
+            <div id="tsYLo" class="ythumb" tabindex="0" role="slider" aria-label="Bottom of the plot y axis"></div>
+            <div id="tsYHi" class="ythumb" tabindex="0" role="slider" aria-label="Top of the plot y axis"></div></div></div>
       </div>
       <div class="row">
         <button id="tsCsv" type="button" disabled>Save CSV</button>
@@ -1807,19 +1815,52 @@ function tsYSliders(a0, a1, itsOn) {
   }
   const pad = (hi - lo) * 0.5;
   tsYSpan = [lo - pad, hi + pad];
-  const [y0, y1] = tsYTyped || [a0, a1], pos = v => Math.round((v - tsYSpan[0]) / (tsYSpan[1] - tsYSpan[0]) * 1000);
-  $('tsYMin').value = pos(y0); $('tsYMax').value = pos(y1);
+  const [y0, y1] = tsYTyped || [a0, a1], pos = v => Math.min(1, Math.max(0, (v - tsYSpan[0]) / (tsYSpan[1] - tsYSpan[0])));
+  tsYPos = [pos(y0), pos(y1)];
+  const [a, b] = tsYPos.map(f => `${(100 * f).toFixed(2)}%`);
+  $('tsYLo').style.left = a; $('tsYHi').style.left = b; $('tsYBand').style.left = a; $('tsYBand').style.width = `${(100 * (tsYPos[1] - tsYPos[0])).toFixed(2)}%`;
+  $('tsYLo').setAttribute('aria-valuetext', fmtVal(+y0.toPrecision(4))); $('tsYHi').setAttribute('aria-valuetext', fmtVal(+y1.toPrecision(4)));
   $('tsYMinV').textContent = fmtVal(+y0.toPrecision(4)); $('tsYMaxV').textContent = fmtVal(+y1.toPrecision(4));
   $('tsYAuto').hidden = !tsYTyped;
 }
-function tsYInput() {
+let tsYPos = [0, 1];  // handle positions, 0-1 along tsYSpan
+function tsYSet(a, b) {
   if (!tsYSpan) return;
-  const val = id => tsYSpan[0] + (tsYSpan[1] - tsYSpan[0]) * +$(id).value / 1000;
-  let lo = val('tsYMin'), hi = val('tsYMax');
-  const gap = (tsYSpan[1] - tsYSpan[0]) * 0.01;
-  if (hi - lo < gap) { if (document.activeElement === $('tsYMin')) lo = hi - gap; else hi = lo + gap; }
-  tsYTyped = [lo, hi];
+  const v = f => tsYSpan[0] + (tsYSpan[1] - tsYSpan[0]) * f;
+  tsYTyped = [v(a), v(b)];
   drawTsPlot();
+}
+{
+  // Drag a handle, click the track to move the nearer handle there, or drag the band to shift the range
+  // keeping its height; arrow keys move a focused handle or the band by 1% (Page Up/Down 10%).
+  const track = $('tsYTrack'), gap = 0.01;
+  let drag = null;
+  const frac = e => { const r = track.getBoundingClientRect(); return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); };
+  const move = f => {
+    const { which, f0, a, b } = drag;
+    if (which === 'band') { const d = Math.min(Math.max(f - f0, -a), 1 - b); tsYSet(a + d, b + d); }
+    else if (which === 0) tsYSet(Math.min(f, tsYPos[1] - gap), tsYPos[1]);
+    else tsYSet(tsYPos[0], Math.max(f, tsYPos[0] + gap));
+  };
+  track.addEventListener('pointerdown', e => {
+    if (!tsYSpan) return;
+    const f = frac(e), [a, b] = tsYPos, id = e.target.id;
+    drag = { which: id === 'tsYLo' ? 0 : id === 'tsYHi' ? 1 : id === 'tsYBand' ? 'band' : Math.abs(f - a) <= Math.abs(f - b) ? 0 : 1, f0: f, a, b };
+    track.setPointerCapture(e.pointerId); e.preventDefault(); e.target.focus?.();
+    if (drag.which !== 'band') move(f);
+  });
+  track.addEventListener('pointermove', e => { if (drag) move(frac(e)); });
+  for (const t of ['pointerup', 'pointercancel']) track.addEventListener(t, () => { drag = null; });
+  for (const [id, k] of [['tsYLo', 0], ['tsYHi', 1], ['tsYBand', 2]]) $(id).addEventListener('keydown', e => {
+    const step = { ArrowLeft: -gap, ArrowDown: -gap, ArrowRight: gap, ArrowUp: gap, PageDown: -0.1, PageUp: 0.1 }[e.key];
+    if (step === undefined || !tsYSpan) return;
+    e.preventDefault();
+    let [a, b] = tsYPos;
+    if (k === 2) { const d = Math.min(Math.max(step, -a), 1 - b); a += d; b += d; }
+    else if (k === 0) a = Math.min(Math.max(a + step, 0), b - gap);
+    else b = Math.max(Math.min(b + step, 1), a + gap);
+    tsYSet(a, b);
+  });
 }
 // Each point's ITS_LIVE cloud gets its own grey level, shown beside the point in the legend.
 const itsGreys = [175, 95, 135, 210, 60, 155, 115, 190];
@@ -2120,7 +2161,6 @@ function setTsPlot(show) {
 $('tsHide').onclick = () => setTsPlot(false);
 $('tsShow').onclick = () => setTsPlot($('tsPlot').hidden);
 window.addEventListener('resize', () => { if (!$('tsPlot').hidden) drawTsPlot(); });
-$('tsYMin').oninput = $('tsYMax').oninput = tsYInput;
 $('tsXBar').onchange = () => drawTsPlot();
 $('tsYAuto').onclick = () => { tsYTyped = null; drawTsPlot(); };
 $('tsCanvas').onclick = e => {
@@ -2230,8 +2270,9 @@ const tips = {
   th1: 'End of the time range: drag, or use the arrow keys',
   treset: 'Show the full time range',
   tsShow: 'Hide or show the time-series plot',
-  tsYMax: 'Top of the plot y axis (drag down to zoom in)',
-  tsYMin: 'Bottom of the plot y axis (drag up to zoom in)',
+  tsYHi: 'Top of the plot y axis: drag left to zoom in',
+  tsYLo: 'Bottom of the plot y axis: drag right to zoom in',
+  tsYBand: 'Drag to shift the plot y range up or down, keeping its height',
   tsYAuto: 'Fit the y axis to the GrIMP values again',
   tsXBar: 'Limit the plot x axis to the time-bar range; untick to show every date plotted',
   tsLoad: 'Load points from a CSV or text file: lat/lon or x/y (km or m) columns, optional label; a saved CSV loads back',

@@ -109,7 +109,8 @@ color per point, with error bars for velocity.
 
 - The plot and the timeline are linked: the date on the map is marked on the plot, and clicking a
   point on the plot shows that date's image.
-- Sliders set the plot's y axis; its x axis follows the timeline's range. **Plot style** draws
+- **Plot y range** sets the y axis: drag either handle, or drag the band between them to move the
+  range up or down. The x axis follows the timeline's range. **Plot style** draws
   lines and points, points only, or lines only.
 - In the TerraSAR-X collection, each point reads the site boxes that contain it, so points can be at
   different glaciers; adding a point outside the orange box switches the map to that point's site.
