@@ -10,7 +10,7 @@ scientists draw them: centered on the pole, in polar stereographic coordinates.
 
 | Start with | Link | NSIDC data set |
 |---|---|---|
-| Greenland annual ice velocity, 2015-2024 (NSIDC-0725 v6) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0725/v06/nsidc-0725.parquet&asset=vv) | [NSIDC-0725 v5](https://doi.org/10.5067/USBL3Z8KF9C3) |
+| Greenland annual ice velocity, 2015-2025 (NSIDC-0725 v6) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0725/v06/nsidc-0725.parquet&asset=vv) | [NSIDC-0725 v5](https://doi.org/10.5067/USBL3Z8KF9C3) |
 | Greenland monthly ice velocity, 2015-2026 (NSIDC-0731 v6) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0731/v06/nsidc-0731.parquet&asset=vv) | [NSIDC-0731 v5](https://doi.org/10.5067/EGKZX6FXXM4P) |
 | Greenland quarterly ice velocity, 2015-2026 (NSIDC-0727 v6) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0727/v06/nsidc-0727.parquet&asset=vv) | [NSIDC-0727 v5](https://doi.org/10.5067/V5KW64S63OSN) |
 | Greenland radar backscatter, 2024 | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0723/v04/nsidc-0723.parquet) | [NSIDC-0723 v4](https://doi.org/10.5067/WXQ366CP8YDE) |
@@ -110,6 +110,8 @@ color per point, with error bars for velocity.
 - The plot and the timeline are linked: the date on the map is marked on the plot, and clicking a
   point on the plot shows that date's image.
 - Sliders set the plot's y axis; its x axis follows the timeline's range.
+- In the TerraSAR-X collection, each point reads the site boxes that contain it, so points can be at
+  different glaciers; adding a point outside the orange box switches the map to that point's site.
 - Tick **ITS_LIVE in grey** to compare with the ITS_LIVE image-pair velocities at the same points.
 - Switch to another velocity collection and your points stay: its values are drawn on top, with the
   previous collection's series underneath for comparison.

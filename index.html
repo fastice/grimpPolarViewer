@@ -356,7 +356,7 @@ import { compressors } from 'https://cdn.jsdelivr.net/npm/hyparquet-compressors@
 const presets = [
   ['Greenland S1 backscatter 2024 (uncalibrated)', 'https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0723/v04/nsidc-0723.parquet', 'N'],
   ['NSIDC-0723 S1 backscatter mosaics (gaia)', 'https://s3.kopah.uw.edu/gaia/public/grimp/nsidc-0723/v04/nsidc-0723.parquet', 'N'],
-  ['NSIDC-0725 annual velocity v6 (2015-2024)', 'https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0725/v06/nsidc-0725.parquet', 'N'],
+  ['NSIDC-0725 annual velocity v6 (2015-2025)', 'https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0725/v06/nsidc-0725.parquet', 'N'],
   ['NSIDC-0731 monthly velocity v6 (2015-2026)', 'https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0731/v06/nsidc-0731.parquet', 'N'],
   ['NSIDC-0727 quarterly velocity v6 (2015-2026)', 'https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0727/v06/nsidc-0727.parquet', 'N'],
   ['NSIDC-0766 6/12-day velocity v3 (2015-2026)', 'https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0766/v03/nsidc-0766.parquet', 'N'],
@@ -466,6 +466,11 @@ function showMaintenance() {
 }
 
 function setStatus(msg, err = false) { $('status').textContent = msg; $('status').className = err ? 'err' : ''; }
+// Site collections (TSX boxes) open on the newest product, which may be at any glacier, so the status line
+// says how to choose a site until one is picked.
+const siteHint = '. Click a box on the map to choose a glacier site; points and animations use the orange box.';
+function clearSiteHint() { const t = $('status').textContent; if (t.endsWith(siteHint)) setStatus(t.slice(0, -siteHint.length)); }
+const siteName = it => it.raw?.['grimp:site'] || it.id;
 
 function toItem(r) {
   const epsg = num(r['proj:epsg']);
@@ -537,6 +542,7 @@ async function loadCatalog(href, push = true) {
   applyFilter(!keepView);
   // Open on the newest item so a catalog shows data straight away, as stac-map does on a click.
   if (items.length) select(items[items.length - 1]);
+  if (siteMode && items.length) setStatus($('status').textContent + siteHint);
   if (carry) restoreTsPoints(carry);
 }
 
@@ -664,6 +670,7 @@ function pickAsset(it) {
 
 const phoneLayout = matchMedia('(max-width: 760px)');
 function select(it, zoom = false) {
+  if (selected && it !== selected) clearSiteHint();
   selected = it;
   for (const li of $('items').children) li.classList.remove('sel');
   it.li?.classList.add('sel');
@@ -1083,7 +1090,8 @@ function refreshAnimInfo() {
   $('animCount').textContent = fs.length < series.length ? `(${fs.length} of ${series.length} dates)` : `(${series.length} dates)`;
   // The animation area is the area box shared with the anomaly/stack; mosaics only (sites are animated whole).
   if (frames.length) return;
-  const ext = animExtent(), where = ext === areaBox ? 'inside the box' : siteMode ? 'the whole site' : 'the whole image';
+  const ext = animExtent(), where = ext === areaBox ? 'inside the box'
+    : siteMode ? `site ${siteName(selected)} (the orange box; click another box on the map to change it)` : 'the whole image';
   $('animAnomRow').hidden = rgbMode; $('animBarRow').hidden = rgbMode;
   $('animRangeRow').hidden = rgbMode || !$('animAnom').checked;
   $('animRangeUnit').textContent = band.unit || '';
@@ -1583,6 +1591,25 @@ let tsPoints = [], tsMode = false, tsToken = 0, tsKey = '', tsNext = 1;
 const tsCache = new Map();  // `${x},${y}|${href}` -> value in physical units (NaN = no data)
 
 function tsSeries() { return timeSeries(!$('tsRange').checked); }
+// Site collections: each point reads every product whose box contains it, so points can be at different
+// sites; mosaics read the series of the product shown.
+function pointSeries(p, series) {
+  if (!siteMode) return series;
+  const key = $('asset').value;
+  return ($('tsRange').checked ? inRange() : items).filter(it => it.assets[key] && it.feature.getGeometry().intersectsCoordinate(p.coord))
+    .sort((a, b) => a.start - b.start);
+}
+const tsKeyOf = (key, per) => [key, per.map(s => s.map(i => i.id).join(';')).join('/'), $('tsErr').checked, tsPoints.map(p => p.n).join(',')].join('|');
+// Site collections: when the shown box contains none of the points, show the newest product in the time
+// range at the first point that has one, so the orange box is the site the points and animation use.
+function selectSiteAt(coords) {
+  if (!siteMode || !selected || coords.some(c => selected.feature.getGeometry().intersectsCoordinate(c))) return;
+  const key = $('asset').value;
+  for (const c of coords) {
+    const hits = inRange().filter(it => it.assets[key] && it.feature.getGeometry().intersectsCoordinate(c));
+    if (hits.length) { select(hits.reduce((a, b) => (b.start > a.start ? b : a))); return; }
+  }
+}
 function tsHasErrors(key, series) {
   const need = key === 'vx' ? ['ex'] : key === 'vy' ? ['ey'] : key === 'vv' ? ['vx', 'vy', 'ex', 'ey'] : null;
   return !!need && series.some(it => need.every(k => it.assets[k]));
@@ -1590,14 +1617,15 @@ function tsHasErrors(key, series) {
 
 function refreshTs() {
   const series = selected && !rgbMode ? tsSeries() : [];
-  const ok = series.length >= 2;
+  const ok = series.length >= 2 || (siteMode && selected && !rgbMode && items.length >= 2);
   $('tsSec').hidden = !ok;
   if (!ok) { $('tsPlot').hidden = true; return; }
   $('tsCount').textContent = tsPoints.length ? `(${tsPoints.length} point${tsPoints.length > 1 ? 's' : ''})` : '';
-  $('tsErrRow').hidden = !tsHasErrors($('asset').value, series);
+  const per = tsPoints.map(p => pointSeries(p, series));
+  $('tsErrRow').hidden = !tsHasErrors($('asset').value, siteMode ? [...series, ...per.flat()] : series);
   $('tsItsRow').hidden = !($('asset').value in itsVars);
   if (!tsPoints.length) return;
-  const key = [$('asset').value, series.map(s => s.id).join(';'), $('tsErr').checked, tsPoints.map(p => p.n).join(',')].join('|');
+  const key = tsKeyOf($('asset').value, per);
   if (key !== tsKey) computeTs(); else if (tsPlotInfo && !$('tsPlot').hidden) drawTsPlot();
   refreshIts();
 }
@@ -1696,10 +1724,11 @@ function refreshIts() {
 }
 
 async function computeTs() {
-  const series = tsSeries(), key = $('asset').value, token = ++tsToken;
+  const key = $('asset').value, token = ++tsToken, per = tsPoints.map(p => pointSeries(p, tsSeries()));
+  const series = [...new Set(per.flat())].sort((a, b) => a.start - b.start);
   const withErr = $('tsErr').checked && tsHasErrors(key, series);
-  tsKey = [key, series.map(s => s.id).join(';'), $('tsErr').checked, tsPoints.map(p => p.n).join(',')].join('|');
-  const total = tsPoints.length * series.length;
+  tsKey = tsKeyOf(key, per);
+  const total = per.reduce((n, s) => n + s.length, 0);
   $('tsNote').textContent = `Reading ${total} values...`;
   $('tsCsv').disabled = true; $('tsPng').disabled = true;
   $('tsProg').hidden = false; $('tsProg').value = 0;
@@ -1730,7 +1759,7 @@ async function computeTs() {
     drawTsPlot();
   };
   try {
-    const tasks = tsPoints.flatMap(p => series.map(it => async () => {
+    const tasks = tsPoints.flatMap((p, k) => per[k].map(it => async () => {
       const fresh = !tsCache.has(`${p.coord[0]},${p.coord[1]}|${it.assets[key]?.href}`);
       return { p, it, fresh, v: await pointValue(it, key, p.coord), e: withErr ? await pointError(it, key, p.coord) : NaN };
     }));
@@ -1739,9 +1768,11 @@ async function computeTs() {
     $('tsProg').hidden = true;
     for (const p of tsPoints) p.values = res.filter(r => r.p === p).map(({ it, v, e }) => ({ it, v, e }));
     drawTsPlot();
-    const empty = tsPoints.filter(p => p.values.every(x => Number.isNaN(x.v))).map(p => p.n);
+    const outside = tsPoints.filter((p, k) => !per[k].length).map(p => p.n);
+    const empty = tsPoints.filter((p, k) => per[k].length && p.values.every(x => Number.isNaN(x.v))).map(p => p.n);
     $('tsNote').textContent = `${tsPoints.length} point${tsPoints.length > 1 ? 's' : ''} x ${series.length} dates in `
-      + `${((performance.now() - t0) / 1000).toFixed(1)} s.` + (empty.length ? ` No data at point ${empty.join(', ')}.` : '');
+      + `${((performance.now() - t0) / 1000).toFixed(1)} s.` + (empty.length ? ` No data at point ${empty.join(', ')}.` : '')
+      + (outside.length ? ` Point${outside.length > 1 ? 's' : ''} ${outside.join(', ')} ${outside.length > 1 ? 'are' : 'is'} not inside any site box in the time range.` : '');
     $('tsCsv').disabled = false; $('tsPng').disabled = false;
   } catch (e) {
     if (token === tsToken) { $('tsProg').hidden = true; $('tsNote').textContent = `Could not read the values: ${e.message}`; }
@@ -1940,6 +1971,7 @@ function restoreTsPoints(carry) {
   }
   tsNext = Math.max(...carry.map(q => q.n)) + 1;
   $('tsLoadNote').textContent = `${carry.length} point${carry.length > 1 ? 's' : ''} kept from the previous collection; its series stay on the plot.`;
+  selectSiteAt(carry.map(q => q.coord));
   refreshTs();
 }
 function tsOverlays() {
@@ -1967,7 +1999,7 @@ function addTsPoint(coord, label = '', refresh = true) {
   tsSource.addFeature(f);
   tsPoints.push({ n, coord, color, label, feature: f, values: [] });
   $('tsClear').hidden = false;
-  if (refresh) refreshTs();
+  if (refresh) { selectSiteAt([coord]); refreshTs(); }
 }
 
 // Load points from a text/CSV file: lat/lon columns (preferred), or x/y in km (x_km, y_km, or x, y with
@@ -2031,6 +2063,7 @@ async function loadTsPoints(file) {
       const e = ol.extent.boundingExtent(tsPoints.map(p => p.coord)), pad = 20e3;
       v.fit([e[0] - pad, e[1] - pad, e[2] + pad, e[3] + pad], { size: map.getSize(), padding: [40, 40, 40, 40], duration: 250 });
     }
+    selectSiteAt(use.map(q => q.coord));
     refreshTs();
   } catch (e) {
     $('tsLoadNote').textContent = `Could not load points from ${file.name}: ${e.message}`;
