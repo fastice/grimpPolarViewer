@@ -292,6 +292,8 @@ body.nopanel #panel { display: none; }
       <div id="tsItsNote" class="note"></div>
       <div id="tsYRow" class="block-inner" hidden>
         <label class="optrow"><input id="tsXBar" type="checkbox" checked> Plot x axis follows the time-bar range</label>
+        <label class="optrow">Plot style <select id="tsStyle"><option value="both" selected>lines and points</option>
+          <option value="points">points only</option><option value="lines">lines only</option></select></label>
         <div class="ctl"><label for="tsYMax">Plot y max <b id="tsYMaxV"></b></label><input id="tsYMax" type="range" min="0" max="1000" step="1"></div>
         <div class="ctl"><label for="tsYMin">Plot y min <b id="tsYMinV"></b> <button id="tsYAuto" type="button" class="link">Auto</button></label>
           <input id="tsYMin" type="range" min="0" max="1000" step="1"></div>
@@ -1847,8 +1849,8 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
     ctx.save(); ctx.font = '11px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = muted; ctx.strokeStyle = muted;
     let lx = L;
     const entry = (shape, fill, dash, text) => {
-      ctx.setLineDash(dash); ctx.beginPath(); ctx.moveTo(lx, 32); ctx.lineTo(lx + 18, 32); ctx.stroke(); ctx.setLineDash([]);
-      tsMarker(ctx, shape, lx + 9, 32, 3.2, fill); ctx.fillText(text, lx + 23, 32); lx += 23 + ctx.measureText(text).width + 14;
+      if ($('tsStyle').value !== 'points') { ctx.setLineDash(dash); ctx.beginPath(); ctx.moveTo(lx, 32); ctx.lineTo(lx + 18, 32); ctx.stroke(); ctx.setLineDash([]); }
+      if ($('tsStyle').value !== 'lines') tsMarker(ctx, shape, lx + 9, 32, 3.2, fill); ctx.fillText(text, lx + 23, 32); lx += 23 + ctx.measureText(text).width + 14;
     };
     entry('circle', true, [], `${tsPlotInfo.name} (shown)`);
     ovNames.forEach((n, k) => entry(ovStyles[k % ovStyles.length].shape, false, ovStyles[k % ovStyles.length].dash, n));
@@ -1915,15 +1917,17 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
 
   // Earlier catalogs, under the catalog shown (which is drawn on top): dashed lines and large hollow
   // markers in the point's color, haloed in the panel color so they stay visible through the newer series.
-  const halo = tok('--panel');
+  const halo = tok('--panel'), style = $('tsStyle').value, lines = style !== 'points', marks = style !== 'lines';
   for (const { p, l, k } of ovs) {
     const st = ovStyles[k % ovStyles.length], q = l.values.filter(x => Number.isFinite(x.v));
     const path = () => { ctx.beginPath(); q.forEach((x, i) => (i ? ctx.lineTo(X(x.t), Y(x.v)) : ctx.moveTo(X(x.t), Y(x.v)))); ctx.stroke(); };
-    ctx.setLineDash(st.dash);
-    ctx.strokeStyle = halo; ctx.lineWidth = 3.5; path();
-    ctx.strokeStyle = p.color; ctx.lineWidth = 1.5; path();
-    ctx.setLineDash([]);
-    for (const x of q) {
+    if (lines) {
+      ctx.setLineDash(st.dash);
+      ctx.strokeStyle = halo; ctx.lineWidth = 3.5; path();
+      ctx.strokeStyle = p.color; ctx.lineWidth = 1.5; path();
+      ctx.setLineDash([]);
+    }
+    if (marks) for (const x of q) {
       if (tsPlotInfo.withErr && Number.isFinite(x.e) && x.e > 0) {
         ctx.strokeStyle = p.color; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(X(x.t), Y(x.v - x.e)); ctx.lineTo(X(x.t), Y(x.v + x.e)); ctx.stroke();
       }
@@ -1935,9 +1939,9 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   for (const p of tsPoints) {
     const q = p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v, e: x.e })).filter(x => Number.isFinite(x.v));
     ctx.strokeStyle = p.color; ctx.fillStyle = p.color; ctx.lineWidth = 1.6;
-    ctx.beginPath(); q.forEach((x, i) => (i ? ctx.lineTo(X(x.t), Y(x.v)) : ctx.moveTo(X(x.t), Y(x.v)))); ctx.stroke();
+    if (lines) { ctx.beginPath(); q.forEach((x, i) => (i ? ctx.lineTo(X(x.t), Y(x.v)) : ctx.moveTo(X(x.t), Y(x.v)))); ctx.stroke(); }
     ctx.lineWidth = 1.2;
-    for (const x of q) {
+    if (marks) for (const x of q) {
       if (Number.isFinite(x.e) && x.e > 0) {
         ctx.beginPath(); ctx.moveTo(X(x.t), Y(x.v - x.e)); ctx.lineTo(X(x.t), Y(x.v + x.e));
         ctx.moveTo(X(x.t) - 3, Y(x.v - x.e)); ctx.lineTo(X(x.t) + 3, Y(x.v - x.e));
@@ -2101,6 +2105,7 @@ $('tsSec').addEventListener('toggle', () => { if (!$('tsSec').open && tsMode) se
 $('tsClear').onclick = () => { setTsMode(false); clearTsPoints(); refreshTs(); };
 $('tsRange').onchange = () => refreshTs();
 $('tsErr').onchange = () => refreshTs();
+$('tsStyle').onchange = () => drawTsPlot();
 $('tsIts').onchange = () => refreshIts();
 $('tsItsDt').onchange = () => refreshIts();
 // One button in the panel hides or shows the plot; the plot's own x also hides it.
