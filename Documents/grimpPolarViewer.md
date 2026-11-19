@@ -259,7 +259,8 @@ python tools/makeBksParquet.py all ase-backscatter.parquet \
 python tools/makeVelocityParquet.py nsidc-0766.parquet \
     /Volumes/insar9/ian/Sentinel1/Release/sixDayVelocities/Vel-2026-09-07.2026-09-18
 
-# Greenland annual (quarterly and monthly the same with 0727/quarterlyMosaics, 0731/monthlyMosaics).
+# Greenland annual (quarterly and monthly the same with 0727/quarterlyMosaics, 0731/monthlyMosaics;
+# monthly 2020-03 failed in the 11-19 run and was rebuilt separately, so list dirs, not run.log).
 python tools/makeVelocityParquet.py nsidc-0725.parquet /Volumes/insar9/ian/Sentinel1/Release/annualMosaics/Vel-* \
     --baseUrl https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0725/v06 --collection nsidc-0725-v6
 
