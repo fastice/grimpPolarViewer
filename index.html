@@ -718,6 +718,8 @@ function showAsset(key) {
   $('clipwhere').textContent = { zero: 'at the top (min fixed at 0)', symmetric: 'each end, centered on 0', both: 'each end' }[stretchMode];
   if (stretchMode === 'symmetric') {
     if ($('cmap').value !== 'blue-white-red') { lastSeqCmap = $('cmap').value; $('cmap').value = 'blue-white-red'; }
+  } else if (!cmapChosen) {
+    $('cmap').value = key === 'vv' ? 'viridis' : 'gray';  // speed opens in viridis until a map is picked
   } else if ($('cmap').value === 'blue-white-red') {
     $('cmap').value = lastSeqCmap;
   }
@@ -1017,7 +1019,7 @@ $('dlSel').onclick = () => {
 };
 
 const zeroFloorAssets = new Set(['vv', 'ex', 'ey']), signedAssets = new Set(['vx', 'vy']);
-let stretchMode = 'both', lastSeqCmap = 'gray';
+let stretchMode = 'both', lastSeqCmap = 'gray', cmapChosen = false;
 // Animation: one frame per item of the selected item's time series (items in the time range that
 // cover the same area), cut to the crop box or the whole image/site, drawn with the color range and
 // color map in force when the frames are loaded, so every frame is directly comparable.
@@ -2257,7 +2259,7 @@ $('coastOn').onchange = e => coastLayer.setVisible(e.target.checked);
 $('footOn').onchange = e => footLayer.setVisible(e.target.checked);
 $('smin').onchange = $('smax').onchange = () => setStretch(+$('smin').value, +$('smax').value);
 $('cmap').replaceChildren(...Object.keys(cmaps).map(k => new Option(k, k)));
-$('cmap').onchange = e => { if (e.target.value !== 'blue-white-red') lastSeqCmap = e.target.value; setColormap(e.target.value); };
+$('cmap').onchange = e => { if (e.target.value !== 'blue-white-red') { lastSeqCmap = e.target.value; cmapChosen = true; } setColormap(e.target.value); };
 $('clip').oninput = applyClip;
 function setPanel(show) {
   document.body.classList.toggle('nopanel', !show);
