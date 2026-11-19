@@ -1600,15 +1600,25 @@ function pointSeries(p, series) {
     .sort((a, b) => a.start - b.start);
 }
 const tsKeyOf = (key, per) => [key, per.map(s => s.map(i => i.id).join(';')).join('/'), $('tsErr').checked, tsPoints.map(p => p.n).join(',')].join('|');
-// Site collections: when the shown box contains none of the points, show the newest product in the time
-// range at the first point that has one, so the orange box is the site the points and animation use.
-function selectSiteAt(coords) {
-  if (!siteMode || !selected || coords.some(c => selected.feature.getGeometry().intersectsCoordinate(c))) return;
-  const key = $('asset').value;
-  for (const c of coords) {
-    const hits = inRange().filter(it => it.assets[key] && it.feature.getGeometry().intersectsCoordinate(c));
-    if (hits.length) { select(hits.reduce((a, b) => (b.start > a.start ? b : a))); return; }
-  }
+// Site collections: unless the shown product has data at one of the points, show the newest product in
+// the time range with data at the first point that has one, so the orange box is the site the points and
+// animation use. Overlapping boxes often leave a point in another frame's permanent no-data area, so the
+// pixel is read (into the point cache) rather than trusting the footprint.
+async function selectSiteAt(coords) {
+  if (!siteMode || !selected) return;
+  const key = $('asset').value, start = selected, has = async (it, c) => Number.isFinite(await pointValue(it, key, c));
+  const inside = (it, c) => it.feature.getGeometry().intersectsCoordinate(c);
+  try {
+    for (const c of coords) if (inside(selected, c) && await has(selected, c)) return;
+    for (const c of coords) {
+      const hits = inRange().filter(it => it.assets[key] && inside(it, c)).sort((a, b) => b.start - a.start);
+      if (!hits.length) continue;
+      let pick = hits.find(it => it === selected) || hits[0];
+      for (const it of hits.slice(0, 30)) if (await has(it, c)) { pick = it; break; }
+      if (selected === start && pick !== selected) select(pick);
+      return;
+    }
+  } catch (e) { /* a failed read leaves the shown product; the series reports its own errors */ }
 }
 function tsHasErrors(key, series) {
   const need = key === 'vx' ? ['ex'] : key === 'vy' ? ['ey'] : key === 'vv' ? ['vx', 'vy', 'ex', 'ey'] : null;

@@ -239,8 +239,9 @@ A **time series** is the set of items in the current time range whose footprint 
 displayed item's footprint by at least 50% and that have the same asset. Every image in a mosaic
 catalog is one series; each TSX site is its own series. Point time series in a site collection are
 the exception: each point reads every item in the range whose footprint contains it, so points can be
-at different sites, and adding (or loading) points outside the displayed box shows the newest item at
-the first such point, so the orange box is the site the animation uses. A point inside no box is
+at different sites, and unless the displayed item has data at a point, adding (or loading) points shows
+the newest item with data at the first such point (the pixel is read, since overlapping boxes often put
+a point in another frame's no-data area), so the orange box is the site the animation uses. A point inside no box is
 reported in the note. Until a box is picked, the status line asks for one.
 
 COGs must be tiled with overviews. The viewer and the crop/anomaly/animation tools read only the
