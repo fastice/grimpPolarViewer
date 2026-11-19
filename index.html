@@ -105,6 +105,7 @@ button.link { background: none; border: 0; color: var(--accent); padding: 0; fon
 #legend .name { font-family: var(--font-mono); font-size: 11px; word-break: break-all; }
 .toggles { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; }
 .ol-zoom { top: 52px; left: 12px; }
+.ol-zoom-extent { top: 52px; left: 46px; }
 /* Scale bar and the pixel size of what is drawn, side by side at the bottom left of the map. */
 #mapfoot { position: absolute; left: 8px; bottom: 8px; display: flex; align-items: flex-end; gap: 8px; pointer-events: none; }
 #mapfoot .ol-scale-line { position: static; }
@@ -423,8 +424,11 @@ let rawLo = 0, rawHi = 1, rgbMode = false;
 const rasterLayer = new ol.layer.WebGLTile({ zIndex: 2, style: rasterStyle(cmaps.gray, 0, 1) });
 const baseLayer = new ol.layer.Tile({ zIndex: 0 });
 const coastLayer = new ol.layer.Tile({ zIndex: 4 });
+// Reset view (under the zoom buttons): zoom out to the collection's footprints in the time range.
+const resetView = new ol.control.ZoomToExtent({ label: '\u2922', tipLabel: 'Reset view: zoom out to the whole collection' });
+resetView.handleZoomToExtent = () => fitFootprints(250);
 const map = new ol.Map({ target: 'map', layers: [baseLayer, rasterLayer, footLayer, coastLayer],
-                         controls: ol.control.defaults.defaults({ attribution: false }).extend([new ol.control.ScaleLine({ target: 'mapfoot' })]) });
+                         controls: ol.control.defaults.defaults({ attribution: false }).extend([new ol.control.ScaleLine({ target: 'mapfoot' }), resetView]) });
 
 function gibs(code, layer, format) {
   return new ol.source.TileWMS({ url: `https://gibs.earthdata.nasa.gov/wms/${projDefs[code][1]}/best/wms.cgi`,
@@ -607,6 +611,9 @@ function inRange() {
   return items.filter(i => +i.start >= lo && +i.start <= hi);
 }
 
+function fitFootprints(duration = 0) {
+  if (footSource.getFeatures().length) map.getView().fit(footSource.getExtent(), { padding: [40, 40, 40, 40], maxZoom: 8, duration });
+}
 function applyFilter(fit = false) {
   const shown = inRange();
   if (dates.length) drawTimebar();
@@ -629,7 +636,7 @@ function applyFilter(fit = false) {
     li.onkeydown = e => { if (e.key === 'Enter') select(it, true); };
     it.li = li; ul.append(li);
   }
-  if (fit && footSource.getFeatures().length) map.getView().fit(footSource.getExtent(), { padding: [40, 40, 40, 40], maxZoom: 8 });
+  if (fit) fitFootprints();
   updateDownloadButtons();
   if (frames.length) resetAnimation('The time range changed; load the frames again.');
   else refreshAnimInfo();

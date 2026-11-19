@@ -46,7 +46,8 @@ both viewers.
 
 Each catalog opens on its newest item. The map keeps its zoom and position when the new catalog is in
 the same projection and its extent overlaps the view; otherwise (first load, other hemisphere, or
-nothing in view) it fits the catalog. Items are listed below the panel; clicking a row or a
+nothing in view) it fits the catalog. The **⤢** button beside the zoom buttons (an OpenLayers
+`ZoomToExtent` control) fits the footprints in the time range at any time. Items are listed below the panel; clicking a row or a
 footprint shows it. Clicking repeatedly where footprints overlap steps back through the dates.
 
 **Hide controls** (top left of the map) removes the panel so the map fills the window; **Controls**
