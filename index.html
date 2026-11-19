@@ -422,7 +422,8 @@ function gibs(code, layer, format) {
 function setView(code) {
   if (code === viewCode) return;
   viewCode = code;
-  map.setView(new ol.View({ projection: code, center: [0, 0], zoom: 2, maxZoom: 22, extent: gibsExtent, constrainOnlyCenter: true }));
+  map.setView(new ol.View({ projection: code, center: [0, 0], zoom: 2, maxZoom: 22, extent: gibsExtent, constrainOnlyCenter: true,
+    enableRotation: false }));  // grid-up always: a phone pinch must not rotate the map (boxes are drawn on x/y)
   const polar = code in projDefs;
   baseLayer.setSource(polar ? gibs(code, 'BlueMarble_ShadedRelief_Bathymetry', 'image/jpeg') : new ol.source.OSM());
   coastLayer.setSource(polar ? gibs(code, 'Coastlines', 'image/png') : null);
