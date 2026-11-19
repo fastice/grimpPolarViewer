@@ -17,7 +17,7 @@ This is the reference and maintainer guide. The illustrated tour for users is th
 | `tools/deployViewer.sh` | Stamps the build and uploads `index.html` to Kopah with s3cmd. |
 | `tools/makeBksParquet.py` | Catalog builder for the uncalibrated S1 backscatter mosaics (Greenland, Amundsen Sea; newest version per window). |
 | `tools/makeSingleCogParquet.py` | One-item catalog for a single COG (e.g. a display mosaic). |
-| `tools/makeVelocityParquet.py` | Catalog builder for velocity mosaics (NSIDC-0766 6/12-day, Amundsen Sea quarterly/annual, ...), one item per window directory. |
+| `tools/makeVelocityParquet.py` | Catalog builder for velocity mosaics (NSIDC-0766 6/12-day, Amundsen Sea quarterly/annual, NSIDC-0481 TSX sites with `--pattern`), one item per window directory. |
 | `tools/guideScreenshots.mjs`, `tools/guideImages.py` | Regenerate the README images. |
 | `kopah/publicReadPolicy.json` | Bucket policy: anonymous read of `public/*` only. |
 | `kopah/cors.xml` | CORS rules so browsers on other sites can read the data. |
@@ -263,6 +263,15 @@ python tools/makeVelocityParquet.py nsidc-0766.parquet \
 python tools/makeVelocityParquet.py ase-quarterly.parquet /Volumes/insar10/ian/SentinelPIG/Release/quarterly/Vel-* \
     --baseUrl https://s3.kopah.uw.edu/ianj-grimp/public/pig/quarterly --collection ase-vel-quarterly
 
+# TSX glacier sites (NSIDC-0481 v5, full release): one item per Vel.<d1>.<d2> product dir, from the
+# TSX root (skip intermediate/); the site code goes into grimp:site. All 9 files of each product are
+# uploaded (5 COGs plus .jpg/.meta/.premet/.spo); the catalog lists the 5 COGs.
+cd /Volumes/insar4/ian/TSX
+python tools/makeVelocityParquet.py nsidc-0481.parquet \
+    $(ls -d */release/Version5-all-through-November2026/*/Vel.* | grep -v /intermediate/) \
+    --pattern 'TSX_*_v*.tif' --baseUrl https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0481/v05 \
+    --collection nsidc-0481-v5
+
 # A single COG, e.g. a display mosaic.
 python tools/makeSingleCogParquet.py <file.tif> https://s3.kopah.uw.edu/ianj-grimp/public/display \
     2026-08-29 2026-09-18 nisar-gcov-ant-25m.parquet --collection nisar-gcov-ant-25m-display \
@@ -295,6 +304,7 @@ on every host.
   `public/nsidc-0766/v03/` (Greenland 6/12-day velocity, 516 windows, 409 GB),
   `public/pig/quarterly/` and `public/pig/annual/` (Amundsen Sea velocity, 12 GB),
   `public/pig/backscatter/v04/` (Amundsen Sea S1 backscatter, 524 windows to 2026-02-13, 256 GB),
+  `public/nsidc-0481/v05/` (TSX glacier sites, full v5 release, 4996 products 2008-2026, 19 GB),
   `public/display/` (one-off display products). Scott's presets point at his `gaia` bucket.
 - **Deploy** the viewer with `tools/deployViewer.sh`. It uploads as `text/html` with
   `Cache-Control: no-cache` and replaces `build dev` under the title with the UTC time and git
