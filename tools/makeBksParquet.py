@@ -1,4 +1,7 @@
-"""Build a stac-geoparquet catalog of uncalibrated S1 backscatter mosaics.
+"""Build a stac-geoparquet catalog of uncalibrated S1 backscatter mosaics (Greenland GL_, Amundsen ASE_, ...).
+
+Each window directory <region>_S1bks_mosaic_uncalibrated.<start>.<end>/release holds one or more
+versions of the 25 m image; the newest version is used.
 
 The catalog works in both the GrIMP Polar Viewer and stac-map. Its layout mirrors
 gaia/public/grimp/nsidc-0723/v04/nsidc-0723.parquet (rio_stac items written by rustac).
@@ -19,7 +22,7 @@ cogType = 'image/tiff; application=geotiff; profile=cloud-optimized'
 
 
 def parseDates(dirName):
-    """Return (start, end) datetimes from GL_S1bks_mosaic_uncalibrated.YYYY-MM-DD.YYYY-MM-DD."""
+    """Return (start, end) datetimes from <region>_S1bks_mosaic_uncalibrated.YYYY-MM-DD.YYYY-MM-DD."""
     first, last = re.findall(r'\d{4}-\d{2}-\d{2}', dirName)[-2:]
     start = datetime.datetime.fromisoformat(first).replace(tzinfo=datetime.timezone.utc)
     end = datetime.datetime.fromisoformat(last).replace(hour=23, minute=59, second=59,
@@ -45,18 +48,24 @@ def makeItem(tifFile, baseUrl, collection):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('year', type=int, help='include windows with any day in this year')
+    parser.add_argument('year', help="include windows with any day in this year, or 'all'")
     parser.add_argument('output', help='output .parquet')
     parser.add_argument('--baseUrl', default='https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0723/v04')
     parser.add_argument('--collection', default='nsidc-0723-v4')
     parser.add_argument('--releaseRoot', default=defaultReleaseRoot,
-                        help='directory holding the GL_S1bks_mosaic_uncalibrated.* window directories')
+                        help='directory holding the <region>_S1bks_mosaic_uncalibrated.* window directories')
     args = parser.parse_args()
-    tifFiles = sorted(glob.glob(f'{args.releaseRoot}/GL_S1bks_mosaic_uncalibrated.*/release/*_image_25m_v*.tif'))
+    newest = {}
+    for tifFile in glob.glob(f'{args.releaseRoot}/*_S1bks_mosaic_uncalibrated.*/release/*_image_25m_v*.tif'):
+        version = tuple(int(v) for v in re.search(r'_v(\d+)\.(\d+)\.tif$', tifFile).groups())
+        window = os.path.dirname(tifFile)
+        if window not in newest or version > newest[window][0]:
+            newest[window] = (version, tifFile)
     items = []
-    for tifFile in tifFiles:
-        start, end = parseDates(os.path.basename(os.path.dirname(os.path.dirname(tifFile))))
-        if start.year <= args.year <= end.year:
+    for window in sorted(newest):
+        tifFile = newest[window][1]
+        start, end = parseDates(os.path.basename(os.path.dirname(window)))
+        if args.year == 'all' or start.year <= int(args.year) <= end.year:
             items.append(makeItem(tifFile, args.baseUrl, args.collection))
             print(items[-1]['id'], flush=True)
     async def write():

@@ -15,7 +15,7 @@ This is the reference and maintainer guide. The illustrated tour for users is th
 |---|---|
 | `index.html` | The whole viewer (HTML, CSS and JavaScript in one file). |
 | `tools/deployViewer.sh` | Stamps the build and uploads `index.html` to Kopah with s3cmd. |
-| `tools/makeBksParquet.py` | Catalog builder for the uncalibrated S1 backscatter mosaics. |
+| `tools/makeBksParquet.py` | Catalog builder for the uncalibrated S1 backscatter mosaics (Greenland, Amundsen Sea; newest version per window). |
 | `tools/makeSingleCogParquet.py` | One-item catalog for a single COG (e.g. a display mosaic). |
 | `tools/makeVelocityParquet.py` | Catalog builder for velocity mosaics (NSIDC-0766 6/12-day, Amundsen Sea quarterly/annual, ...), one item per window directory. |
 | `tools/guideScreenshots.mjs`, `tools/guideImages.py` | Regenerate the README images. |
@@ -236,6 +236,11 @@ Needs `rio_stac` and `rustac` (`~/miniforge3/bin/pip install rustac`; `rio_stac`
 # One year of uncalibrated S1 backscatter mosaics (windows overlapping the year).
 python tools/makeBksParquet.py 2024 nsidc-0723.parquet
 
+# Every Amundsen Sea backscatter window (newest version in each).
+python tools/makeBksParquet.py all ase-backscatter.parquet \
+    --releaseRoot /Volumes/insar10/ian/SentinelPIG/Release/mosaics/uncalibrated \
+    --baseUrl https://s3.kopah.uw.edu/ianj-grimp/public/pig/backscatter/v04 --collection ase-s1bks-v4
+
 # 6/12-day velocity (NSIDC-0766 v3): one item per window directory; list every window each time.
 python tools/makeVelocityParquet.py nsidc-0766.parquet \
     /Volumes/insar9/ian/Sentinel1/Release/sixDayVelocities/Vel-2026-09-07.2026-09-18
@@ -275,6 +280,7 @@ on every host.
 - **Layout:** `public/viewer/index.html` (the viewer), `public/nsidc-0723/v04/` (2024 backscatter),
   `public/nsidc-0766/v03/` (Greenland 6/12-day velocity, 516 windows, 409 GB),
   `public/pig/quarterly/` and `public/pig/annual/` (Amundsen Sea velocity, 12 GB),
+  `public/pig/backscatter/v04/` (Amundsen Sea S1 backscatter, 524 windows to 2026-02-13, 256 GB),
   `public/display/` (one-off display products). Scott's presets point at his `gaia` bucket.
 - **Deploy** the viewer with `tools/deployViewer.sh`. It uploads as `text/html` with
   `Cache-Control: no-cache` and replaces `build dev` under the title with the UTC time and git
