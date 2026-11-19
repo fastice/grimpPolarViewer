@@ -86,7 +86,9 @@ The vertical bar at the left edge of the map has one tick per acquisition date (
   product this is the COG level OpenLayers picks for the zoom (`getZForResolution` with the source's
   `zDirection`, as its WebGL tile renderer does): an overview such as `Pixels 3,200 m (overview; full
   200 m)` zoomed out, `Pixels 200 m (full resolution)` once zoomed in. During an animation, anomaly or
-  stack it gives that grid's pixel size.
+  stack it gives that grid's pixel size. The map zooms on without limit, so once a pixel is 1.5 or
+  more screen pixels wide the label turns amber and says how far past full resolution the view is
+  (`zoomed 6.3× past full resolution`).
 
 ### Anomaly and stack
 

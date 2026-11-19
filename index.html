@@ -110,6 +110,7 @@ button.link { background: none; border: 0; color: var(--accent); padding: 0; fon
 #mapfoot .ol-scale-line { position: static; }
 #pixRes { font: 11px/1.4 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--tb-text);
           background: var(--tb-label-bg); border-radius: 4px; padding: 2px 6px; white-space: nowrap; order: 1; }
+#pixRes.past { background: var(--tb-hi); color: #111; font-weight: 600; }
 /* Hide/show the control panel; with it hidden the map fills the window (most useful on phones). */
 #panelToggle { position: absolute; top: 12px; left: 12px; z-index: 2; font-size: 13px; padding: 4px 10px;
                background: var(--tb-label-bg); color: var(--tb-text); border-color: transparent; }
@@ -1399,21 +1400,28 @@ function applyLayers() {
 
 // Pixel size of what the map draws: the COG level OpenLayers picks for this zoom (full image or an
 // overview, chosen as in its WebGL tile renderer), or the animation / anomaly / stack grid.
+// Zoomed in past the finest pixels (a data pixel 1.5 or more screen pixels wide), it says by how much,
+// highlighted, since the map otherwise zooms on smoothly with nothing new to see.
 function pixelNote() {
-  const m = r => `${Math.round(r).toLocaleString()} m`, view = map.getView();
-  if (animLayer.getVisible() && animGrid) return `Frame pixels ${m(animGrid.res)}`;
-  if (staticLayer.getVisible() && saCache) return `${saShown?.stack ? 'Stack' : 'Anomaly'} pixels ${m(saCache.res)}`;
+  const m = r => `${Math.round(r).toLocaleString()} m`, view = map.getView(), vr = view.getResolution();
+  const past = (label, res) => vr * 1.5 <= res ? { text: `${label} ${m(res)}, zoomed ${res / vr < 10 ? (res / vr).toFixed(1) : Math.round(res / vr)}× past full resolution`, past: true }
+                                               : { text: `${label} ${m(res)}`, past: false };
+  if (animLayer.getVisible() && animGrid) return past('Frame pixels', animGrid.res);
+  if (staticLayer.getVisible() && saCache) return past(`${saShown?.stack ? 'Stack' : 'Anomaly'} pixels`, saCache.res);
   const src = rasterLayer.getSource(), tg = rasterLayer.getVisible() && src?.getState() === 'ready' && src.getTileGrid();
-  if (!tg) return '';
+  if (!tg) return { text: '' };
   const full = tg.getResolution(tg.getMaxZoom());
-  if (src.getProjection()?.getCode() !== view.getProjection().getCode()) return `Full resolution ${m(full)}`;
-  const r = tg.getResolution(tg.getZForResolution(view.getResolution(), src.zDirection));
-  return r > full * 1.01 ? `Pixels ${m(r)} (overview; full ${m(full)})` : `Pixels ${m(full)} (full resolution)`;
+  if (src.getProjection()?.getCode() !== view.getProjection().getCode()) return { text: `Full resolution ${m(full)}` };
+  const r = tg.getResolution(tg.getZForResolution(vr, src.zDirection));
+  if (r > full * 1.01) return { text: `Pixels ${m(r)} (overview; full ${m(full)})` };
+  const n = past('Pixels', full);
+  return n.past ? n : { text: `Pixels ${m(full)} (full resolution)` };
 }
 function updatePixelNote() {
-  const t = pixelNote(), el = $('pixRes');
-  el.hidden = !t;
-  if (el.textContent !== t) el.textContent = t;
+  const { text, past } = pixelNote(), el = $('pixRes');
+  el.hidden = !text;
+  el.classList.toggle('past', !!past);
+  if (el.textContent !== text) el.textContent = text;
 }
 map.on('moveend', updatePixelNote);
 map.on('rendercomplete', updatePixelNote);

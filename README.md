@@ -161,7 +161,8 @@ Switch to **Southern** for Antarctic products, drawn with the South Pole at the 
   map to read a value.
 - **Pixel size:** the label beside the scale bar gives the size of the pixels on the map: a coarser
   overview when zoomed out, then the product's full resolution as you zoom in (and the grid of an
-  anomaly, stack or animation while one is shown).
+  anomaly, stack or animation while one is shown). It turns amber once you have zoomed in past full
+  resolution, where further zooming only enlarges the pixels.
 - **Resolution of anomalies, stacks and animations:** whole ice sheets are shown at a coarser
   level; draw a box to work at full resolution.
 - **Long point extractions take time:** each point reads one file per date (five with speed error
