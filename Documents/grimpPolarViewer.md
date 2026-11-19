@@ -182,11 +182,15 @@ last dates. Read times are under Limits.
 
 1. Optionally draw a box (**Draw box** on the Area row; the same cyan area box as the anomaly and
    stack, not the download crop; mosaics only, sites are animated whole).
-2. Pick a frame resolution (a new area starts at the finest level that fits).
-3. Optional: **Anomaly** (frames minus the series mean; **Anomaly range ±** recolors loaded frames
+2. Optional: **At least N days between frames** skips dates so frames are at least that far apart
+   (window start to window start). In a mix of 6- and 12-day products the closely spaced ones drop
+   first: 12 days keeps 356 of the 516 NSIDC-0766 windows, 24 days 178, 90 days 46. Fewer frames
+   allow a finer resolution.
+3. Pick a frame resolution (a new area starts at the finest level that fits).
+4. Optional: **Anomaly** (frames minus the mean of the frames; **Anomaly range ±** recolors loaded frames
    at once) and **Color bar** (burned into the frames).
-4. **Load frames**, then **Play/Pause**, the frame slider, speed and loop. The time bar follows.
-5. **Save movie** writes an H.264 MP4 that opens in QuickTime. No-data areas are black in the movie.
+5. **Load frames**, then **Play/Pause**, the frame slider, speed and loop. The time bar follows.
+6. **Save movie** writes an H.264 MP4 that opens in QuickTime. No-data areas are black in the movie.
 
 Every frame uses the color range and color map in force when the frames are loaded, so frames are
 directly comparable; changing either asks for a reload.
@@ -312,8 +316,10 @@ Everything runs in the browser; there is no server-side code.
 The displayed image is rendered on the GPU from the COG tiles (WebGL). Crops, animation frames, the
 anomaly and the stack are computed on the CPU: each date is read at the chosen level, resampled
 (nearest neighbor) onto a common grid over the area, and colorized into a canvas that is shown as a
-static image layer. Limits: 2.5 Mpx per frame and 40 Mpx per series (about 160 MB of values),
-64 Mpx per crop.
+static image layer. Limits: 2.5 Mpx per frame; per series 120 Mpx on laptops and desktops and
+40 Mpx on phones and tablets (a coarse pointer) or devices reporting under 4 GB of memory, since
+every frame stays in memory (a 75 Mpx whole-Greenland animation used about 535 MB); 64 Mpx per crop.
+These are the viewer's own limits (`maxFramePixels`, `maxAnimPixels`), not the browser's.
 
 ## Limits and known issues
 

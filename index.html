@@ -236,6 +236,11 @@ body.nopanel #panel { display: none; }
         <button id="animDrawBox" type="button">Draw box</button>
         <button id="animWhole" type="button" class="link" hidden>Whole image</button>
       </div>
+      <div class="row" id="animStepRow">
+        <label for="animStep" class="note" style="flex:none">At least</label>
+        <input id="animStep" type="number" min="0" step="1" placeholder="any" style="width:5em">
+        <span class="note">days between frames</span>
+      </div>
       <div class="ctl"><label for="animRes">Frame resolution</label><select id="animRes"></select></div>
       <label class="optrow" id="animAnomRow"><input id="animAnom" type="checkbox"> Anomaly: difference from the mean of the frames</label>
       <div class="row" id="animRangeRow" hidden>
@@ -988,7 +993,10 @@ let stretchMode = 'both', lastSeqCmap = 'gray';
 // Animation: one frame per item of the selected item's time series (items in the time range that
 // cover the same area), cut to the crop box or the whole image/site, drawn with the color range and
 // color map in force when the frames are loaded, so every frame is directly comparable.
-const maxFramePixels = 2.5e6, maxAnimPixels = 40e6;
+// Frames are held in memory (float values + an image each), so the total budget is larger on laptops and
+// desktops than on phones/tablets (coarse pointer) or devices reporting under 4 GB of memory.
+const lowMemory = matchMedia('(pointer: coarse)').matches || (navigator.deviceMemory ?? 8) < 4;
+const maxFramePixels = 2.5e6, maxAnimPixels = lowMemory ? 40e6 : 120e6;
 const animLayer = new ol.layer.Image({ zIndex: 2, visible: false });
 map.addLayer(animLayer);
 let animExtKey = '', frames = [], frameBox = null, animIdx = 0, animTimer = null, animDate = null, animBuilding = false, animToken = 0;
@@ -1031,6 +1039,17 @@ function refreshAreaRows() {
 }
 function frameSize(ext, res) { return [Math.ceil((ext[2] - ext[0]) / res), Math.ceil((ext[3] - ext[1]) / res)]; }
 
+function animSeries() {
+  // The dates to animate: every date in the series, or only dates whose windows start at least N days
+  // after the previous frame's (so in a mix of 6- and 12-day products the closely spaced ones drop first).
+  const s = timeSeries(), d = +$('animStep').value;
+  if (!(d > 0)) return s;
+  const out = [];
+  let last = -Infinity;
+  for (const it of s) if (+it.start - last >= d * 86400e3 - 3600e3) { out.push(it); last = +it.start; }
+  return out;
+}
+
 function refreshAnimInfo() {
   refreshAreaRows();
   refreshStaticAnom();
@@ -1039,14 +1058,15 @@ function refreshAnimInfo() {
   const series = timeSeries();
   $('animSec').hidden = series.length < 2;
   if (series.length < 2) return;
-  $('animCount').textContent = `(${series.length} dates)`;
+  const fs = animSeries();
+  $('animCount').textContent = fs.length < series.length ? `(${fs.length} of ${series.length} dates)` : `(${series.length} dates)`;
   // The animation area is the area box shared with the anomaly/stack; mosaics only (sites are animated whole).
   if (frames.length) return;
   const ext = animExtent(), where = ext === areaBox ? 'inside the box' : siteMode ? 'the whole site' : 'the whole image';
   $('animAnomRow').hidden = rgbMode; $('animBarRow').hidden = rgbMode;
   $('animRangeRow').hidden = rgbMode || !$('animAnom').checked;
   $('animRangeUnit').textContent = band.unit || '';
-  $('animInfo').textContent = `${fmtDate(series[0].start)} to ${fmtDate(series[series.length - 1].start)}, ${where}. `
+  $('animInfo').textContent = `${fs.length} frames, ${fmtDate(fs[0].start)} to ${fmtDate(fs[fs.length - 1].start)}, ${where}. `
     + (rgbMode ? 'RGB images are shown as stored.'
        : $('animAnom').checked ? 'Each frame minus the per-pixel mean, centered on 0 in blue-white-red, using the current clip %.'
        : 'Every frame uses the current color range and color map.');
@@ -1055,16 +1075,17 @@ function refreshAnimInfo() {
   sel.replaceChildren(...levels.map((l, i) => {
     const [w, h] = frameSize(ext, l.res), px = w * h;
     const o = new Option(`${+l.res.toPrecision(4)} m: ${w} x ${h} px per frame`, String(i));
-    o.disabled = px > maxFramePixels || px * series.length > maxAnimPixels;
+    o.disabled = px > maxFramePixels || px * fs.length > maxAnimPixels;
     return o;
   }));
   const ok = [...sel.options].filter(o => !o.disabled);
   // Keep the user's choice while the area is unchanged; a new area starts at the finest level that fits.
-  const extKey = ext.map(Math.round).join(',') + '|' + series.length, keep = extKey === animExtKey;
+  const extKey = ext.map(Math.round).join(',') + '|' + fs.length, keep = extKey === animExtKey;
   animExtKey = extKey;
   sel.value = keep && ok.some(o => o.value === prev) ? prev : (ok[0]?.value ?? '');
-  sel.disabled = !ok.length; $('animBuild').disabled = !ok.length;
+  sel.disabled = !ok.length; $('animBuild').disabled = !ok.length || fs.length < 2;
   if (!ok.length) $('animNote').textContent = 'Too large to animate; draw a smaller crop box.';
+  else if (fs.length < 2) $('animNote').textContent = 'Fewer than 2 frames at this spacing; use a smaller number of days.';
 }
 
 function buildLut(stops) {
@@ -1165,7 +1186,7 @@ function drawColorBar(ctx, W, fs, { stops, dlo, dhi, title, centered }) {
 }
 
 async function buildFrames() {
-  const key = $('asset').value, series = timeSeries(), ext = animExtent(), res = levels[+$('animRes').value].res;
+  const key = $('asset').value, series = animSeries(), ext = animExtent(), res = levels[+$('animRes').value].res;
   const anomaly = $('animAnom').checked && !rgbMode;
   const [W, H] = frameSize(ext, res);
   const lut = rgbMode ? null : buildLut(anomaly ? cmaps['blue-white-red'] : (cmaps[$('cmap').value] || cmaps.gray));
@@ -1348,6 +1369,7 @@ $('animAnom').onchange = () => { if (frames.length) resetAnimation('Load the fra
 $('animRange').onchange = () => { animRangeTyped = $('animRange').value !== '' && +$('animRange').value > 0; recolorAnomaly(); };
 $('animRangeAuto').onclick = () => { animRangeTyped = false; $('animRange').value = ''; recolorAnomaly(); };
 $('animBar').onchange = () => { if (frames.length) resetAnimation('Load the frames again to add or remove the color bar.'); };
+$('animStep').onchange = () => { if (frames.length) resetAnimation('Load the frames again to use the new spacing.'); else refreshAnimInfo(); };
 $('animDrawBox').onclick = $('saDrawBox').onclick = drawArea;
 $('animWhole').onclick = $('saWhole').onclick = clearArea;
 $('animPlay').onclick = () => (animTimer ? pauseAnim() : playAnim());
@@ -2075,6 +2097,7 @@ const tips = {
   saAuto: 'Go back to the automatic range (1% clip over all dates)',
   saPrev: 'Show the anomaly for the previous date in the series',
   saNext: 'Show the anomaly for the next date in the series',
+  animStep: 'Skip dates so frames are at least this many days apart (blank: every date); fewer frames allow finer resolution',
   animDrawBox: 'Draw the area (shared with the anomaly and stack): click one corner on the map, then the opposite corner',
   animWhole: 'Use the whole image instead of the box',
   saDrawBox: 'Draw the area (shared with the animation): click one corner on the map, then the opposite corner',

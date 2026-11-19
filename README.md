@@ -104,7 +104,9 @@ image, or a box you draw with **Draw box** in that section for full resolution.
 Open **Animate time series**, draw a box around the area you want (the same box as the anomaly and
 stack, or animate the whole image),
 and click **Load frames**. Then **Play**, change the speed, or drag the slider through the frames.
-Tick **Anomaly** to animate the change from the mean, and **Color bar** to label the frames.
+Tick **Anomaly** to animate the change from the mean, and **Color bar** to label the frames. For
+long series, set **At least N days between frames** to skip dates; fewer frames allow a sharper
+animation.
 **Save movie** writes an MP4 that plays in QuickTime, Windows Media Player, PowerPoint and
 web browsers.
 
