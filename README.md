@@ -110,6 +110,8 @@ more files per date.
 
 - The plot and the timeline are linked: the date on the map is marked on the plot, and clicking a
   point on the plot shows that date's image.
+- Drag the **✥** at the plot's top left to move it anywhere over the map; double-click it to put
+  it back.
 - **Plot y range** sets the y axis: drag either handle, or drag the band between them to move the
   range up or down. The x axis follows the timeline's range. **Plot style** draws
   lines and points, points only, or lines only.
