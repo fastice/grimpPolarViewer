@@ -44,7 +44,9 @@ both viewers.
 - Link parameters: `?href=<catalog URL>` opens a catalog; `&asset=<name>` picks the first asset shown
   (e.g. `browse`, `vx`). The browser Back button returns to the previous catalog.
 
-Each catalog opens on its newest item. Items are listed below the panel; clicking a row or a
+Each catalog opens on its newest item. The map keeps its zoom and position when the new catalog is in
+the same projection and its extent overlaps the view; otherwise (first load, other hemisphere, or
+nothing in view) it fits the catalog. Items are listed below the panel; clicking a row or a
 footprint shows it. Clicking repeatedly where footprints overlap steps back through the dates.
 
 **Hide controls** (top left of the map) removes the panel so the map fills the window; **Controls**

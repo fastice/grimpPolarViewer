@@ -523,7 +523,12 @@ async function loadCatalog(href, push = true) {
   // Points carry over to a catalog in the same projection; the old catalog's series stay on the plot.
   const carry = tsPoints.length && prevCode === viewCode ? snapshotTsPoints(prevName) : null;
   stopDraw(); boxSource.clear(); cropBox = null; areaSource.clear(); areaBox = null; picks.clear(); saCache = null; clearStaticAnom(); clearTsPoints(); updateCropInfo();
-  applyFilter(true);
+  // Keep the current view when the new catalog is in the same projection and its extent is in view, so
+  // switching collections compares the same place; otherwise fit the map to the new catalog.
+  const all = new ol.source.Vector({ features: items.map(i => i.feature) });
+  const keepView = prevCode === viewCode && items.length > 0 &&
+                   ol.extent.intersects(map.getView().calculateExtent(map.getSize()), all.getExtent());
+  applyFilter(!keepView);
   // Open on the newest item so a catalog shows data straight away, as stac-map does on a click.
   if (items.length) select(items[items.length - 1]);
   if (carry) restoreTsPoints(carry);
