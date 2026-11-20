@@ -96,9 +96,9 @@ details.block[open] > .block-inner { margin-top: 8px; }
            font: 12px/1.5 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--tb-text);
            background: var(--tb-label-bg); border-radius: 4px; padding: 4px 8px; }
 .readout b { color: var(--tb-hi); font-weight: 600; }
-/* Placed from the top (30 px above the map bottom) so the browser's resize corner grows it down and right. */
+/* Placed from the top (30 px above the map bottom) so the resize corner grows it down and right. */
 .tsplot { position: absolute; left: 190px; top: calc(100% - 315px); width: min(600px, calc(100% - 220px)); height: 285px;
-          resize: both; overflow: hidden; min-width: 320px; min-height: 180px; z-index: 3;  /* above the time bar */
+          overflow: hidden; z-index: 3;  /* above the time bar */
           background: var(--panel); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
 .tsplot canvas { width: 100%; height: 100%; display: block; cursor: pointer; }
 progress { width: 100%; height: 8px; accent-color: var(--accent); }
@@ -106,6 +106,10 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); }
 .tsdrag { position: absolute; left: 4px; top: 3px; padding: 2px 5px; font-size: 16px; line-height: 1; color: var(--muted);
           cursor: grab; user-select: none; touch-action: none; }
 .tsdrag:hover { color: var(--fg); }
+.tssize { position: absolute; right: 1px; bottom: 1px; width: 18px; height: 18px; cursor: nwse-resize; touch-action: none;
+          background: linear-gradient(135deg, transparent 50%, var(--muted) 50%, var(--muted) 58%, transparent 58%,
+                      transparent 70%, var(--muted) 70%, var(--muted) 78%, transparent 78%); }
+.tssize:hover { filter: brightness(.6); }
 .pickblock { display: grid; gap: 4px; padding: 8px 10px; border: 1px solid var(--pick); border-radius: 4px; background: var(--bg); font-size: 13px; }
 #items li input, .countrow .allbox input { margin-left: 0; }
 .countrow { padding: 8px 16px 4px; justify-content: space-between; }
@@ -357,6 +361,7 @@ body.nopanel #panel { display: none; }
   <div id="tsPlot" class="tsplot" hidden>
     <button id="tsHide" type="button" class="link tsclose" title="Hide the plot (Show plot brings it back)">&times;</button>
     <div id="tsDrag" class="tsdrag" title="Drag to move the plot (resize it by its bottom-right corner); double-click to put it back">&#x2725;</div>
+    <div id="tsSize" class="tssize" title="Drag to resize the plot; double-click the move grip to put it back"></div>
     <canvas id="tsCanvas"></canvas>
   </div>
   <div id="timebar" hidden>
@@ -2270,6 +2275,21 @@ $('tsHide').onclick = () => setTsPlot(false);
     plot.style.top = `${Math.max(Math.min(e.clientY - w.top - d.dy, w.height - r.height), 0)}px`;
   });
   for (const t of ['pointerup', 'pointercancel']) grip.addEventListener(t, () => { d = null; });
+  // Drag the bottom-right corner to resize (at least 320 x 180 px, inside the map).
+  const corner = $('tsSize');
+  let z = null;
+  corner.addEventListener('pointerdown', e => {
+    const r = plot.getBoundingClientRect(), w = $('mapwrap').getBoundingClientRect();
+    z = { x: e.clientX, y: e.clientY, w0: r.width, h0: r.height, r, w };
+    Object.assign(plot.style, { left: `${r.left - w.left}px`, top: `${r.top - w.top}px`, width: `${r.width}px`, height: `${r.height}px`, right: 'auto', bottom: 'auto' });
+    corner.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  corner.addEventListener('pointermove', e => {
+    if (!z) return;
+    plot.style.width = `${Math.max(320, Math.min(z.w0 + e.clientX - z.x, z.w.right - z.r.left))}px`;
+    plot.style.height = `${Math.max(180, Math.min(z.h0 + e.clientY - z.y, z.w.bottom - z.r.top))}px`;
+  });
+  for (const t of ['pointerup', 'pointercancel']) corner.addEventListener(t, () => { z = null; });
   grip.addEventListener('dblclick', () => { for (const k of ['left', 'top', 'width', 'height', 'right', 'bottom']) plot.style[k] = ''; drawTsPlot(); });
   // Redraw at the new size when the plot is resized by its corner.
   let sized = 0;
