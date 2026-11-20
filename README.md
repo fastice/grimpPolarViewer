@@ -50,7 +50,8 @@ These links only choose where to start. Once the viewer is open, switch to any o
 the **Collections** menu at the top of the panel, and between Greenland and Antarctica with the
 **Northern** / **Southern** buttons above it.
 
-Nothing to install: it runs in any current desktop browser (Chrome, Edge, Firefox, Safari).
+Nothing to install: it runs in any current desktop browser (Chrome, Edge, Firefox, Safari). Only
+downloading many files at once uses a small command-line tool (see [Download data](#7-download-data)).
 Hover over any control for a short explanation.
 
 ## A quick tour
@@ -87,9 +88,10 @@ The bar down the left edge of the map is a timeline, newest at the top, with a t
 
 <img src="Documents/images/panel-color.png" align="right" width="300" alt="Color bar, color map menu, clip slider and min/max boxes">
 
-Pick a **color map**, and use the **Clip** slider to set how many of the brightest (and darkest)
-pixels saturate, or type exact **Min** and **Max** values. Speeds start at zero; velocity
-components (vx, vy) are centered on zero in blue and red:
+In the **Color bar** section, pick a **color map**, and use the **Clip** slider to set how many of the
+brightest (and darkest) pixels saturate, or type exact **Min** and **Max** values. Speeds start at zero
+(in viridis until you pick another map); velocity components (vx, vy) are centered on zero in blue and
+red:
 
 <br clear="right">
 
@@ -98,7 +100,13 @@ components (vx, vy) are centered on zero in blue and red:
 Point at the map to read the exact value under the pointer, with its position in kilometers and
 in latitude and longitude:
 
-![Value readout over Jakobshavn Isbræ showing a speed of 2113.6 m/yr](Documents/images/readout.jpg)
+![Value readout over Jakobshavn Isbræ showing a speed of 2127.4 m/yr](Documents/images/readout.jpg)
+
+To see the ice and rock under the data, choose a radar image in **Background** (below the Blue Marble
+and Coastlines boxes), pick one of its dates under **Image**, and lower **Opacity**. The choice is kept
+for each hemisphere while the browser tab is open:
+
+![2024 Sentinel-1 radar backscatter under the annual speed at 60% opacity, Jakobshavn Isbræ](Documents/images/background.jpg)
 
 ### 4. Plot a time series at points
 
@@ -123,7 +131,7 @@ more files per date.
 - **Save CSV** writes the numbers (date, position, value, error, collection) for a spreadsheet or
   script; **Save plot** writes the picture.
 
-![Ice speed at three points near Jakobshavn Isbræ, 2014-2023](Documents/images/timeseries.jpg)
+![Ice speed at three points near Jakobshavn Isbræ, 2015-2025](Documents/images/timeseries.jpg)
 
 ### 5. See what changed
 
@@ -133,7 +141,7 @@ Step through the years with **Earlier** and **Later**, or by clicking the ticks 
 **Show stack** instead averages every date in the time range into one image. Both cover the whole
 image, or a box you draw with **Draw box** in that section for full resolution.
 
-![Speed in 2022-23 minus the 2014-2023 mean, showing fast-flowing outlet glaciers in red](Documents/images/anomaly.jpg)
+![Speed in 2024-25 minus the mean of all 11 years (2014-15 to 2024-25): outlet glaciers faster (red) or slower (blue) than usual](Documents/images/anomaly.jpg)
 
 ### 6. Make an animation
 
@@ -146,11 +154,11 @@ animation.
 **Save movie** writes an MP4 that plays in QuickTime, Windows Media Player, PowerPoint and
 web browsers.
 
-<img src="Documents/images/jakobshavn-anomaly.gif" align="right" width="320" alt="Animation of Jakobshavn Isbræ speed anomalies, 2014 to 2023">
+<img src="Documents/images/jakobshavn-anomaly.gif" align="right" width="320" alt="Animation of Jakobshavn Isbræ speed anomalies, 2014-15 to 2024-25">
 
-Here is Jakobshavn Isbræ from 2014 to 2023, as each year's speed minus the nine-year mean, with
-the range set to ±1500 m/yr: faster than average (red) in 2014-2016, slower (blue) in
-2017-2019, and faster again in 2020-21.
+Here is Jakobshavn Isbræ from 2014-15 to 2024-25, as each year's speed minus the 11-year mean,
+with the range set to ±1500 m/yr: faster than average (red) in 2014-16, slower (blue) in 2016-19,
+faster again in 2020-21, and close to or a little below average since.
 
 <br clear="right">
 
@@ -180,7 +188,7 @@ Tick the files you want under **Assets** (for velocity: speed, components, error
 
 <br clear="right">
 
-<img src="Documents/images/panel-sites.png" align="right" width="300" alt="Download sites panel with Select all sites box">
+<img src="Documents/images/panel-sites.png" align="right" width="300" alt="Download sites panel for TerraSAR-X glacier sites">
 
 Small glacier-site products, such as the TerraSAR-X boxes, are downloaded whole, one site box per
 download file: the dates of the displayed site in the time range, or dates you pick from one site
@@ -203,9 +211,6 @@ Switch to **Southern** for Antarctic products, drawn with the South Pole at the 
 - **Maintenance:** the data are stored on UW's Kopah storage, which is offline for maintenance on
   the second Tuesday of each month, 9 a.m.-5 p.m. Pacific (24 hours in January, April, July and
   October). The viewer will not load during those windows.
-- **Background:** pick a radar (backscatter) collection and one of its images to show in gray under
-  the data, in place of Blue Marble; lower **Opacity** to see it through velocity. The choice is kept
-  for each hemisphere while the browser tab is open.
 - **Hide controls** (top left of the map) gives the map the whole window.
 - **Phones and tablets:** the controls sit below the map; hide them for a full-screen map. Tap the
   map to read a value.
@@ -215,9 +220,9 @@ Switch to **Southern** for Antarctic products, drawn with the South Pole at the 
   resolution, where further zooming only enlarges the pixels.
 - **Resolution of anomalies, stacks and animations:** whole ice sheets are shown at a coarser
   level; draw a box to work at full resolution.
-- **Long point extractions take time:** each point reads one file per date (five with speed error
-  bars), so one point over the 516 six-day windows takes about a minute. Narrow the time range for
-  many points.
+- **Long point extractions take time:** each point reads one file per date, or five for speed with
+  **Error bars** ticked (one point over the 516 six-day windows with error bars, 2,580 files, takes
+  about a minute). Narrow the time range for many points.
 - **Points can't be placed under the timeline** (its faint box takes the clicks); pan the map instead.
 
 ## Using your own data

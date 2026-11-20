@@ -13,8 +13,9 @@ const out = process.argv[2] || 'shots';
 mkdirSync(`${out}/gif`, { recursive: true });
 const base = 'https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html';
 const cat = {
-  vel: 'https://s3.kopah.uw.edu/gaia/public/grimp/nsidc-0725/v05/nsidc-0725.parquet',
-  tsx: 'https://s3.kopah.uw.edu/gaia/public/grimp/nsidc-0481/v04/nsidc-0481.parquet',
+  vel: 'https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0725/v06/nsidc-0725.parquet',
+  bks: 'https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0723/v04/nsidc-0723.parquet',
+  tsx: 'https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0481/v05/nsidc-0481.parquet',
   ant: 'https://s3.kopah.uw.edu/ianj-grimp/public/display/nisar-gcov-ant-25m.parquet',
 };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -59,7 +60,6 @@ const jak = [-49.6, 69.15];  // Jakobshavn Isbrae / Sermeq Kujalleq
 // 1. Annual velocity overview, panel crops, time bar.
 await open(`${base}?href=${cat.vel}&asset=vv`);
 await waitText('#clipnote', /Clip from/);
-await setSelect('#cmap', 'magma');
 await settle();
 await shot('overview.jpg');
 await shotEl('panel-catalog.png', '#panel header');
@@ -144,17 +144,37 @@ for (let i = 0; i < n; i++) {
 }
 await click('#animClose');
 
-// 6. Download panel with the crop option on.
+// 6. Download panel (collapsed by default) with the crop option on.
 await page.$eval('#saBlock', e => { e.open = false; });
+await page.$eval('#animSec', e => { e.open = false; });
+await page.$eval('#cropSec', e => { e.open = true; });
 await page.$eval('#cropOn', e => { e.checked = true; e.dispatchEvent(new Event('change')); });
-await settle(3000);
+await fitAround(...jak, 90);
+await settle(2000);
+await click('#drawBox');
+const [d0, d1] = await boxPixels(...jak, 30);
+await page.mouse.click(d0[0], d0[1]); await sleep(300);
+await page.mouse.click(d1[0], d1[1]); await sleep(1500);
 await shotEl('panel-download.png', '#cropSec');
+await click('#clearBox');
+await page.$eval('#cropOn', e => { e.checked = false; e.dispatchEvent(new Event('change')); });
+
+// 6b. Background: 2024 Sentinel-1 backscatter under the speed at 60% opacity, Jakobshavn.
+const bksOption = await page.$eval('#bgColl', (e, u) => [...e.options].find(o => o.value === u)?.value, cat.bks);
+await setSelect('#bgColl', bksOption);
+await page.waitForFunction(() => !document.getElementById('bgItemRow').hidden, { timeout: 60000 });
+await page.$eval('#opacity', e => { e.value = '0.6'; e.dispatchEvent(new Event('input')); });
+await fitAround(...jak, 45);
+await page.mouse.move(5, 5);
+await settle(12000);
+await shot('background.jpg');
+await setSelect('#bgColl', '');
+await page.$eval('#opacity', e => { e.value = '1'; e.dispatchEvent(new Event('input')); });
 
 // 7. TSX glacier sites.
 await open(`${base}?href=${cat.tsx}`);
 await waitText('#clipnote', /Clip from/);
-await click('#pickAllSites'); await click('#pickAllSites');  // leave nothing picked, just show the block
-await setSelect('#cmap', 'magma');
+await page.$eval('#cropSec', e => { e.open = true; });
 await page.evaluate(() => {
   const mm = window.grimpViewer.map;
   const src = mm.getLayers().getArray().map(l => l.getSource?.()).find(s => s?.getFeatures && s.getFeatures().length > 10);

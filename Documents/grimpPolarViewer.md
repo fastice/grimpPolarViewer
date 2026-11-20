@@ -75,12 +75,16 @@ The vertical bar at the left edge of the map has one tick per acquisition date (
 
 ### Color and values
 
-- **Color map**, **Clip % (percentile stretch)** and **Min/Max**. The clip is computed from a
-  ~1000-pixel overview of the COG.
+- The **Color bar** section (file name, color bar, **Color map**, **Clip % (percentile stretch)** and
+  **Min/Max**) collapses; it starts open. The clip is computed from a ~1000-pixel overview of the COG.
+- Speed (`vv`) opens in viridis and other single-band assets in gray, until a color map is picked;
+  after that the pick is kept (vx/vy still switch to blue-white-red and back).
 - Stretch rules by asset name: `vv`, `ex`, `ey` start at a hard 0 (clip only the top); `vx`, `vy`
   are symmetric about 0 (±L, the larger tail at the clip %) and switch to the blue-white-red map;
   everything else clips both ends.
 - RGB(A) assets (three or more bands, e.g. `browse`) are drawn as stored; the stretch controls hide.
+  Three-band images without alpha (the velocity browse COGs) have a pure white (255, 255, 255)
+  background, which is drawn transparent.
 - **Hover readout** (bottom right; tap on touch screens): map x/y in km, latitude/longitude, and the value under the
   pointer read from the full-resolution COG (exact native value, with units). During an animation,
   anomaly or stack it reports that layer's value instead (for the stack, the mean and how many dates
@@ -158,6 +162,11 @@ product's date range, one color per point.
   ringed, so clicking a time-bar tick moves the marker. Clicking a point on the plot shows that
   date's image, as if its tick were clicked.
 - **Hide plot / Show plot** in the panel toggles the plot; its x also hides it.
+- **Plot style:** lines and points (default), points only, or lines only; applies to the series of
+  earlier collections too. The axes are titled with the asset and unit (y) and Date (x).
+- **Moving and resizing:** drag the ✥ grip (top left) to move the plot anywhere over the map and the
+  striped corner (bottom right) to resize it (at least 320 x 180 px, inside the map); double-click the
+  grip to put it back. The plot sits above the time bar.
 
 **Comparing**
 
@@ -208,6 +217,9 @@ directly comparable; changing either asks for a reload.
 
 ### Downloads
 
+The **Download** section collapses (it starts collapsed); the product list and its pick boxes below it
+show only while it is open.
+
 - **Assets (one file each)** with an **All** box choose what to download.
 - **Download this product's assets** saves the ticked assets' original COGs of the displayed item: from NSIDC when a CMR search
   (started when the item is shown, matched by file name) finds them for the collection's exact version
@@ -226,8 +238,9 @@ directly comparable; changing either asks for a reload.
   written as float32 in physical units (e.g. dB) with nodata kept; RGB as 8-bit RGB. Selections are
   cropped by `grimpdownload`, not in the browser.
 - **Site products** (median footprint under 100 km across, e.g. NSIDC-0481 TSX boxes) get a
-  **Download sites** section instead: no crop, a **Select all sites** box, list checkboxes, and
-  Shift/Ctrl/Cmd-click on a box to pick it.
+  **Download sites** section instead: no crop, one site box per download file (the displayed site's
+  dates in the time range, or dates picked from one site with the list checkboxes or
+  Shift/Ctrl/Cmd-click on a box). The old **Select all sites** box is hidden.
 
 ## Catalog requirements
 
