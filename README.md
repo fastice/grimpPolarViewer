@@ -235,3 +235,13 @@ to make one, how to host the files, and how the viewer works.
 
 Publishing new data, deploying the viewer, the repository layout and the design are covered in
 [Documents/grimpPolarViewer.md](Documents/grimpPolarViewer.md).
+
+## Acknowledgments
+
+The products in the viewer were made with the NASA MEaSUREs Greenland Ice Mapping Project (GrIMP)
+workflow, using one or more of the following:
+
+- NISAR data processed by NASA/JPL-Caltech, archived at the ASF DAAC
+- Copernicus Sentinel-1 data processed by ESA, archived at the ASF DAAC
+- TerraSAR-X/TanDEM-X data processed and archived by DLR
+- Landsat 8/9 data processed and archived by USGS
