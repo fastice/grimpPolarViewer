@@ -515,7 +515,7 @@ async function loadBackground(href, wantId) {
   if (!href) return;
   $('bgNote').hidden = false; $('bgNote').textContent = 'Loading background catalog...';
   try {
-    const resp = await fetch(href);
+    const resp = await fetch(href, { cache: 'no-cache' });  // revalidate: catalogs are replaced in place
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const rows = await parquetReadObjects({ file: await resp.arrayBuffer(), compressors });
     if (token !== bgToken) return;
@@ -587,7 +587,7 @@ async function loadCatalog(href, push = true) {
   }
   setStatus('Loading catalog...');
   try {
-    const resp = await fetch(href);
+    const resp = await fetch(href, { cache: 'no-cache' });  // revalidate: catalogs are replaced in place
     if (!resp.ok) throw new Error(`HTTP ${resp.status} reading ${href}`);
     const rows = await parquetReadObjects({ file: await resp.arrayBuffer(), compressors });
     items = rows.map(toItem).sort((a, b) => a.start - b.start);

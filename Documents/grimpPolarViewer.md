@@ -333,7 +333,7 @@ Upload the COGs to the URL the catalog points at, then the catalog, with explici
 ```bash
 s3cmd put --mime-type='image/tiff; application=geotiff; profile=cloud-optimized' \
     --multipart-chunk-size-mb=100 *.tif s3://ianj-grimp/public/nsidc-0723/v04/
-s3cmd put --mime-type=application/vnd.apache.parquet nsidc-0723.parquet s3://ianj-grimp/public/nsidc-0723/v04/
+s3cmd put --mime-type=application/vnd.apache.parquet --add-header='Cache-Control: no-cache' nsidc-0723.parquet s3://ianj-grimp/public/nsidc-0723/v04/
 ```
 
 Measured upload rates from helheim: 62 MB/s averaged over 95.5 GB, about 90 MB/s on a single large
