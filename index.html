@@ -126,6 +126,8 @@ button.link { background: none; border: 0; color: var(--accent); padding: 0; fon
 #panelToggle { position: absolute; top: 12px; left: 12px; z-index: 2; font-size: 13px; padding: 4px 10px;
                background: var(--tb-label-bg); color: var(--tb-text); border-color: transparent; }
 body.nopanel #panel { display: none; }
+/* The product list and its pick boxes belong to Download: they show only while that section is open. */
+#panel:has(#cropSec:not([open])) .countrow, #panel:has(#cropSec:not([open])) #items { display: none; }
 /* Vertical time range on the left edge of the map (next to the panel): newest at the top, one tick per
    acquisition window. Fixed amber-on-dark colors in both themes so it reads over Blue Marble's blues and whites. */
 :root { --tb-hi: #ffb000; --tb-strip: rgba(12, 16, 20, 0.62); --tb-label-bg: rgba(12, 16, 20, 0.86); --tb-text: #ffffff; }

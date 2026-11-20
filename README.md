@@ -63,8 +63,8 @@ Choose **Northern** or **Southern**, then a collection from the **Collections** 
 highlighted box near the top of the panel; it lists every data set for that hemisphere). The newest
 product opens on the map, at the same zoom and place if you switch collections within a hemisphere,
 so you can compare data sets at one glacier (the **⤢** button beside **+** and **−** zooms back out
-to the whole collection). Every product in the collection is listed at the bottom of the panel
-and outlined on the map; click either to show it.
+to the whole collection). Every product in the collection is outlined on the map, and listed
+under **Download** when that section is open; click either to show it.
 
 Anyone can open their own data by pasting a catalog link into **Catalog URL** (see
 [Using your own data](#using-your-own-data)).
