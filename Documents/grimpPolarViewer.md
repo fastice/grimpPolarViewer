@@ -212,7 +212,7 @@ directly comparable; changing either asks for a reload.
 - **Download this image** saves the original COGs of the displayed item from Kopah.
 - **Save download file** covers picked items, or every item in the time range (for site products,
   the displayed site's items; picks must be from one site). It saves `<collection>[_<site>]_<date>.grimp.yaml`
-  (JSON) naming each item's Kopah files, the assets and the crop box and resolution, for the
+  (JSON) naming each item's files (paths under the Kopah root, so no ready-made links), the assets and the crop box and resolution, for the
   `grimpdownload` command in this repository's `grimppolarviewer` package, which reads each file from
   NSIDC when NSIDC holds that exact file (matched by name) and from Kopah otherwise.
   See [grimpDownload.md](grimpDownload.md).

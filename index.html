@@ -1104,6 +1104,9 @@ $('dlImage').onclick = () => runDownload(checkedAssets().filter(k => selected.as
 // grimpdownload reads each file from NSIDC when NSIDC holds the same version (matched by file name) and
 // from Kopah otherwise, so files saved now switch to NSIDC by themselves once NSIDC has them.
 const installCmd = 'pip install git+https://github.com/fastice/grimpPolarViewer';
+// Files under the GrIMP Kopah root are listed by path only; grimpdownload adds the root (or reads NSIDC).
+const kopahRoot = 'https://s3.kopah.uw.edu/ianj-grimp/public/';
+const kopahPath = href => href.startsWith(kopahRoot) ? href.slice(kopahRoot.length) : href;
 $('dlSel').onclick = () => {
   const keys = checkedAssets(), its = selectionItems(), crop = $('cropOn').checked && cropBox;
   const coll = items[0]?.raw?.collection || 'grimp', ns = /^nsidc-(\d{4})-v(\d+)$/.exec(coll);
@@ -1114,7 +1117,7 @@ $('dlSel').onclick = () => {
     epsg: +viewCode.split(':')[1], assets: keys,
     ...(crop ? { crop: { bbox: cropBox.map(v => Math.round(v)), resolution: +levels[+$('cropRes').value].res.toPrecision(6) } } : {}),
     items: its.map(it => ({ id: it.id, start: fmtDate(new Date(it.start)), end: fmtDate(new Date(it.end)),
-      files: Object.fromEntries(keys.filter(k => it.assets[k]).map(k => [k, it.assets[k].href])) })),
+      files: Object.fromEntries(keys.filter(k => it.assets[k]).map(k => [k, kopahPath(it.assets[k].href)])) })),
   };
   const nFiles = manifest.items.reduce((n, it) => n + Object.keys(it.files).length, 0);
   const site = [...selectionSites(its)][0];

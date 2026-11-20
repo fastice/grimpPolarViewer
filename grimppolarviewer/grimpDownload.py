@@ -32,6 +32,8 @@ import rasterio  # noqa: E402
 from rasterio.windows import Window  # noqa: E402
 
 cmrGranules = 'https://cmr.earthdata.nasa.gov/search/granules.umm_json'
+# Download files list GrIMP products by path under this root (other catalogs by full URL).
+kopahRoot = 'https://s3.kopah.uw.edu/ianj-grimp/public/'
 ursHost = 'urs.earthdata.nasa.gov'
 # NSIDC refuses requests when too many arrive at once: GDAL then reports the file as "not recognized as
 # a supported dataset name" (no HTTP code) and the service stays unavailable for a while. Each file is
@@ -175,6 +177,8 @@ class Downloader:
                 kopah = it.get('files', {}).get(a)
                 if not kopah:
                     continue
+                if '://' not in kopah:
+                    kopah = kopahRoot + kopah
                 name = kopah.rsplit('/', 1)[1]
                 if name in nsidc:
                     src, url = 'NSIDC', nsidc[name]

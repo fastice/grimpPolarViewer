@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "grimppolarviewer"
-version = "0.1.0"
+version = "0.1.1"
 description = "Command-line downloader for GrIMP Polar Viewer selections (NSIDC first, Kopah otherwise)"
 readme = "Documents/grimpDownload.md"
 license = { text = "MIT" }

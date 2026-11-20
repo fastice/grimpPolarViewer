@@ -73,11 +73,13 @@ crops): tiled, deflate-compressed GeoTIFFs with the source file's metadata plus 
  "crop": {"bbox": [-230000, -2300000, -150000, -2250000], "resolution": 200},
  "items": [
   {"id": "GL_vel_mosaic_Annual_01Dec24_30Nov25_v06.0", "start": "2024-12-01", "end": "2025-11-30",
-   "files": {"vv": "https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0725/v06/GL_vel_mosaic_Annual_01Dec24_30Nov25_vv_v06.0.tif", "...": "..."}}
+   "files": {"vv": "nsidc-0725/v06/GL_vel_mosaic_Annual_01Dec24_30Nov25_vv_v06.0.tif", "...": "..."}}
  ]
 }
 ```
 
+`files` gives each asset's path under the GrIMP Kopah root (`https://s3.kopah.uw.edu/ianj-grimp/public/`,
+built into `grimpdownload`), or a full URL for catalogs stored elsewhere.
 `nsidc` comes from the catalog's collection id (`nsidc-<number>-v<version>`); it is `null` for
 collections not at NSIDC (Amundsen Sea, NISAR display mosaics), which always come from Kopah.
 `crop` is left out for whole files.
