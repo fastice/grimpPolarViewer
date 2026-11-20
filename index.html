@@ -345,7 +345,7 @@ body.nopanel #panel { display: none; }
         <div class="row"><button id="drawBox" type="button">Draw box</button><button id="clearBox" type="button" class="link" hidden>Clear</button><span id="boxInfo" class="note"></span></div>
         <div class="ctl"><label for="cropRes">Resolution</label><select id="cropRes" disabled></select></div>
       </div>
-      <button id="dlImage" type="button">Download this image</button>
+      <button id="dlImage" type="button">Download this product's assets</button>
       <button id="dlSel" type="button">Download selection</button>
       <div id="cropNote" class="note"></div>
     </div>
@@ -966,7 +966,7 @@ function tiffAssetKeys(it) {
 
 // NSIDC copies of an item's files: {file name: url} when NSIDC holds the collection's exact version
 // (collection id nsidc-<number>-v<version>), found with one CMR search and matched by file name. Started
-// when an item is shown, so "Download this image" can link to NSIDC straight from the click.
+// when an item is shown, so "Download this product's assets" can link to NSIDC straight from the click.
 const nsidcLookups = new Map();  // item id -> promise of {file name: url}
 function nsidcFor(it) {
   if (!nsidcLookups.has(it.id)) nsidcLookups.set(it.id, (async () => {
@@ -1029,15 +1029,15 @@ function updateDownloadButtons() {
   $('dlSel').disabled = busy || !selItems.length || !n || !cropReady || nSites > 1;
   if (siteMode) {
     // Small site products (TSX glacier boxes) are downloaded whole, one site box per download file.
-    $('dlImage').textContent = 'Download the displayed site';
+    $('dlImage').textContent = "Download this product's assets";
     const site = [...selectionSites(selItems)][0] || '';
     $('dlSel').textContent = nSites > 1 ? 'Pick dates from one site box only'
       : `Save download file: ${site} ${picks.size ? `${selItems.length} picked` : `${selItems.length} dates in range`}`;
     $('pickCount').textContent = picks.size ? `${picks.size} picked.` : '';
   } else {
     const fromNsidc = selected && checkedAssets().some(k => atNsidc(selected, k));
-    $('dlImage').textContent = crop ? (fromNsidc ? 'Save download file: crop of this image' : 'Download crop of this image')
-                                    : `Download this image${fromNsidc ? ' (from NSIDC)' : ''}`;
+    $('dlImage').textContent = crop ? (fromNsidc ? "Save download file: crop of this product's assets" : "Download crop of this product's assets")
+                                    : `Download this product's assets${fromNsidc ? ' (from NSIDC)' : ''}`;
     const what = picks.size ? `${picks.size} picked item${picks.size > 1 ? 's' : ''}` : `all ${selItems.length} in time range`;
     $('dlSel').textContent = `Save download file${crop ? ' (crops)' : ''}: ${what}`;
   }

@@ -162,7 +162,7 @@ the range set to ±1500 m/yr: faster than average (red) in 2014-2016, slower (bl
 
 Tick the files you want under **Assets** (for velocity: speed, components, errors and more), then:
 
-- **Download this image** saves the original files of the product on the map, from NSIDC when NSIDC
+- **Download this product's assets** saves the ticked assets of the product on the map (one file each), from NSIDC when NSIDC
   holds that version (the browser first shows the Earthdata login, then the file downloads) and from
   the viewer's copy otherwise. With **Crop to a box** it saves just the area you draw, at the resolution
   you choose (for a product at NSIDC it saves a download file for `grimpdownload` instead).
