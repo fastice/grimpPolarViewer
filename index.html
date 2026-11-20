@@ -198,6 +198,9 @@ body.nopanel #panel { display: none; }
       <label><input id="coastOn" type="checkbox" checked> Coastlines</label>
       <label><input id="footOn" type="checkbox" checked> Footprints</label>
     </div>
+    <div class="row"><label class="lab" for="bgColl" style="margin:0;flex:none">Background</label><select id="bgColl"></select></div>
+    <div class="row" id="bgItemRow" hidden><label class="lab" for="bgItem" style="margin:0;flex:none">Image</label><select id="bgItem"></select></div>
+    <div id="bgNote" class="note" hidden></div>
   </section>
   <details id="legend" class="block" open hidden>
     <summary>Color bar</summary>
@@ -395,6 +398,7 @@ function setHemi(h) {
   $('hemS').setAttribute('aria-pressed', String(h === 'S'));
   $('preset').replaceChildren(new Option('Custom URL', ''),
     ...presets.map(([t, , ph], i) => [t, i, ph]).filter(([, , ph]) => ph === h).map(([t, i]) => new Option(t, String(i))));
+  fillBackground(h);
 }
 function pickHemi(h) {
   // Switching hemisphere opens that hemisphere's first collection.
@@ -446,11 +450,13 @@ function rasterStyle(stops, lo, hi) {
 let rawLo = 0, rawHi = 1, rgbMode = false;
 const rasterLayer = new ol.layer.WebGLTile({ zIndex: 2, style: rasterStyle(cmaps.gray, 0, 1) });
 const baseLayer = new ol.layer.Tile({ zIndex: 0 });
+// Background image: one product of an image (backscatter) collection, in gray between Blue Marble and the main layer.
+const bgLayer = new ol.layer.WebGLTile({ zIndex: 1, visible: false, style: rasterStyle(cmaps.gray, 0, 1) });
 const coastLayer = new ol.layer.Tile({ zIndex: 4 });
 // Reset view (under the zoom buttons): zoom out to the collection's footprints in the time range.
 const resetView = new ol.control.ZoomToExtent({ label: '\u2922', tipLabel: 'Reset view: zoom out to the whole collection' });
 resetView.handleZoomToExtent = () => fitFootprints(250);
-const map = new ol.Map({ target: 'map', layers: [baseLayer, rasterLayer, footLayer, coastLayer],
+const map = new ol.Map({ target: 'map', layers: [baseLayer, bgLayer, rasterLayer, footLayer, coastLayer],
                          controls: ol.control.defaults.defaults({ attribution: false }).extend([new ol.control.ScaleLine({ target: 'mapfoot' }), resetView]) });
 
 function gibs(code, layer, format) {
@@ -467,6 +473,55 @@ function setView(code) {
   const polar = code in projDefs;
   baseLayer.setSource(polar ? gibs(code, 'BlueMarble_ShadedRelief_Bathymetry', 'image/jpeg') : new ol.source.OSM());
   coastLayer.setSource(polar ? gibs(code, 'Coastlines', 'image/png') : null);
+}
+
+// Background image. The choice (collection and product) is kept per hemisphere for the browser session,
+// so it is picked once rather than with every collection.
+const bgPresets = h => presets.map((p, i) => [...p, i]).filter(([t, , ph]) => ph === h && /backscatter|gamma0/i.test(t));
+const bgKey = h => `grimpBackground${h}`;
+let bgItems = [], bgToken = 0;
+function bgSaved(h) { try { return JSON.parse(sessionStorage.getItem(bgKey(h)) || 'null'); } catch (e) { return null; } }
+function bgSave(h, v) { try { v ? sessionStorage.setItem(bgKey(h), JSON.stringify(v)) : sessionStorage.removeItem(bgKey(h)); } catch (e) { /* no storage */ } }
+function fillBackground(h) {
+  $('bgColl').replaceChildren(new Option('none (Blue Marble)', ''), ...bgPresets(h).map(([t, u]) => new Option(t, u)));
+  const saved = bgSaved(h);
+  $('bgColl').value = saved && bgPresets(h).some(p => p[1] === saved.href) ? saved.href : '';
+  loadBackground($('bgColl').value, saved?.id);
+}
+async function loadBackground(href, wantId) {
+  const token = ++bgToken;
+  bgItems = [];
+  $('bgItemRow').hidden = true; $('bgNote').hidden = true;
+  bgLayer.setVisible(false); bgLayer.setSource(null);
+  if (!href) return;
+  $('bgNote').hidden = false; $('bgNote').textContent = 'Loading background catalog...';
+  try {
+    const resp = await fetch(href);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const rows = await parquetReadObjects({ file: await resp.arrayBuffer(), compressors });
+    if (token !== bgToken) return;
+    bgItems = rows.map(toItem).sort((a, b) => b.start - a.start);  // newest first
+  } catch (e) {
+    if (token === bgToken) $('bgNote').textContent = `Could not load the background catalog: ${e.message}`;
+    return;
+  }
+  $('bgItem').replaceChildren(...bgItems.map((it, k) => new Option(`${fmtDate(new Date(it.start))} to ${fmtDate(new Date(it.end))}`, String(k))));
+  const k = Math.max(0, bgItems.findIndex(it => it.id === wantId));
+  $('bgItem').value = String(k);
+  $('bgItemRow').hidden = bgItems.length < 2; $('bgNote').hidden = true;
+  showBackground(bgItems[k]);
+}
+function showBackground(it) {
+  if (!it) return;
+  const key = ['image', 'gamma0', 'sigma0'].find(k => it.assets[k]) || tiffAssetKeys(it)[0];
+  const a = it.assets[key], b = a['raster:bands']?.[0] || {}, st = b.statistics || {};
+  let lo = num(st.minimum) ?? 0, hi = num(st.maximum) ?? 255;
+  if (st.mean != null && st.stddev) { lo = Math.max(lo, st.mean - 2 * st.stddev); hi = Math.min(hi, st.mean + 2 * st.stddev); }
+  bgLayer.setStyle(rasterStyle(cmaps.gray, lo, hi));
+  bgLayer.setSource(new ol.source.GeoTIFF({ sources: [{ url: a.href, nodata: b.nodata ?? undefined }], normalize: false,
+    interpolate: true, projection: it.epsg ? `EPSG:${it.epsg}` : undefined }));
+  bgLayer.setVisible(true);
+  bgSave(hemi, { href: $('bgColl').value, id: it.id });
 }
 
 // Kopah maintenance: 2nd Tuesday monthly 9:00-17:00 Pacific; Jan/Apr/Jul/Oct 9:00 Tue to 9:00 Wed.
@@ -2259,6 +2314,8 @@ const tips = {
   asset: 'Which file of the item to show (e.g. vv speed, vx/vy components, browse image)',
   opacity: 'Transparency of the image over the basemap',
   baseOn: 'NASA GIBS Blue Marble basemap',
+  bgColl: 'Show an image (backscatter) product in gray under the main layer; kept for this hemisphere until you change it',
+  bgItem: 'Which image of the background collection to show',
   coastOn: 'Coastline overlay',
   footOn: 'Outlines of the items in the time range; click one to show it',
   cmap: 'Color map for single-band images',
@@ -2338,6 +2395,8 @@ $('asset').onchange = e => showAsset(e.target.value);
 $('opacity').oninput = e => rasterLayer.setOpacity(+e.target.value);
 $('baseOn').onchange = e => baseLayer.setVisible(e.target.checked);
 $('coastOn').onchange = e => coastLayer.setVisible(e.target.checked);
+$('bgColl').onchange = e => { bgSave(hemi, e.target.value ? { href: e.target.value } : null); loadBackground(e.target.value); };
+$('bgItem').onchange = e => showBackground(bgItems[+e.target.value]);
 $('footOn').onchange = e => footLayer.setVisible(e.target.checked);
 $('smin').onchange = $('smax').onchange = () => setStretch(+$('smin').value, +$('smax').value);
 $('cmap').replaceChildren(...Object.keys(cmaps).map(k => new Option(k, k)));

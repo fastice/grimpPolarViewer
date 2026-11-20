@@ -345,6 +345,7 @@ Everything runs in the browser; there is no server-side code.
 | Catalog reading | hyparquet 1.32.0 + hyparquet-compressors 1.1.2 (ZSTD for Scott's catalogs) |
 | MP4 packaging | mp4-muxer 5.2.2 with the browser's WebCodecs H.264 encoder |
 | Basemap | NASA GIBS WMS (`BlueMarble_ShadedRelief_Bathymetry`, `Coastlines`) |
+| Background image | Any preset whose title contains "backscatter" or "gamma0", for the current hemisphere; one item drawn in gray (catalog mean +/- 2 sigma stretch) between Blue Marble and the main layer; collection and item kept per hemisphere in `sessionStorage` (`grimpBackgroundN`/`S`) |
 
 The displayed image is rendered on the GPU from the COG tiles (WebGL). Crops, animation frames, the
 anomaly and the stack are computed on the CPU: each date is read at the chosen level, resampled

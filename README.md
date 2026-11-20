@@ -192,6 +192,9 @@ Switch to **Southern** for Antarctic products, drawn with the South Pole at the 
 - **Maintenance:** the data are stored on UW's Kopah storage, which is offline for maintenance on
   the second Tuesday of each month, 9 a.m.-5 p.m. Pacific (24 hours in January, April, July and
   October). The viewer will not load during those windows.
+- **Background:** pick a radar (backscatter) collection and one of its images to show in gray under
+  the data, in place of Blue Marble; lower **Opacity** to see it through velocity. The choice is kept
+  for each hemisphere while the browser tab is open.
 - **Hide controls** (top left of the map) gives the map the whole window.
 - **Phones and tablets:** the controls sit below the map; hide them for a full-screen map. Tap the
   map to read a value.
