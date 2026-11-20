@@ -43,6 +43,15 @@ both viewers.
 - **Catalog URL** loads any public `.parquet` catalog. The hemisphere follows the catalog's EPSG.
 - Link parameters: `?href=<catalog URL>` opens a catalog; `&asset=<name>` picks the first asset shown
   (e.g. `browse`, `vx`). The browser Back button returns to the previous catalog.
+- **Share this view** writes the whole view into the link (address bar, and clipboard where the browser
+  allows) and says which. Its extra parameters apply only to the first catalog loaded:
+  `item` (item id; otherwise the newest), `x`, `y`, `z` (map center in the catalog's projection, m, and
+  zoom), `t0`, `t1` (time range, dates; left out for the full range), `lo`, `hi` (color range in display
+  units, which wins over the clip slider once), `cmap` (only when one was picked), `op` (opacity, when
+  below 1), `off` (`base`, `coast`, `foot`: layers turned off), `bg`, `bgi` (background catalog file name
+  and item id, or `bg=none`; it replaces the session's saved background for that hemisphere) and `pts`
+  (time-series points as `x,y;x,y` in m, without labels; the series are computed again on opening).
+  Animations, anomalies, crop and area boxes and download picks are not in the link.
 
 Each catalog opens on its newest item. The map keeps its zoom and position when the new catalog is in
 the same projection and its extent overlaps the view; otherwise (first load, other hemisphere, or

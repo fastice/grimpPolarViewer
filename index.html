@@ -190,6 +190,7 @@ body.nopanel #panel { display: none; }
       <label class="lab" for="href">Catalog URL (.parquet)</label>
       <div class="row"><input id="href" type="text" spellcheck="false"><button id="load" type="button">Load</button></div>
     </div>
+    <div class="row"><button id="share" type="button">Share this view</button><span id="shareNote" class="note"></span></div>
     <div id="status" role="status"></div>
     <div id="maintNow" class="maint now" role="alert" hidden></div>
     <p class="maint">Data are served from UW Kopah storage, which is offline for scheduled maintenance on the
@@ -622,11 +623,19 @@ async function loadCatalog(href, push = true) {
   const all = new ol.source.Vector({ features: items.map(i => i.feature) });
   const keepView = prevCode === viewCode && items.length > 0 &&
                    ol.extent.intersects(map.getView().calculateExtent(map.getSize()), all.getExtent());
-  applyFilter(!keepView);
+  const sv = startView; startView = null;
+  if (sv?.t0 && sv.t1) {
+    const k0 = dates.findIndex(d => fmtDate(new Date(d)) >= sv.t0), k1 = dates.findLastIndex(d => fmtDate(new Date(d)) <= sv.t1);
+    if (k0 >= 0 && k1 >= k0) { i0 = k0; i1 = k1; }
+  }
+  applyFilter(!keepView && !sv?.center);
+  if (sv?.center) { map.getView().setCenter(sv.center); if (sv.zoom) map.getView().setZoom(sv.zoom); }
   // Open on the newest item so a catalog shows data straight away, as stac-map does on a click.
-  if (items.length) select(items[items.length - 1]);
-  if (siteMode && items.length) setStatus($('status').textContent + siteHint);
+  const want = sv?.item && items.find(i => i.id === sv.item);
+  if (items.length) select(want || items[items.length - 1]);
+  if (siteMode && items.length && !want) setStatus($('status').textContent + siteHint);
   if (carry) restoreTsPoints(carry);
+  if (sv?.pts.length) { for (const c of sv.pts) addTsPoint(c, '', false); refreshTs(); }
 }
 
 // Time range: indices into the sorted unique start dates.
@@ -773,6 +782,17 @@ function select(it, zoom = false) {
 
 let band = {};
 let startAsset = new URL(location.href).searchParams.get('asset');
+// A link from "Share this view" also carries the item, map view, time range, stretch and points; they apply
+// to the first catalog loaded.
+const startParams = new URL(location.href).searchParams;
+const numPair = s => { const v = s.split(',').map(Number); return v.length === 2 && v.every(Number.isFinite) ? v : null; };
+let startView = ['item', 'x', 't0', 'pts'].some(k => startParams.has(k)) ? {
+  item: startParams.get('item'),
+  center: numPair(`${startParams.get('x')},${startParams.get('y')}`), zoom: +startParams.get('z') || null,
+  t0: startParams.get('t0'), t1: startParams.get('t1'),
+  pts: (startParams.get('pts') || '').split(';').map(numPair).filter(Boolean),
+} : null;
+let startStretch = numPair(`${startParams.get('lo')},${startParams.get('hi')}`);
 function toRaw(v) { return (v - (band.offset ?? 0)) / (band.scale ?? 1); }
 function toDisp(v) { return v * (band.scale ?? 1) + (band.offset ?? 0); }
 
@@ -816,7 +836,7 @@ function showAsset(key) {
   if (stretchMode === 'zero') lo = toRaw(0);
   if (stretchMode === 'symmetric') { const L = Math.max(Math.abs(toDisp(lo)), Math.abs(toDisp(hi))); lo = toRaw(-L); hi = toRaw(L); }
   rasterLayer.setSource(new ol.source.GeoTIFF({ sources: [{ url: a.href, nodata }], normalize: false, interpolate: true, projection }));
-  setStretch(toDisp(lo), toDisp(hi));
+  setStretch(...(startStretch || [toDisp(lo), toDisp(hi)]));
   $('lunit').textContent = band.unit || '';
   loadSample(a.href, nodata);
 }
@@ -2380,6 +2400,7 @@ function applyClip() {
   const p = +$('clip').value;
   $('clipv').textContent = `${p}%`;
   if (rgbMode || !sample || !sample.length) return;
+  if (startStretch) { setStretch(...startStretch); startStretch = null; return; }  // a shared link's range wins once
   const at = q => sample[Math.min(sample.length - 1, Math.max(0, Math.round(q * (sample.length - 1))))];
   const lo = toDisp(at(p / 100)), hi = toDisp(at(1 - p / 100));
   if (stretchMode === 'zero') setStretch(0, hi);
@@ -2397,6 +2418,7 @@ const tips = {
   preset: 'Collections for the selected hemisphere; pick one to open its catalog',
   href: 'URL of any public stac-geoparquet catalog (.parquet); press Enter or Load',
   load: 'Open the catalog URL',
+  share: 'Copy a link that reopens this view: collection, product, asset, map position, time range, colors, layers, background and points',
   asset: 'Which file of the item to show (e.g. vv speed, vx/vy components, browse image)',
   opacity: 'Transparency of the image over the basemap',
   baseOn: 'NASA GIBS Blue Marble basemap',
@@ -2469,6 +2491,13 @@ $('ttrack').title = 'Ticks are acquisition dates: click one to show it; the hand
 // The map is exposed for scripted use (screenshots for the guide, debugging in the console).
 window.grimpViewer = { map };
 
+{
+  // A shared link's background replaces this session's choice for that hemisphere.
+  const bg = startParams.get('bg'), href = startParams.get('href') || presets[0][1];
+  const p = bg && presets.find(q => q[1].split('/').pop() === bg);
+  if (p) bgSave(p[2], { href: p[1], id: startParams.get('bgi') });
+  else if (bg === 'none') bgSave(presets.find(q => q[1] === href)?.[2] || 'N', null);
+}
 setHemi('N');
 showMaintenance();
 setInterval(showMaintenance, 10 * 60 * 1000);
@@ -2579,6 +2608,37 @@ map.on('pointermove', e => {
   const over = !draw && footLayer.getVisible() && footSource.getFeaturesAtCoordinate(e.coordinate).length > 0;
   map.getTargetElement().style.cursor = tsMode ? 'crosshair' : over ? 'pointer' : '';
 });
+// Share this view: the link reopens the same collection, item, asset, map view, time range, colors,
+// layers, background and time-series points. It goes in the address bar and, where allowed, the clipboard.
+$('share').onclick = async () => {
+  const u = new URL(location.origin + location.pathname), q = u.searchParams, v = map.getView();
+  q.set('href', $('href').value);
+  if (selected) { q.set('item', selected.id); q.set('asset', $('asset').value); }
+  const [x, y] = v.getCenter();
+  q.set('x', Math.round(x)); q.set('y', Math.round(y)); q.set('z', +v.getZoom().toFixed(2));
+  if (dates.length && (i0 > 0 || i1 < dates.length - 1)) { q.set('t0', fmtDate(new Date(dates[i0]))); q.set('t1', fmtDate(new Date(dates[i1]))); }
+  if (selected && !rgbMode) { q.set('lo', $('smin').value); q.set('hi', $('smax').value); }
+  if (cmapChosen) q.set('cmap', lastSeqCmap);
+  if (rasterLayer.getOpacity() < 1) q.set('op', rasterLayer.getOpacity());
+  const off = ['base', 'coast', 'foot'].filter(k => !$(`${k}On`).checked);
+  if (off.length) q.set('off', off.join(','));
+  const bgIt = $('bgColl').value && bgItems[+$('bgItem').value];
+  q.set('bg', bgIt ? $('bgColl').value.split('/').pop() : 'none');
+  if (bgIt) q.set('bgi', bgIt.id);
+  if (tsPoints.length) q.set('pts', tsPoints.map(p => p.coord.map(Math.round).join(',')).join(';'));
+  history.replaceState(null, '', u);
+  let copied = false;
+  try { await navigator.clipboard.writeText(u.href); copied = true; } catch (e) { /* not allowed here */ }
+  $('shareNote').textContent = copied ? 'Link copied to the clipboard (also in the address bar).' : 'Copy the link from the address bar.';
+};
+{
+  const c = startParams.get('cmap'), op = startParams.get('op');
+  if (c in cmaps && c !== 'blue-white-red') { $('cmap').value = c; lastSeqCmap = c; cmapChosen = true; }
+  if (op) { $('opacity').value = op; rasterLayer.setOpacity(+op); }
+  for (const k of (startParams.get('off') || '').split(',')) {
+    if (['base', 'coast', 'foot'].includes(k)) { $(`${k}On`).checked = false; $(`${k}On`).dispatchEvent(new Event('change')); }
+  }
+}
 window.addEventListener('popstate', () => loadCatalog(new URL(location.href).searchParams.get('href') || presets[0][1], false));
 
 loadCatalog(new URL(location.href).searchParams.get('href') || presets[0][1], false);

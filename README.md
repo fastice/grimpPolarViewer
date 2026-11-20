@@ -50,6 +50,10 @@ These links only choose where to start. Once the viewer is open, switch to any o
 the **Collections** menu at the top of the panel, and between Greenland and Antarctica with the
 **Northern** / **Southern** buttons above it.
 
+To send someone what you are looking at, click **Share this view** under the catalog URL. It copies
+a link (and puts it in the address bar) that reopens the same collection, product, asset, map position
+and zoom, time range, color map and range, opacity, layers, background image and time-series points.
+
 Nothing to install: it runs in any current desktop browser (Chrome, Edge, Firefox, Safari). Only
 downloading many files at once uses a small command-line tool (see [Download data](#7-download-data)).
 Hover over any control for a short explanation.
