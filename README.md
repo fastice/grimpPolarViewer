@@ -110,8 +110,8 @@ more files per date.
 
 - The plot and the timeline are linked: the date on the map is marked on the plot, and clicking a
   point on the plot shows that date's image.
-- Drag the **✥** at the plot's top left to move it anywhere over the map; double-click it to put
-  it back.
+- Drag the **✥** at the plot's top left to move it anywhere over the map, and its bottom-right
+  corner to resize it; double-click the ✥ to put it back.
 - **Plot y range** sets the y axis: drag either handle, or drag the band between them to move the
   range up or down. The x axis follows the timeline's range. **Plot style** draws
   lines and points, points only, or lines only.
@@ -162,18 +162,27 @@ the range set to ±1500 m/yr: faster than average (red) in 2014-2016, slower (bl
 
 Tick the files you want under **Assets** (for velocity: speed, components, errors and more), then:
 
-- **Download this image** saves the original files of the product on the map.
-- **Download selection** covers every product in the time range, or just the ones you have
-  picked. For many large files it saves a list of links to fetch with `wget`.
-- **Crop to a box** cuts out just the area you draw (its own box, separate from the one for the
-  anomaly and animation), at the resolution you choose, as GeoTIFFs ready for GIS software.
+- **Download this image** saves the original files of the product on the map (or, with **Crop to a
+  box**, just the area you draw, at the resolution you choose).
+- **Save download file** covers every product in the time range, or just the ones you have picked,
+  whole or cropped to your box. It saves a small `.grimp.yaml` file; download the data with the
+  `grimpdownload` command (install once with `pip install git+https://github.com/fastice/grimpPolarViewer`):
+
+  ```
+  grimpdownload nsidc-0725-v6_2026-11-20.grimp.yaml --outDir jakobshavn
+  ```
+
+  Each file comes from NSIDC when NSIDC holds that version (the archived copy the DOI refers to; NSIDC
+  asks once for a free [Earthdata login](https://urs.earthdata.nasa.gov/users/new)), otherwise from the
+  viewer's copy. See [Documents/grimpDownload.md](Documents/grimpDownload.md).
 
 <br clear="right">
 
 <img src="Documents/images/panel-sites.png" align="right" width="300" alt="Download sites panel with Select all sites box">
 
-Small glacier-site products, such as the TerraSAR-X boxes, are downloaded whole: tick
-**Select all sites**, tick sites in the list, or **Shift-click** a box on the map.
+Small glacier-site products, such as the TerraSAR-X boxes, are downloaded whole, one site box per
+download file: the dates of the displayed site in the time range, or dates you pick from one site
+(tick them in the list, or **Shift-click** a box on the map).
 
 <br clear="right">
 

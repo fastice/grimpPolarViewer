@@ -210,14 +210,17 @@ directly comparable; changing either asks for a reload.
 
 - **Assets (one file each)** with an **All** box choose what to download.
 - **Download this image** saves the original COGs of the displayed item from Kopah.
-- **Download selection** covers picked items, or every item in the time range. Without a crop it
-  saves a URL list (`<collection>_selection_urls.txt`) to fetch with `wget -i`, since selections can
-  be hundreds of GB.
+- **Save download file** covers picked items, or every item in the time range (for site products,
+  the displayed site's items; picks must be from one site). It saves `<collection>[_<site>]_<date>.grimp.yaml`
+  (JSON) naming each item's Kopah files, the assets and the crop box and resolution, for the
+  `grimpdownload` command in this repository's `grimppolarviewer` package, which reads each file from
+  NSIDC when NSIDC holds that exact file (matched by name) and from Kopah otherwise.
+  See [grimpDownload.md](grimpDownload.md).
 - **Crop to a box** (mosaics only): draw a box (amber; separate from the cyan area box of the anomaly,
   stack and animation), choose a resolution (levels over 64 Mpx are
   disabled) and the buttons save cropped GeoTIFFs, cut in the browser. Single-band products are
-  written as float32 in physical units (e.g. dB) with nodata kept; RGB as 8-bit RGB. Up to 100
-  crops per selection download.
+  written as float32 in physical units (e.g. dB) with nodata kept; RGB as 8-bit RGB. Selections are
+  cropped by `grimpdownload`, not in the browser.
 - **Site products** (median footprint under 100 km across, e.g. NSIDC-0481 TSX boxes) get a
   **Download sites** section instead: no crop, a **Select all sites** box, list checkboxes, and
   Shift/Ctrl/Cmd-click on a box to pick it.
