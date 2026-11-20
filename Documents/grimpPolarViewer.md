@@ -51,7 +51,12 @@ both viewers.
   below 1), `off` (`base`, `coast`, `foot`: layers turned off), `bg`, `bgi` (background catalog file name
   and item id, or `bg=none`; it replaces the session's saved background for that hemisphere) and `pts`
   (time-series points as `x,y;x,y` in m, without labels; the series are computed again on opening).
-  Animations, anomalies, crop and area boxes and download picks are not in the link.
+  Anomalies, the crop box and download picks are not in the link.
+- **Share this animation** (Animate section) adds `anim=1`, `area` (the area box, `x0,y0,x1,y1` in m,
+  mosaics only), `astep` (days between frames), `ares` (frame resolution, m; kept if it still fits),
+  `aanom=1` (anomaly), `arange` (anomaly range, only when typed), `abar=1` (color bar), `afps` and
+  `aloop=0`. The link opens the Animate section with these set and a note to click **Load frames**; it
+  never loads the frames by itself.
 
 Each catalog opens on its newest item. The map keeps its zoom and position when the new catalog is in
 the same projection and its extent overlaps the view; otherwise (first load, other hemisphere, or

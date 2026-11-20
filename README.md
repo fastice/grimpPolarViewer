@@ -53,6 +53,8 @@ the **Collections** menu at the top of the panel, and between Greenland and Anta
 To send someone what you are looking at, click **Share this view** under the catalog URL. It copies
 a link (and puts it in the address bar) that reopens the same collection, product, asset, map position
 and zoom, time range, color map and range, opacity, layers, background image and time-series points.
+**Share this animation**, in the Animate section, does the same and adds the animation's area box and
+settings; whoever opens the link clicks **Load frames** to build it.
 
 Nothing to install: it runs in any current desktop browser (Chrome, Edge, Firefox, Safari). Only
 downloading many files at once uses a small command-line tool (see [Download data](#7-download-data)).

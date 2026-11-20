@@ -295,6 +295,7 @@ body.nopanel #panel { display: none; }
       </div>
       <input id="animPos" type="range" min="0" max="0" value="0" aria-label="Animation frame" hidden>
       <button id="animExport" type="button" disabled>Save movie (MP4, opens in QuickTime)</button>
+      <button id="animShare" type="button">Share this animation</button>
       <div id="animNote" class="note"></div>
     </div>
   </details>
@@ -636,6 +637,8 @@ async function loadCatalog(href, push = true) {
   if (siteMode && items.length && !want) setStatus($('status').textContent + siteHint);
   if (carry) restoreTsPoints(carry);
   if (sv?.pts.length) { for (const c of sv.pts) addTsPoint(c, '', false); refreshTs(); }
+  if (sv?.area && !siteMode) { areaBox = sv.area; areaSource.addFeature(new ol.Feature(ol.geom.Polygon.fromExtent(areaBox))); areaChanged(); }
+  if (sv?.anim) { $('animSec').open = true; $('animNote').textContent = 'Shared animation: click Load frames to build it.'; }
 }
 
 // Time range: indices into the sorted unique start dates.
@@ -785,14 +788,16 @@ let startAsset = new URL(location.href).searchParams.get('asset');
 // A link from "Share this view" also carries the item, map view, time range, stretch and points; they apply
 // to the first catalog loaded.
 const startParams = new URL(location.href).searchParams;
-const numPair = s => { const v = s.split(',').map(Number); return v.length === 2 && v.every(Number.isFinite) ? v : null; };
-let startView = ['item', 'x', 't0', 'pts'].some(k => startParams.has(k)) ? {
+const numList = (s, n = 2) => { const v = s.split(',').map(Number); return v.length === n && v.every(Number.isFinite) ? v : null; };
+let startView = ['item', 'x', 't0', 'pts', 'area', 'anim'].some(k => startParams.has(k)) ? {
   item: startParams.get('item'),
-  center: numPair(`${startParams.get('x')},${startParams.get('y')}`), zoom: +startParams.get('z') || null,
+  center: numList(`${startParams.get('x')},${startParams.get('y')}`), zoom: +startParams.get('z') || null,
   t0: startParams.get('t0'), t1: startParams.get('t1'),
-  pts: (startParams.get('pts') || '').split(';').map(numPair).filter(Boolean),
+  pts: (startParams.get('pts') || '').split(';').map(c => numList(c)).filter(Boolean),
+  area: numList(startParams.get('area') || '', 4), anim: startParams.get('anim') === '1',
 } : null;
-let startStretch = numPair(`${startParams.get('lo')},${startParams.get('hi')}`);
+let startStretch = numList(`${startParams.get('lo')},${startParams.get('hi')}`);
+let startAnimRes = +startParams.get('ares') || null;  // frame resolution (m) of a shared animation
 function toRaw(v) { return (v - (band.offset ?? 0)) / (band.scale ?? 1); }
 function toDisp(v) { return v * (band.scale ?? 1) + (band.offset ?? 0); }
 
@@ -1278,6 +1283,11 @@ function refreshAnimInfo() {
   const extKey = ext.map(Math.round).join(',') + '|' + fs.length, keep = extKey === animExtKey;
   animExtKey = extKey;
   sel.value = keep && ok.some(o => o.value === prev) ? prev : (ok[0]?.value ?? '');
+  if (startAnimRes) {  // a shared animation's resolution, when it still fits
+    const k = String(levels.findIndex(l => Math.round(l.res) === startAnimRes));
+    if (ok.some(o => o.value === k)) sel.value = k;
+    startAnimRes = null;
+  }
   sel.disabled = !ok.length; $('animBuild').disabled = !ok.length || fs.length < 2;
   if (!ok.length) $('animNote').textContent = 'Too large to animate; draw a smaller crop box.';
   else if (fs.length < 2) $('animNote').textContent = 'Fewer than 2 frames at this spacing; use a smaller number of days.';
@@ -2419,6 +2429,7 @@ const tips = {
   href: 'URL of any public stac-geoparquet catalog (.parquet); press Enter or Load',
   load: 'Open the catalog URL',
   share: 'Copy a link that reopens this view: collection, product, asset, map position, time range, colors, layers, background and points',
+  animShare: 'Copy a link that reopens this view with the same animation area and settings, ready to load the frames',
   asset: 'Which file of the item to show (e.g. vv speed, vx/vy components, browse image)',
   opacity: 'Transparency of the image over the basemap',
   baseOn: 'NASA GIBS Blue Marble basemap',
@@ -2610,7 +2621,8 @@ map.on('pointermove', e => {
 });
 // Share this view: the link reopens the same collection, item, asset, map view, time range, colors,
 // layers, background and time-series points. It goes in the address bar and, where allowed, the clipboard.
-$('share').onclick = async () => {
+// Share this animation adds the area box and animation settings; the frames are loaded on request.
+async function shareView(anim, note) {
   const u = new URL(location.origin + location.pathname), q = u.searchParams, v = map.getView();
   q.set('href', $('href').value);
   if (selected) { q.set('item', selected.id); q.set('asset', $('asset').value); }
@@ -2626,15 +2638,37 @@ $('share').onclick = async () => {
   q.set('bg', bgIt ? $('bgColl').value.split('/').pop() : 'none');
   if (bgIt) q.set('bgi', bgIt.id);
   if (tsPoints.length) q.set('pts', tsPoints.map(p => p.coord.map(Math.round).join(',')).join(';'));
+  if (anim) {
+    q.set('anim', 1);
+    if (!siteMode && areaBox) q.set('area', areaBox.map(Math.round).join(','));
+    if ($('animStep').value) q.set('astep', $('animStep').value);
+    const lv = levels?.[+$('animRes').value];
+    if (lv && $('animRes').value !== '') q.set('ares', Math.round(lv.res));
+    if ($('animAnom').checked) { q.set('aanom', 1); if (animRangeTyped) q.set('arange', $('animRange').value); }
+    if ($('animBar').checked) q.set('abar', 1);
+    q.set('afps', $('animFps').value);
+    if (!$('animLoop').checked) q.set('aloop', 0);
+  }
   history.replaceState(null, '', u);
   let copied = false;
   try { await navigator.clipboard.writeText(u.href); copied = true; } catch (e) { /* not allowed here */ }
-  $('shareNote').textContent = copied ? 'Link copied to the clipboard (also in the address bar).' : 'Copy the link from the address bar.';
-};
+  $(note).textContent = copied ? 'Link copied to the clipboard (also in the address bar).' : 'Copy the link from the address bar.';
+}
+$('share').onclick = () => shareView(false, 'shareNote');
+$('animShare').onclick = () => shareView(true, 'animNote');
 {
   const c = startParams.get('cmap'), op = startParams.get('op');
   if (c in cmaps && c !== 'blue-white-red') { $('cmap').value = c; lastSeqCmap = c; cmapChosen = true; }
   if (op) { $('opacity').value = op; rasterLayer.setOpacity(+op); }
+  if (startParams.get('anim') === '1') {
+    $('animStep').value = startParams.get('astep') || '';
+    $('animAnom').checked = startParams.get('aanom') === '1';
+    $('animRange').value = startParams.get('arange') || '';
+    animRangeTyped = +$('animRange').value > 0;
+    $('animBar').checked = startParams.get('abar') === '1';
+    if (startParams.get('afps')) $('animFps').value = startParams.get('afps');
+    $('animLoop').checked = startParams.get('aloop') !== '0';
+  }
   for (const k of (startParams.get('off') || '').split(',')) {
     if (['base', 'coast', 'foot'].includes(k)) { $(`${k}On`).checked = false; $(`${k}On`).dispatchEvent(new Event('change')); }
   }
