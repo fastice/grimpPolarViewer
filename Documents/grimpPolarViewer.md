@@ -57,6 +57,10 @@ both viewers.
   `aanom=1` (anomaly), `arange` (anomaly range, only when typed), `abar=1` (color bar), `afps` and
   `aloop=0`. The link opens the Animate section with these set and a note to click **Load frames**; it
   never loads the frames by itself.
+- **QR code** (next to either share button) shows the same link as a QR code in a dialog (error
+  correction M, 4-module white margin), with **Save image** (PNG). It uses `qrcode-generator` 1.4.4 from
+  jsdelivr. A link too long for a QR code (over about 2,300 characters, in practice only with many
+  points) gives a note instead. Checked by decoding the codes back to the link with zxing.
 
 Each catalog opens on its newest item. The map keeps its zoom and position when the new catalog is in
 the same projection and its extent overlaps the view; otherwise (first load, other hemisphere, or

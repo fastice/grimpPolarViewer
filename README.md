@@ -55,6 +55,8 @@ a link (and puts it in the address bar) that reopens the same collection, produc
 and zoom, time range, color map and range, opacity, layers, background image and time-series points.
 **Share this animation**, in the Animate section, does the same and adds the animation's area box and
 settings; whoever opens the link clicks **Load frames** to build it.
+The **QR code** link next to either button shows the same link as a QR code, to scan with a phone or
+save as an image for a slide or poster.
 
 Nothing to install: it runs in any current desktop browser (Chrome, Edge, Firefox, Safari). Only
 downloading many files at once uses a small command-line tool (see [Download data](#7-download-data)).

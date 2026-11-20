@@ -80,6 +80,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .ctl select { width: 100%; }
 .note { color: var(--muted); font-size: 11px; min-height: 1em; }
 button:disabled { opacity: .45; cursor: default; }
+#qrDlg { background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; max-width: min(360px, calc(100vw - 32px)); }
+#qrDlg::backdrop { background: rgba(0, 0, 0, .45); }
+#qrCanvas { display: block; width: 100%; max-width: 320px; height: auto; margin: 0 auto 8px; image-rendering: pixelated; }
+#qrDlg .row { justify-content: flex-end; margin-top: 8px; }
 #boxInfo { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .checks { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--fg); font-size: 13px; }
 .checks label { display: flex; align-items: center; gap: 4px; }
@@ -190,7 +194,7 @@ body.nopanel #panel { display: none; }
       <label class="lab" for="href">Catalog URL (.parquet)</label>
       <div class="row"><input id="href" type="text" spellcheck="false"><button id="load" type="button">Load</button></div>
     </div>
-    <div class="row"><button id="share" type="button">Share this view</button><span id="shareNote" class="note"></span></div>
+    <div class="row"><button id="share" type="button">Share this view</button><button id="shareQr" type="button" class="link">QR code</button><span id="shareNote" class="note"></span></div>
     <div id="status" role="status"></div>
     <div id="maintNow" class="maint now" role="alert" hidden></div>
     <p class="maint">Data are served from UW Kopah storage, which is offline for scheduled maintenance on the
@@ -295,7 +299,7 @@ body.nopanel #panel { display: none; }
       </div>
       <input id="animPos" type="range" min="0" max="0" value="0" aria-label="Animation frame" hidden>
       <button id="animExport" type="button" disabled>Save movie (MP4, opens in QuickTime)</button>
-      <button id="animShare" type="button">Share this animation</button>
+      <div class="row"><button id="animShare" type="button">Share this animation</button><button id="animShareQr" type="button" class="link">QR code</button></div>
       <div id="animNote" class="note"></div>
     </div>
   </details>
@@ -377,10 +381,16 @@ body.nopanel #panel { display: none; }
   </div>
 </div>
 
+<dialog id="qrDlg" aria-label="QR code of the shared link">
+  <canvas id="qrCanvas" width="10" height="10"></canvas>
+  <div id="qrNote" class="note"></div>
+  <div class="row"><button id="qrSave" type="button">Save image</button><button id="qrClose" type="button">Close</button></div>
+</dialog>
 <script src="https://cdn.jsdelivr.net/npm/proj4@2.22.0/dist/proj4.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/geotiff@3.1.0-beta.0/dist-browser/geotiff.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/ol@10.11.0/dist/ol.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <script type="module">
 import { parquetReadObjects } from 'https://cdn.jsdelivr.net/npm/hyparquet@1.32.0/+esm';
 import { compressors } from 'https://cdn.jsdelivr.net/npm/hyparquet-compressors@1.1.2/+esm';
@@ -2430,6 +2440,8 @@ const tips = {
   load: 'Open the catalog URL',
   share: 'Copy a link that reopens this view: collection, product, asset, map position, time range, colors, layers, background and points',
   animShare: 'Copy a link that reopens this view with the same animation area and settings, ready to load the frames',
+  shareQr: 'Show the Share this view link as a QR code',
+  animShareQr: 'Show the Share this animation link as a QR code',
   asset: 'Which file of the item to show (e.g. vv speed, vx/vy components, browse image)',
   opacity: 'Transparency of the image over the basemap',
   baseOn: 'NASA GIBS Blue Marble basemap',
@@ -2622,7 +2634,7 @@ map.on('pointermove', e => {
 // Share this view: the link reopens the same collection, item, asset, map view, time range, colors,
 // layers, background and time-series points. It goes in the address bar and, where allowed, the clipboard.
 // Share this animation adds the area box and animation settings; the frames are loaded on request.
-async function shareView(anim, note) {
+async function shareView(anim, note, qr = false) {
   const u = new URL(location.origin + location.pathname), q = u.searchParams, v = map.getView();
   q.set('href', $('href').value);
   if (selected) { q.set('item', selected.id); q.set('asset', $('asset').value); }
@@ -2650,12 +2662,36 @@ async function shareView(anim, note) {
     if (!$('animLoop').checked) q.set('aloop', 0);
   }
   history.replaceState(null, '', u);
+  if (qr) { showQr(u.href, anim); return; }
   let copied = false;
   try { await navigator.clipboard.writeText(u.href); copied = true; } catch (e) { /* not allowed here */ }
   $(note).textContent = copied ? 'Link copied to the clipboard (also in the address bar).' : 'Copy the link from the address bar.';
 }
 $('share').onclick = () => shareView(false, 'shareNote');
 $('animShare').onclick = () => shareView(true, 'animNote');
+$('shareQr').onclick = () => shareView(false, 'shareNote', true);
+$('animShareQr').onclick = () => shareView(true, 'animNote', true);
+// The same link as a QR code (white margin of 4 modules, as the standard asks), to scan with a phone or
+// put on a slide or poster. Very long links (many points) do not fit in a QR code.
+function showQr(url, anim) {
+  const cv = $('qrCanvas'), ctx = cv.getContext('2d');
+  let q = null;
+  try { q = qrcode(0, 'M'); q.addData(url); q.make(); } catch (e) { q = null; }
+  $('qrSave').disabled = !q;
+  if (q) {
+    const n = q.getModuleCount(), cell = Math.max(2, Math.floor(640 / (n + 8)));
+    cv.width = cv.height = (n + 8) * cell;
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height); ctx.fillStyle = '#000';
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) ctx.fillRect((c + 4) * cell, (r + 4) * cell, cell, cell);
+    $('qrNote').textContent = `Scan to open this ${anim ? 'animation' : 'view'} (the link is also in the address bar).`;
+  } else {
+    cv.width = cv.height = 10; ctx.clearRect(0, 0, 10, 10);
+    $('qrNote').textContent = `The link is too long for a QR code (${url.length} characters, usually from many points); share the link instead.`;
+  }
+  $('qrDlg').showModal();
+}
+$('qrClose').onclick = () => $('qrDlg').close();
+$('qrSave').onclick = () => $('qrCanvas').toBlob(b => saveBlob(b, 'grimp-viewer-qr.png'));
 {
   const c = startParams.get('cmap'), op = startParams.get('op');
   if (c in cmaps && c !== 'blue-white-red') { $('cmap').value = c; lastSeqCmap = c; cmapChosen = true; }
