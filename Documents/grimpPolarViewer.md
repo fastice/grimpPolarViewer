@@ -55,8 +55,9 @@ both viewers.
 - **Share this animation** (Animate section) adds `anim=1`, `area` (the area box, `x0,y0,x1,y1` in m,
   mosaics only), `astep` (days between frames), `ares` (frame resolution, m; kept if it still fits),
   `aanom=1` (anomaly), `arange` (anomaly range, only when typed), `abar=1` (color bar), `afps` and
-  `aloop=0`. The link opens the Animate section with these set and a note to click **Load frames**; it
-  never loads the frames by itself.
+  `aloop=0`. The link opens the Animate section with these set, scrolls the panel to it (again once the
+  image is read, as the sections above fill in) and notes to click **Load frames**; it never loads the
+  frames by itself.
 - **QR code** (next to either share button) shows the same link as a QR code in a dialog (error
   correction M, 4-module white margin), with **Save image** (PNG). It uses `qrcode-generator` 1.4.4 from
   jsdelivr. A link too long for a QR code (over about 2,300 characters, in practice only with many

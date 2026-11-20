@@ -648,7 +648,10 @@ async function loadCatalog(href, push = true) {
   if (carry) restoreTsPoints(carry);
   if (sv?.pts.length) { for (const c of sv.pts) addTsPoint(c, '', false); refreshTs(); }
   if (sv?.area && !siteMode) { areaBox = sv.area; areaSource.addFeature(new ol.Feature(ol.geom.Polygon.fromExtent(areaBox))); areaChanged(); }
-  if (sv?.anim) { $('animSec').open = true; $('animNote').textContent = 'Shared animation: click Load frames to build it.'; }
+  if (sv?.anim) {
+    $('animSec').open = true; $('animNote').textContent = 'Shared animation: click Load frames to build it.';
+    $('animSec').scrollIntoView({ block: 'start' }); animScrollPending = true;
+  }
 }
 
 // Time range: indices into the sorted unique start dates.
@@ -808,6 +811,7 @@ let startView = ['item', 'x', 't0', 'pts', 'area', 'anim'].some(k => startParams
 } : null;
 let startStretch = numList(`${startParams.get('lo')},${startParams.get('hi')}`);
 let startAnimRes = +startParams.get('ares') || null;  // frame resolution (m) of a shared animation
+let animScrollPending = false;  // a shared animation scrolls the panel to the Animate section once the image is read
 function toRaw(v) { return (v - (band.offset ?? 0)) / (band.scale ?? 1); }
 function toDisp(v) { return v * (band.scale ?? 1) + (band.offset ?? 0); }
 
@@ -1298,6 +1302,8 @@ function refreshAnimInfo() {
     if (ok.some(o => o.value === k)) sel.value = k;
     startAnimRes = null;
   }
+  // Again once the image is read, since the sections above it fill in meanwhile.
+  if (animScrollPending) { animScrollPending = false; $('animSec').scrollIntoView({ block: 'start' }); }
   sel.disabled = !ok.length; $('animBuild').disabled = !ok.length || fs.length < 2;
   if (!ok.length) $('animNote').textContent = 'Too large to animate; draw a smaller crop box.';
   else if (fs.length < 2) $('animNote').textContent = 'Fewer than 2 frames at this spacing; use a smaller number of days.';
