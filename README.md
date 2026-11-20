@@ -4,6 +4,8 @@ Browse, compare, animate and download Greenland and Antarctic ice-sheet products
 [GrIMP](https://nsidc.org/grimp) and NISAR in your web browser, on maps drawn the way polar
 scientists draw them: centered on the pole, in polar stereographic coordinates.
 
+Created by Ian Joughin and Scott Henderson ([@scottyhq](https://github.com/scottyhq)).
+
 ![Annual ice-flow speed over Greenland in the GrIMP Polar Viewer](Documents/images/overview.jpg)
 
 ## Open the viewer
@@ -13,7 +15,7 @@ scientists draw them: centered on the pole, in polar stereographic coordinates.
 | Greenland annual ice velocity, 2015-2025 (NSIDC-0725 v6) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0725/v06/nsidc-0725.parquet&asset=vv) | [NSIDC-0725 v5](https://doi.org/10.5067/USBL3Z8KF9C3) |
 | Greenland monthly ice velocity, 2015-2026 (NSIDC-0731 v6) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0731/v06/nsidc-0731.parquet&asset=vv) | [NSIDC-0731 v5](https://doi.org/10.5067/EGKZX6FXXM4P) |
 | Greenland quarterly ice velocity, 2015-2026 (NSIDC-0727 v6) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0727/v06/nsidc-0727.parquet&asset=vv) | [NSIDC-0727 v5](https://doi.org/10.5067/V5KW64S63OSN) |
-| Greenland radar backscatter, 2024 | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0723/v04/nsidc-0723.parquet) | [NSIDC-0723 v4](https://doi.org/10.5067/WXQ366CP8YDE) |
+| Greenland radar backscatter, 2020-2026 | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0723/v04/nsidc-0723.parquet) | [NSIDC-0723 v4](https://doi.org/10.5067/WXQ366CP8YDE) |
 | Greenland 6/12-day ice velocity, 2015-2026 (NSIDC-0766 v3) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0766/v03/nsidc-0766.parquet&asset=vv) | [NSIDC-0766 v2](https://doi.org/10.5067/1AMEDB6VJ1NZ) |
 | Greenland glacier sites from TerraSAR-X, 2008-2026 (NSIDC-0481 v5) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0481/v05/nsidc-0481.parquet&asset=vv) | [NSIDC-0481 v4](https://doi.org/10.5067/GQZQY2M5507Z) |
 | Amundsen Sea (Pine Island, Thwaites) quarterly ice velocity, 2015-2026 | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/pig/quarterly/ase-quarterly.parquet&asset=vv) | |

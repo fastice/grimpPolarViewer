@@ -8,7 +8,7 @@ version = "0.1.1"
 description = "Command-line downloader for GrIMP Polar Viewer selections (NSIDC first, Kopah otherwise)"
 readme = "Documents/grimpDownload.md"
 license = { text = "MIT" }
-authors = [{ name = "Ian Joughin", email = "ian@apl.washington.edu" }]
+authors = [{ name = "Ian Joughin", email = "ian@apl.washington.edu" }, { name = "Scott Henderson" }]
 requires-python = ">=3.9"
 dependencies = ["rasterio>=1.3", "requests", "pyyaml", "rich"]
 

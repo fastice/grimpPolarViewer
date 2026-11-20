@@ -48,7 +48,7 @@ def makeItem(tifFile, baseUrl, collection):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('year', help="include windows with any day in this year, or 'all'")
+    parser.add_argument('year', help="include windows with any day in this year, in this year or later ('2020+'), or 'all'")
     parser.add_argument('output', help='output .parquet')
     parser.add_argument('--baseUrl', default='https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0723/v04')
     parser.add_argument('--collection', default='nsidc-0723-v4')
@@ -65,7 +65,8 @@ def main():
     for window in sorted(newest):
         tifFile = newest[window][1]
         start, end = parseDates(os.path.basename(os.path.dirname(window)))
-        if args.year == 'all' or start.year <= int(args.year) <= end.year:
+        if args.year == 'all' or (end.year >= int(args.year[:-1]) if args.year.endswith('+')
+                                  else start.year <= int(args.year) <= end.year):
             items.append(makeItem(tifFile, args.baseUrl, args.collection))
             print(items[-1]['id'], flush=True)
     async def write():

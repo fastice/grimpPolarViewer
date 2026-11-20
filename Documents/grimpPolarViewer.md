@@ -350,7 +350,7 @@ on every host.
   Apply with `s3cmd setpolicy kopah/publicReadPolicy.json s3://ianj-grimp`.
 - **CORS** (`kopah/cors.xml`, `s3cmd setcors kopah/cors.xml s3://ianj-grimp`) lets pages on other
   sites, such as stac-map on github.io, read the data and make range requests.
-- **Layout:** `public/viewer/index.html` (the viewer), `public/nsidc-0723/v04/` (2024 backscatter),
+- **Layout:** `public/viewer/index.html` (the viewer), `public/nsidc-0723/v04/` (Greenland backscatter, 2020 on),
   `public/nsidc-0766/v03/` (Greenland 6/12-day velocity, 516 windows, 409 GB),
   `public/nsidc-0725/v06/`, `public/nsidc-0727/v06/`, `public/nsidc-0731/v06/` (Greenland annual,
   quarterly and monthly velocity; rebuilt 2026-11-19 with the floating-point predictor),
