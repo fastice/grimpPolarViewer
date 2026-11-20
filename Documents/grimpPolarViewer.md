@@ -209,7 +209,11 @@ directly comparable; changing either asks for a reload.
 ### Downloads
 
 - **Assets (one file each)** with an **All** box choose what to download.
-- **Download this image** saves the original COGs of the displayed item from Kopah.
+- **Download this image** saves the original COGs of the displayed item: from NSIDC when a CMR search
+  (started when the item is shown, matched by file name) finds them for the collection's exact version
+  (collection id `nsidc-<number>-v<version>`), so the browser goes through the Earthdata login; otherwise
+  from Kopah. A crop of an item at NSIDC saves a download file instead (NSIDC files cannot be read
+  cross-site).
 - **Save download file** covers picked items, or every item in the time range (for site products,
   the displayed site's items; picks must be from one site). It saves `<collection>[_<site>]_<date>.grimp.yaml`
   (JSON) naming each item's files (paths under the Kopah root, so no ready-made links), the assets and the crop box and resolution, for the

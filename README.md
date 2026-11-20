@@ -162,8 +162,10 @@ the range set to ±1500 m/yr: faster than average (red) in 2014-2016, slower (bl
 
 Tick the files you want under **Assets** (for velocity: speed, components, errors and more), then:
 
-- **Download this image** saves the original files of the product on the map (or, with **Crop to a
-  box**, just the area you draw, at the resolution you choose).
+- **Download this image** saves the original files of the product on the map, from NSIDC when NSIDC
+  holds that version (the browser first shows the Earthdata login, then the file downloads) and from
+  the viewer's copy otherwise. With **Crop to a box** it saves just the area you draw, at the resolution
+  you choose (for a product at NSIDC it saves a download file for `grimpdownload` instead).
 - **Save download file** covers every product in the time range, or just the ones you have picked,
   whole or cropped to your box. It saves a small `.grimp.yaml` file; download the data with the
   `grimpdownload` command (install once with `pip install git+https://github.com/fastice/grimpPolarViewer`):

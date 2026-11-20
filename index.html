@@ -767,6 +767,7 @@ function select(it, zoom = false) {
   if (zoom) map.getView().fit(it.feature.getGeometry().getExtent(), { padding: [40, 40, 40, 40], duration: 250 });
   showAsset(pickAsset(it));
   fillCropAssets(it);
+  nsidcFor(it);
   if (tsPlotInfo && !$('tsPlot').hidden) drawTsPlot();  // move the plot's date marker
 }
 
@@ -963,6 +964,31 @@ function tiffAssetKeys(it) {
   return Object.keys(it.assets).filter(k => /tiff/.test(it.assets[k].type || '') || /\.tif$/.test(it.assets[k].href));
 }
 
+// NSIDC copies of an item's files: {file name: url} when NSIDC holds the collection's exact version
+// (collection id nsidc-<number>-v<version>), found with one CMR search and matched by file name. Started
+// when an item is shown, so "Download this image" can link to NSIDC straight from the click.
+const nsidcLookups = new Map();  // item id -> promise of {file name: url}
+function nsidcFor(it) {
+  if (!nsidcLookups.has(it.id)) nsidcLookups.set(it.id, (async () => {
+    const ns = /^nsidc-(\d{4})-v(\d+)$/.exec(it.raw?.collection || '');
+    if (!ns) return {};
+    const day = t => fmtDate(new Date(t));
+    const q = new URLSearchParams({ short_name: `NSIDC-${ns[1]}`, version: ns[2], provider: 'NSIDC_CPRD', page_size: '200',
+      temporal: `${day(it.start)}T00:00:00Z,${day(it.end)}T23:59:59Z` });
+    const r = await fetch(`https://cmr.earthdata.nasa.gov/search/granules.umm_json?${q}`);
+    if (!r.ok) return {};
+    const out = {};
+    for (const g of (await r.json()).items) for (const u of g.umm.RelatedUrls || []) {
+      if (u.Type === 'GET DATA' && /^https:.*\.tif$/.test(u.URL)) out[u.URL.split('/').pop()] = u.URL;
+    }
+    return out;
+  })().catch(() => ({})));
+  const p = nsidcLookups.get(it.id);
+  p.then(m => { it.nsidc = m; if (it === selected) updateDownloadButtons(); });
+  return p;
+}
+const atNsidc = (it, key) => it.nsidc?.[it.assets[key]?.href.split('/').pop()];
+
 function fillCropAssets(it) {
   // Keep ticks across items that share asset names; otherwise tick the asset being displayed.
   const prev = new Set([...document.querySelectorAll('#cropAssets input:checked')].map(i => i.value));
@@ -1009,7 +1035,9 @@ function updateDownloadButtons() {
       : `Save download file: ${site} ${picks.size ? `${selItems.length} picked` : `${selItems.length} dates in range`}`;
     $('pickCount').textContent = picks.size ? `${picks.size} picked.` : '';
   } else {
-    $('dlImage').textContent = crop ? 'Download crop of this image' : 'Download this image';
+    const fromNsidc = selected && checkedAssets().some(k => atNsidc(selected, k));
+    $('dlImage').textContent = crop ? (fromNsidc ? 'Save download file: crop of this image' : 'Download crop of this image')
+                                    : `Download this image${fromNsidc ? ' (from NSIDC)' : ''}`;
     const what = picks.size ? `${picks.size} picked item${picks.size > 1 ? 's' : ''}` : `all ${selItems.length} in time range`;
     $('dlSel').textContent = `Save download file${crop ? ' (crops)' : ''}: ${what}`;
   }
@@ -1072,7 +1100,8 @@ function saveBlob(blob, name) {
 const pause = ms => new Promise(r => setTimeout(r, ms));
 
 async function runDownload(list, crop) {
-  // list: [{ it, key }] in order. Originals are saved straight from Kopah; crops are cut in the browser.
+  // list: [{ it, key }] in order. Originals are saved from NSIDC when it holds them (the browser asks for the
+  // Earthdata login), otherwise from Kopah; crops are cut in the browser (Kopah files only).
   busy = true; updateDownloadButtons();
   const res = crop ? levels[+$('cropRes').value].res : null;
   let saved = 0, skipped = 0, mb = 0;
@@ -1084,7 +1113,7 @@ async function runDownload(list, crop) {
         if (!out) { skipped++; continue; }
         saveBlob(out.blob, out.name); mb += out.blob.size / 1e6;
       } else {
-        saveUrl(it.assets[key].href, it.assets[key].href.split('/').pop());
+        saveUrl(atNsidc(it, key) || it.assets[key].href, it.assets[key].href.split('/').pop());
       }
       saved++;
       await pause(crop ? 400 : 800);
@@ -1097,7 +1126,12 @@ async function runDownload(list, crop) {
   busy = false; updateDownloadButtons();
 }
 
-$('dlImage').onclick = () => runDownload(checkedAssets().filter(k => selected.assets[k]).map(key => ({ it: selected, key })), $('cropOn').checked);
+$('dlImage').onclick = () => {
+  const keys = checkedAssets().filter(k => selected.assets[k]), crop = $('cropOn').checked;
+  // NSIDC files cannot be cut in the browser (Earthdata login, no cross-site reads): crop them with grimpdownload.
+  if (crop && keys.some(k => atNsidc(selected, k))) { saveDownloadFile([selected]); return; }
+  runDownload(keys.map(key => ({ it: selected, key })), crop);
+};
 
 // Download selection saves a download file (.grimp.yaml; JSON, which is valid YAML) for the grimpdownload
 // command (grimppolarviewer package in this repository). It names the products and their Kopah files;
@@ -1107,8 +1141,9 @@ const installCmd = 'pip install git+https://github.com/fastice/grimpPolarViewer'
 // Files under the GrIMP Kopah root are listed by path only; grimpdownload adds the root (or reads NSIDC).
 const kopahRoot = 'https://s3.kopah.uw.edu/ianj-grimp/public/';
 const kopahPath = href => href.startsWith(kopahRoot) ? href.slice(kopahRoot.length) : href;
-$('dlSel').onclick = () => {
-  const keys = checkedAssets(), its = selectionItems(), crop = $('cropOn').checked && cropBox;
+$('dlSel').onclick = () => saveDownloadFile(selectionItems());
+function saveDownloadFile(its) {
+  const keys = checkedAssets(), crop = $('cropOn').checked && cropBox;
   const coll = items[0]?.raw?.collection || 'grimp', ns = /^nsidc-(\d{4})-v(\d+)$/.exec(coll);
   const manifest = {
     grimpDownload: 1, created: new Date().toISOString(),
@@ -1123,9 +1158,9 @@ $('dlSel').onclick = () => {
   const site = [...selectionSites(its)][0];
   const name = `${coll}${site ? `_${site}` : ''}_${manifest.created.slice(0, 10)}.grimp.yaml`;
   saveBlob(new Blob([JSON.stringify(manifest, null, 1) + '\n'], { type: 'application/x-yaml' }), name);
-  $('cropNote').textContent = `Saved ${name} (${nFiles} files${crop ? ', cropped' : ''}). Download them with: `
+  $('cropNote').textContent = `Saved ${name} (${nFiles} file${nFiles === 1 ? '' : 's'}${crop ? ', cropped' : ''}). Download with: `
     + `grimpdownload ${name}   (install once with: ${installCmd})`;
-};
+}
 
 const zeroFloorAssets = new Set(['vv', 'ex', 'ey']), signedAssets = new Set(['vx', 'vy']);
 let stretchMode = 'both', lastSeqCmap = 'gray', cmapChosen = false;
