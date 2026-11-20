@@ -783,7 +783,9 @@ function showAsset(key) {
   $('legend').hidden = false;
   if (rgbMode) {
     // RGB(A) browse images: let OpenLayers scale each 8-bit band to 0-1 and draw it as color.
-    const alpha = a['raster:bands'].length >= 4 ? ['band', 4] : 1;
+    // Browse images have no alpha band; their background is pure white (255, 255, 255), so make that clear.
+    const white = ['all', ['==', ['band', 1], 1], ['==', ['band', 2], 1], ['==', ['band', 3], 1]];
+    const alpha = a['raster:bands'].length >= 4 ? ['band', 4] : ['case', white, 0, 1];
     rasterLayer.setStyle({ color: ['array', ['band', 1], ['band', 2], ['band', 3], alpha] });
     rasterLayer.setSource(new ol.source.GeoTIFF({ sources: [{ url: a.href, nodata }], normalize: true, interpolate: true, projection }));
     loadSample(a.href, nodata);
