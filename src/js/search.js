@@ -11,9 +11,7 @@ const searchSets = {
     sub: [n[5] && n[5] !== n[4] ? n[5] : '', n[3] === 'GrIS' ? 'outlet glacier' : 'local glacier or ice cap'].filter(Boolean).join(', '),
     rank: n[9] ? 0 : n[3] === 'GrIS' ? 1 : 2 })),
   'EPSG:3031': async () => {
-    const r = await fetch('data/antarcticPlaceNames.json');
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return (await r.json()).names.map(([lon, lat, label, type, nGaz, ...others]) => ({ names: [label, ...others], label, lon, lat,
+    return (await loadAntarcticNames()).names.map(([lon, lat, label, type, nGaz, ...others]) => ({ names: [label, ...others], label, lon, lat,
       sub: type.toLowerCase(), rank: (searchMajorTypes.has(type) ? 0 : 10) - nGaz }));
   },
 };
@@ -72,6 +70,15 @@ async function runSearch() {
   showSearchHits();
 }
 
+// The box collapses to a Search button (closed at start, after a pick, and on Escape); the marker stays.
+function setSearchOpen(open) {
+  $('search').classList.toggle('collapsed', !open);
+  $('searchOpen').setAttribute('aria-expanded', String(open));
+  $('searchOpen').title = open ? 'Close the search box' : 'Search places';
+  if (open) $('searchBox').focus();
+}
+$('searchOpen').onclick = () => setSearchOpen($('search').classList.contains('collapsed'));
+
 function goToPlace(p) {
   const c = ol.proj.fromLonLat([p.lon, p.lat], viewCode), view = map.getView();
   searchSource.clear();
@@ -80,6 +87,7 @@ function goToPlace(p) {
   $('searchBox').value = p.label; $('searchClear').hidden = false;
   searchHits = []; delete $('searchResults').dataset.note; showSearchHits();
   $('searchBox').blur();
+  setSearchOpen(false);
 }
 
 $('searchBox').oninput = () => { $('searchClear').hidden = !$('searchBox').value; runSearch(); };
@@ -91,7 +99,7 @@ $('searchBox').onkeydown = e => {
     if (searchHits.length) { searchSel = (searchSel + (e.key === 'ArrowDown' ? 1 : searchHits.length - 1)) % searchHits.length; showSearchHits(); }
   } else if (e.key === 'Enter') {
     if (searchHits[searchSel]) goToPlace(searchHits[searchSel]);
-  } else if (e.key === 'Escape') { $('searchBox').blur(); }
+  } else if (e.key === 'Escape') { $('searchBox').blur(); setSearchOpen(false); $('searchOpen').focus(); }
 };
 $('searchClear').onclick = () => { $('searchBox').value = ''; $('searchClear').hidden = true; searchSource.clear(); runSearch(); };
 map.on('change:view', () => { searchSource.clear(); $('searchBox').value = ''; $('searchClear').hidden = true; });

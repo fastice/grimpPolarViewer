@@ -194,7 +194,13 @@ body.nopanel #panel { display: none; }
   font: 12px var(--font-mono); white-space: nowrap; }
 #swLeft { right: 8px; } #swRight { left: 8px; }
 #search { position: absolute; top: 8px; right: 8px; width: min(300px, calc(100% - 120px)); z-index: 3; }
-#searchBox { width: 100%; box-sizing: border-box; padding: 6px 28px 6px 9px; border-radius: 4px; border: 1px solid var(--line);
+#search.collapsed { width: auto; }
+#search.collapsed #searchBox, #search.collapsed #searchClear, #search.collapsed #searchResults { display: none; }
+#searchOpen { position: absolute; left: 1px; top: 1px; bottom: auto; height: 31px; display: flex; align-items: center; gap: 5px; padding: 0 9px;
+  border: 0; border-radius: 4px; background: transparent; color: var(--fg); font: 13px var(--font-body); cursor: pointer; z-index: 1; }
+#search:not(.collapsed) #searchOpen span { display: none; }
+#search.collapsed #searchOpen { position: static; height: 33px; border: 1px solid var(--line); background: var(--panel); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); }
+#searchBox { width: 100%; box-sizing: border-box; padding: 6px 28px 6px 34px; border-radius: 4px; border: 1px solid var(--line);
   background: var(--panel); color: var(--fg); font: 14px var(--font-body); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); }
 #searchBox::-webkit-search-cancel-button { display: none; }
 #searchClear { position: absolute; right: 8px; top: 5px; font-size: 18px; text-decoration: none; color: var(--muted); }

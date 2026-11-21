@@ -1,16 +1,18 @@
-// Antarctic boundaries (display only): the NSIDC-0709 v2 grounding line, ice shelf outlines and IMBIE drainage
-// basins, read from data/antarcticBoundaries.json the first time Boundaries is ticked. Antarctica (EPSG:3031)
-// only. Grounding line white, ice shelves cyan with their names once zoomed in (finer than boundsShelfRes m per
-// pixel), basins dashed yellow with their IMBIE labels; overlapping labels are dropped. Over them, the dated
+// Antarctic boundaries (display only): the NSIDC-0709 v2 grounding line and IMBIE drainage basins (with the
+// ice shelf names), read from data/antarcticBoundaries.json, and the ice front and coast of the September 2026
+// GrIMP Antarctic ice mask (data/antarcticIceFront.json), read the first time Boundaries is ticked.
+// Antarctica (EPSG:3031) only. Grounding line white, ice front cyan with the shelf names once zoomed in (finer
+// than boundsShelfRes m per pixel), basins dashed yellow with their IMBIE labels; overlapping labels are dropped.
+// (NSIDC-0709's own shelf outlines are not drawn: their fronts are 2008-09.) Over them, the dated
 // NSIDC-0498 v2.1 InSAR grounding lines of the Amundsen Sea glaciers (data/aseGroundingLines.json, 1992-2025),
 // colored by year on the glacier-front ramp; the readout gives the dates of those under the pointer.
-const boundsUrl = 'data/antarcticBoundaries.json', boundsCode = 'EPSG:3031', boundsShelfRes = 1500;
+const boundsUrl = 'data/antarcticBoundaries.json', iceFrontUrl = 'data/antarcticIceFront.json', boundsCode = 'EPSG:3031', boundsShelfRes = 1500;
 const boundsSource = new ol.source.Vector();
 let boundsLoading = null;
 const casing = w => new ol.style.Stroke({ color: 'rgba(0, 0, 0, 0.55)', width: w });
 const boundsStyles = {
   groundingLine: [new ol.style.Style({ stroke: casing(3.5) }), new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#ffffff', width: 1.75 }) })],
-  iceShelves: [new ol.style.Style({ stroke: casing(3) }), new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#4fd8ff', width: 1.25 }) })],
+  iceFront: [new ol.style.Style({ stroke: casing(3) }), new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#4fd8ff', width: 1.25 }) })],
   basins: [new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#ffd23f', width: 1.5, lineDash: [6, 5] }) })],
 };
 const boundsLabel = (text, color, bold) => new ol.style.Style({ text: new ol.style.Text({ text, font: `${bold ? 600 : 400} 12px system-ui, sans-serif`,
@@ -39,7 +41,8 @@ async function refreshBounds() {
   $('boundsLegend').hidden = !on;
   if (on && !glSource.getFeatures().length) loadGroundingLines();
   if (!on || boundsSource.getFeatures().length) return;
-  boundsLoading ||= fetch(boundsUrl).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
+  const getJson = u => fetch(u).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
+  boundsLoading ||= Promise.all([getJson(boundsUrl), getJson(iceFrontUrl)]).then(([b, f]) => ({ ...b, iceFront: f.rings }));
   let d;
   try { d = await boundsLoading; } catch (e) {
     boundsLoading = null; $('boundsOn').checked = false; boundsLayer.setVisible(false); $('boundsLegend').hidden = true;
@@ -47,10 +50,12 @@ async function refreshBounds() {
   }
   if (boundsSource.getFeatures().length) return;
   const features = [];
+  const toPts = xy => { const pts = []; for (let k = 0; k < xy.length; k += 2) pts.push([xy[k], xy[k + 1]]); return pts; };
+  features.push(new ol.Feature({ geometry: new ol.geom.MultiLineString(d.iceFront.map(toPts)), kind: 'iceFront' }));
   for (const kind of ['basins', 'iceShelves', 'groundingLine']) {
     for (const [name, ...rings] of d[kind]) {
-      const lines = rings.map(xy => { const pts = []; for (let k = 0; k < xy.length; k += 2) pts.push([xy[k], xy[k + 1]]); return pts; });
-      features.push(new ol.Feature({ geometry: new ol.geom.MultiLineString(lines), kind }));
+      const lines = rings.map(toPts);
+      if (kind !== 'iceShelves') features.push(new ol.Feature({ geometry: new ol.geom.MultiLineString(lines), kind }));
       if (kind === 'groundingLine' || !name) continue;
       // Label at the middle of the largest ring's extent.
       const big = lines.reduce((a, b) => (b.length > a.length ? b : a));

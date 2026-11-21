@@ -51,7 +51,7 @@
       <div id="frontsBar" style="height:8px;border-radius:2px;border:1px solid var(--line)"></div>
       <div class="ends"><span id="frontsMin"></span><span class="note">winter fronts</span><span id="frontsMax"></span></div>
     </div>
-    <div id="boundsLegend" class="note" hidden><span class="swatch" style="border-color:#fff"></span>grounding line <span class="swatch" style="border-color:#4fd8ff"></span>ice shelves <span class="swatch" style="border-color:#ffd23f;border-top-style:dashed"></span>IMBIE basins
+    <div id="boundsLegend" class="note" hidden><span class="swatch" style="border-color:#fff"></span>grounding line <span class="swatch" style="border-color:#4fd8ff"></span>ice front (2026 mask) <span class="swatch" style="border-color:#ffd23f;border-top-style:dashed"></span>IMBIE basins
       <div id="glBar" style="height:8px;margin-top:4px;border-radius:2px;border:1px solid var(--line)"></div>
       <div class="ends"><span id="glMin"></span><span>dated grounding lines, Amundsen Sea</span><span id="glMax"></span></div></div>
     <div class="row"><button id="olAdd" type="button" class="link">Add outlines (GeoJSON, KML, GPX)</button><span class="note">or drop files on the map</span><input id="olFile" type="file" accept=".geojson,.json,.kml,.gpx" multiple hidden></div>
@@ -252,7 +252,7 @@
   <button id="panelToggle" type="button" aria-controls="panel" aria-expanded="true">&lsaquo; Hide controls</button>
   <div id="readout" class="readout" hidden></div>
   <div id="mapfoot"><span id="pixRes" hidden></span></div>
-  <div id="search" role="search"><input id="searchBox" type="search" placeholder="Search places" autocomplete="off" spellcheck="false" aria-label="Search places"><button id="searchClear" type="button" class="link" hidden aria-label="Clear the search">&times;</button>
+  <div id="search" role="search" class="collapsed"><button id="searchOpen" type="button" aria-expanded="false" aria-controls="searchBox" title="Search places"><svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13 13l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Search</span></button><input id="searchBox" type="search" placeholder="Search places" autocomplete="off" spellcheck="false" aria-label="Search places"><button id="searchClear" type="button" class="link" hidden aria-label="Clear the search">&times;</button>
     <ul id="searchResults" hidden></ul></div>
   <div id="swipe" hidden><div class="swline"></div><span id="swLeft" class="swlab"></span><span id="swRight" class="swlab"></span>
     <div id="swHandle" tabindex="0" role="slider" aria-label="Swipe line position">&#x2194;</div></div>

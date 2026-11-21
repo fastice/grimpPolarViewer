@@ -77,8 +77,9 @@ so you can compare data sets at one glacier (the **⤢** button beside **+** and
 to the whole collection). Every product in the collection is outlined on the map, and listed
 under **Download** when that section is open; click either to show it.
 
-To find a glacier, type its name in **Search places** at the top right of the map and pick it from
-the list (or press Enter for the first). Old and foreign names work too: *Jakobshavn* finds
+To find a glacier, click **Search** at the top right of the map, type its name and pick it from the
+list (or press Enter for the first); the box folds back to the button (click it again, or press
+Escape, to close it yourself). Old and foreign names work too: *Jakobshavn* finds
 Sermeq Kujalleq, and accents are optional (*isbrae* finds Isbræ). In Antarctica it searches glaciers, ice
 shelves, bays, stations, ranges and other large features from the SCAR Composite Gazetteer.
 
@@ -121,8 +122,8 @@ Tick **Flow arrows** on a velocity product to see which way the ice moves: each 
 averaged over its patch of the screen, and longer arrows are faster. They are redrawn as you pan and
 zoom, and left out where ice moves slower than 5 m/yr (and on rock).
 
-In Antarctica, tick **Boundaries** for the grounding line (white), ice shelf outlines (cyan, named as you
-zoom in) and the IMBIE drainage basins (dashed yellow). On the Amundsen Sea glaciers (Pine Island, Thwaites,
+In Antarctica, tick **Boundaries** for the grounding line (white), the ice front and coast of the GrIMP
+2026 ice mask (cyan, with ice shelf names as you zoom in) and the IMBIE drainage basins (dashed yellow). On the Amundsen Sea glaciers (Pine Island, Thwaites,
 Pope, Smith, Kohler, Getz, Abbot and others) it also draws the dated InSAR grounding lines from 1992 to 2025,
 colored from blue (oldest) to red (newest); point at one for its date and sensor.
 
@@ -137,11 +138,13 @@ Tick **Glacier fronts** (Greenland only) to draw the winter ice-front positions 
 glaciers from 1972-73 to 2020-21, colored from blue (oldest) to red (newest), so a retreat reads as a
 sweep of color up the fjord. Point at a front to see its date in the readout.
 
-Tick **Glacier names** (Greenland only) to label the glaciers with their official names, followed by a
-different foreign name in parentheses, e.g. *Sermeq Kujalleq (Jakobshavn Isbræ)*. Zoomed all the way out
+Tick **Glacier names** to label the glaciers: in Greenland with their official names, followed by a
+different foreign name in parentheses, e.g. *Sermeq Kujalleq (Jakobshavn Isbræ)*; in Antarctica with
+the SCAR gazetteer names of glaciers, ice streams, ice shelves, stations and regions. Zoomed all the way out
 only the major glaciers are named; zoom in for every outlet glacier, then local glaciers and ice caps.
 Labels sit on the ocean side of each glacier. Names come from the official
-Greenland glacier names set (Bjørk et al. 2015).
+Greenland glacier names set (Bjørk et al. 2015), plus 79 North Glacier (Nioghalvfjerdsbræ), which that
+set does not include.
 
 To see the ice and rock under the data, choose a radar image in **Background** (below the Blue Marble
 and Coastlines boxes), pick one of its dates under **Image**, and lower **Opacity**. The choice is kept
