@@ -215,6 +215,39 @@ Checked against GDAL at one point (2014-15 annual mosaic): speed 625.9329 m/yr a
 0.467258 m/yr, identical to `gdallocationinfo`; the 6/12-day series matches GDAL at its first and
 last dates. Read times are under Limits.
 
+### Profile along a line
+
+**Profile along a line** (a collapsible section) appears for any single-band product. **Draw line**
+takes two clicks, A then B (the click that ends the line does not also pick a footprint). The shown
+asset is sampled at evenly spaced points from A to B, at the resolution level nearest 1/1000 of the
+line length but never finer than the full image (a 42.6 km line on the 200 m annual mosaic: 214
+samples, every 200 m), nearest pixel, read in windows of 256 samples so each read stays close to the
+line. The plot is distance from A (km) against value, in its own movable, resizable window (it opens
+near the top of the map, clear of the time-series plot).
+
+- **Curves:** every product shown while the line is up adds a curve in the next point color: another
+  date, or another catalog in the same projection (the line is kept when the catalog changes, as the
+  points are). Showing a product already on the plot adds nothing. A different asset or a new line
+  starts a new plot; **Clear line** removes both. The legend (newest 8 curves) gives each curve's
+  dates, plus its catalog when the plot holds more than one; the shown product is drawn thickest and
+  named in bold.
+- **ITS_LIVE in grey** (vv, vx, vy): the image pairs whose span (mid date ± half the separation)
+  includes the shown product's central date, separation up to **Pairs up to** (default 12 d), one
+  grey line per pair, sampled every 0.5 km from A (nearest 120 m pixel; the cube for each sample
+  comes from the same catalog as the point comparison, so a line can cross cube edges and pairs join
+  up by mid date and separation). Datacube chunks hold about 20000 dates of 10 x 10 pixels, so a
+  line reads every 1.2 km chunk it crosses, but only the time chunks holding matching pairs (2 of 5
+  at Jakobshavn); the pixels read are kept, so other products along the same line reuse them.
+  Measured: 42.6 km line at Jakobshavn, 43 pairs of 30 d or less spanning 2022-06-01, about 5 s.
+  The cubes end 2025-05-28, so later products report no pairs and give the cubes' end date.
+- **Save CSV:** `source, collection, item, start, end, asset, unit, distance_km, x_km, y_km, lat, lon,
+  value`, one row per sample: every GrIMP curve (empty value where there is no data) and, when
+  ticked, the ITS_LIVE samples with data (`source` ITS_LIVE, start/end the two image dates).
+  **Save plot:** a PNG at twice screen resolution.
+
+Checked against GDAL: the middle sample of the 2024-25 annual speed line (x -176.123 km,
+y -2277.678 km) is 294.27005 m/yr in the viewer and from `gdallocationinfo`.
+
 ### Animation
 
 **Animate time series** appears only when the displayed item has a time series.

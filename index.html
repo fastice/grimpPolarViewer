@@ -105,6 +105,8 @@ details.block[open] > .block-inner { margin-top: 8px; }
           overflow: hidden; z-index: 3;  /* above the time bar */
           background: var(--panel); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
 .tsplot canvas { width: 100%; height: 100%; display: block; cursor: pointer; }
+#pfPlot { top: 56px; }  /* the profile plot opens near the top, clear of the time-series plot */
+#pfPlot canvas { cursor: default; }
 progress { width: 100%; height: 8px; accent-color: var(--accent); }
 .tsclose { position: absolute; right: 8px; top: 2px; font-size: 20px; text-decoration: none; }
 .tsdrag { position: absolute; left: 4px; top: 3px; padding: 2px 5px; font-size: 16px; line-height: 1; color: var(--muted);
@@ -170,6 +172,7 @@ body.nopanel #panel { display: none; }
   #panel { width: 100%; flex: none; max-height: 45vh; border-right: 0; border-top: 1px solid var(--line); }
   .readout { top: 12px; bottom: auto; white-space: normal; max-width: calc(100% - 150px); }
   .tsplot { left: 8px; right: 8px; width: auto; height: 225px; top: calc(100% - 253px); }
+  #pfPlot { top: 70px; }
 }
 /* Touch screens: bigger targets on the time bar. */
 @media (pointer: coarse) {
@@ -337,6 +340,26 @@ body.nopanel #panel { display: none; }
       <div id="tsNote" class="note"></div>
     </div>
   </details>
+  <details id="pfSec" class="block" hidden>
+    <summary>Profile along a line <span id="pfCount"></span></summary>
+    <div class="block-inner">
+      <div class="row">
+        <button id="pfDraw" type="button">Draw line</button>
+        <button id="pfShow" type="button" class="link" hidden>Show plot</button>
+        <button id="pfClear" type="button" class="link" hidden>Clear line</button>
+      </div>
+      <div class="optrow" id="pfItsRow"><label class="optrow"><input id="pfIts" type="checkbox"> ITS_LIVE in grey,</label>
+        <label class="optrow">pairs up to <select id="pfItsDt"><option value="100000">any</option><option value="120">120 d</option>
+        <option value="30">30 d</option><option value="12" selected>12 d</option></select></label></div>
+      <div id="pfItsNote" class="note"></div>
+      <div class="row">
+        <button id="pfCsv" type="button" disabled>Save CSV</button>
+        <button id="pfPng" type="button" disabled>Save plot (PNG)</button>
+      </div>
+      <progress id="pfProg" max="1" value="0" hidden></progress>
+      <div id="pfNote" class="note"></div>
+    </div>
+  </details>
   <details id="cropSec" class="block" hidden>
     <summary id="dlTitle">Download</summary>
     <div class="block-inner">
@@ -369,6 +392,12 @@ body.nopanel #panel { display: none; }
     <div id="tsDrag" class="tsdrag" title="Drag to move the plot (resize it by its bottom-right corner); double-click to put it back">&#x2725;</div>
     <div id="tsSize" class="tssize" title="Drag to resize the plot; double-click the move grip to put it back"></div>
     <canvas id="tsCanvas"></canvas>
+  </div>
+  <div id="pfPlot" class="tsplot" hidden>
+    <button id="pfHide" type="button" class="link tsclose" title="Hide the plot (Show plot brings it back)">&times;</button>
+    <div id="pfDrag" class="tsdrag" title="Drag to move the plot (resize it by its bottom-right corner); double-click to put it back">&#x2725;</div>
+    <div id="pfSize" class="tssize" title="Drag to resize the plot; double-click the move grip to put it back"></div>
+    <canvas id="pfCanvas"></canvas>
   </div>
   <div id="timebar" hidden>
     <div id="ttrack">
@@ -629,6 +658,8 @@ async function loadCatalog(href, push = true) {
   // Points carry over to a catalog in the same projection; the old catalog's series stay on the plot.
   const carry = tsPoints.length && prevCode === viewCode ? snapshotTsPoints(prevName) : null;
   stopDraw(); boxSource.clear(); cropBox = null; areaSource.clear(); areaBox = null; picks.clear(); saCache = null; clearStaticAnom(); clearTsPoints(); updateCropInfo();
+  // The profile line and its curves carry over too, so the new catalog's product adds its curve.
+  if (prevCode !== viewCode) clearProfile();
   // Keep the current view when the new catalog is in the same projection and its extent is in view, so
   // switching collections compares the same place; otherwise fit the map to the new catalog.
   const all = new ol.source.Vector({ features: items.map(i => i.feature) });
@@ -825,6 +856,7 @@ function showAsset(key) {
   const nodata = band.nodata ?? undefined;
   const projection = selected.epsg ? `EPSG:${selected.epsg}` : undefined;
   rgbMode = (a['raster:bands']?.length ?? 1) >= 3;
+  pfOnShown(key);
   $('stretchCtl').hidden = rgbMode; $('rgbNote').hidden = !rgbMode;
   $('lname').textContent = a.href.split('/').pop();
   $('legend').hidden = false;
@@ -936,7 +968,7 @@ let draw = null, drawKind = null, cropBox = null, areaBox = null;
 
 function stopDraw() {
   if (draw) map.removeInteraction(draw);
-  draw = null; drawKind = null; $('drawBox').textContent = 'Draw box';
+  draw = null; drawKind = null; $('drawBox').textContent = 'Draw box'; $('pfDraw').textContent = 'Draw line';
 }
 const boxDraw = (source, color) => new ol.interaction.Draw({ source, type: 'Circle', geometryFunction: ol.interaction.Draw.createBox(), style: outline(color) });
 $('drawBox').onclick = () => {
@@ -2342,9 +2374,8 @@ function setTsPlot(show) {
   if (show) drawTsPlot();
 }
 $('tsHide').onclick = () => setTsPlot(false);
-{
+function floatingPlot(plot, grip, corner, redraw) {
   // Drag the grip to move the plot anywhere over the map; double-click it to put the plot back.
-  const plot = $('tsPlot'), grip = $('tsDrag');
   let d = null;
   grip.addEventListener('pointerdown', e => {
     const r = plot.getBoundingClientRect(), w = $('mapwrap').getBoundingClientRect();
@@ -2360,7 +2391,6 @@ $('tsHide').onclick = () => setTsPlot(false);
   });
   for (const t of ['pointerup', 'pointercancel']) grip.addEventListener(t, () => { d = null; });
   // Drag the bottom-right corner to resize (at least 320 x 180 px, inside the map).
-  const corner = $('tsSize');
   let z = null;
   corner.addEventListener('pointerdown', e => {
     const r = plot.getBoundingClientRect(), w = $('mapwrap').getBoundingClientRect();
@@ -2374,11 +2404,12 @@ $('tsHide').onclick = () => setTsPlot(false);
     plot.style.height = `${Math.max(180, Math.min(z.h0 + e.clientY - z.y, z.w.bottom - z.r.top))}px`;
   });
   for (const t of ['pointerup', 'pointercancel']) corner.addEventListener(t, () => { z = null; });
-  grip.addEventListener('dblclick', () => { for (const k of ['left', 'top', 'width', 'height', 'right', 'bottom']) plot.style[k] = ''; drawTsPlot(); });
+  grip.addEventListener('dblclick', () => { for (const k of ['left', 'top', 'width', 'height', 'right', 'bottom']) plot.style[k] = ''; redraw(); });
   // Redraw at the new size when the plot is resized by its corner.
   let sized = 0;
-  new ResizeObserver(() => { cancelAnimationFrame(sized); sized = requestAnimationFrame(() => { if (!plot.hidden) drawTsPlot(); }); }).observe(plot);
+  new ResizeObserver(() => { cancelAnimationFrame(sized); sized = requestAnimationFrame(() => { if (!plot.hidden) redraw(); }); }).observe(plot);
 }
+floatingPlot($('tsPlot'), $('tsDrag'), $('tsSize'), () => drawTsPlot());
 $('tsShow').onclick = () => setTsPlot($('tsPlot').hidden);
 window.addEventListener('resize', () => { if (!$('tsPlot').hidden) drawTsPlot(); });
 $('tsXBar').onchange = () => drawTsPlot();
@@ -2420,6 +2451,332 @@ $('tsPng').onclick = () => {
   document.body.append(c); drawTsPlot(c, 2); c.remove();
   const coll = items[0]?.raw?.collection || 'grimp';
   saveUrl(c.toDataURL('image/png'), `${coll}_${tsPlotInfo.key}_points.png`);
+};
+
+// Profile along a line: two clicks draw the line (A to B), and the shown product is sampled along it at
+// the resolution level nearest 1/1000 of the line length (never finer than the full image). Each product
+// shown while the line is up adds its curve (another date, or another catalog in the same projection);
+// a new line or another asset starts a new plot. ITS_LIVE image pairs whose time span includes the shown
+// product's central date are drawn in grey, sampled every 0.5 km; of each datacube chunk the line
+// crosses, only the time chunks holding such pairs are read.
+const pfSource = new ol.source.Vector();
+map.addLayer(new ol.layer.Vector({ source: pfSource, zIndex: 6, style: f => {
+  const c = f.getGeometry().getCoordinates();
+  const end = (k, text) => new ol.style.Style({ geometry: new ol.geom.Point(c[k]),
+    image: new ol.style.Circle({ radius: 5, fill: new ol.style.Fill({ color: '#ff3ea5' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }),
+    text: new ol.style.Text({ text, offsetY: -14, font: '700 12px sans-serif',
+      fill: new ol.style.Fill({ color: '#ffffff' }), stroke: new ol.style.Stroke({ color: '#000000', width: 3 }) }) });
+  return [new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#ffffff', width: 5 }) }),
+          new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#ff3ea5', width: 2.5 }) }), end(0, 'A'), end(c.length - 1, 'B')];
+} }));
+let pfLine = null, pfKey = null, pfCurves = [], pfIts = null, pfToken = 0, pfItsToken = 0, pfDrawnAt = -Infinity;
+const pfItsStep = 500;  // m between ITS_LIVE samples
+const pfLen = () => Math.hypot(pfLine[1][0] - pfLine[0][0], pfLine[1][1] - pfLine[0][1]);
+const pfAt = d => { const f = d / pfLen(); return [pfLine[0][0] + f * (pfLine[1][0] - pfLine[0][0]), pfLine[0][1] + f * (pfLine[1][1] - pfLine[0][1])]; };
+
+function clearProfile() {
+  ++pfToken; ++pfItsToken;
+  pfLine = null; pfKey = null; pfCurves = []; pfIts = null;
+  pfSource.clear(); itsPixCache.clear();
+  $('pfPlot').hidden = true; $('pfShow').hidden = true; $('pfClear').hidden = true; $('pfProg').hidden = true;
+  $('pfCsv').disabled = true; $('pfPng').disabled = true;
+  $('pfNote').textContent = ''; $('pfItsNote').textContent = ''; $('pfCount').textContent = '';
+}
+function newProfile(line) {
+  clearProfile();
+  pfLine = line;
+  pfSource.addFeature(new ol.Feature(new ol.geom.LineString(line)));
+  $('pfClear').hidden = false;
+  if (selected && !rgbMode) pfOnShown($('asset').value);
+}
+// Called whenever a product's asset is shown.
+function pfOnShown(key) {
+  $('pfSec').hidden = rgbMode;
+  $('pfItsRow').hidden = !(key in itsVars);
+  if (!pfLine || rgbMode) return;
+  if (key !== pfKey) { pfCurves = []; pfKey = key; pfIts = null; }
+  addProfileCurve(selected, key);
+  refreshProfileIts();
+}
+
+async function profileValues(it, key) {
+  // The asset along the line: { d, v, res }, d in metres from A, v in physical units (NaN = no data).
+  const a = it.assets[key], b = a['raster:bands']?.[0] || {};
+  const { levels: lv, origin: org } = await assetLevels(a.href);
+  const len = pfLen(), want = Math.max(lv[0].res, len / 1000);
+  const level = lv.reduce((best, l) => Math.abs(l.res - want) < Math.abs(best.res - want) ? l : best);
+  const r = level.res, IW = level.img.getWidth(), IH = level.img.getHeight(), n = Math.max(2, Math.ceil(len / r) + 1);
+  const d = new Float64Array(n), v = new Float64Array(n).fill(NaN), cols = new Int32Array(n), rows = new Int32Array(n);
+  for (let k = 0; k < n; k++) {
+    d[k] = len * k / (n - 1);
+    const [x, y] = pfAt(d[k]);
+    cols[k] = Math.floor((x - org[0]) / r); rows[k] = Math.floor((org[1] - y) / r);
+  }
+  // Read in pieces of 256 samples, so each window stays close to the line.
+  const tasks = [];
+  for (let s = 0; s < n; s += 256) tasks.push(async () => {
+    const e = Math.min(n, s + 256), cs = cols.subarray(s, e), rs = rows.subarray(s, e);
+    const c0 = Math.max(0, Math.min(...cs)), c1 = Math.min(IW, Math.max(...cs) + 1);
+    const r0 = Math.max(0, Math.min(...rs)), r1 = Math.min(IH, Math.max(...rs) + 1);
+    if (c1 <= c0 || r1 <= r0) return;
+    const raw = (await level.img.readRasters({ window: [c0, r0, c1, r1], samples: [0] }))[0], w = c1 - c0;
+    for (let k = s; k < e; k++) {
+      if (cols[k] < c0 || cols[k] >= c1 || rows[k] < r0 || rows[k] >= r1) continue;
+      const q = raw[(rows[k] - r0) * w + cols[k] - c0];
+      if (q !== b.nodata && Number.isFinite(q)) v[k] = q * (b.scale ?? 1) + (b.offset ?? 0);
+    }
+  });
+  await runPool(tasks, 4);
+  return { d, v, res: r };
+}
+async function addProfileCurve(it, key) {
+  const href = it.assets[key].href;
+  if (pfCurves.some(c => c.href === href)) { drawProfile(); return; }
+  const token = pfToken, b = it.assets[key]['raster:bands']?.[0] || {};
+  const c = { it, href, key, unit: b.unit || '', name: tsCollectionName(), color: tsColors[pfCurves.length % tsColors.length] };
+  pfCurves.push(c);
+  setPfPlot(true);
+  $('pfNote').textContent = `Reading ${fmtDate(it.start)} along the line...`;
+  try {
+    Object.assign(c, await profileValues(it, key));
+    if (token !== pfToken) return;
+    $('pfNote').textContent = `Line ${(pfLen() / 1000).toFixed(1)} km; ${fmtDate(it.start)} read every ${Math.round(c.res)} m`
+      + (c.v.some(Number.isFinite) ? '.' : ', but it has no data along the line.');
+    $('pfCsv').disabled = false; $('pfPng').disabled = false;
+  } catch (e) {
+    if (token !== pfToken) return;
+    pfCurves.splice(pfCurves.indexOf(c), 1);
+    $('pfNote').textContent = `Could not read the profile: ${e.message}`;
+  }
+  drawProfile();
+}
+
+// ITS_LIVE along the line. Datacube chunks hold about 20000 dates of 10 x 10 pixels (1.2 km), so a
+// sampled pixel's values are kept per time chunk and later products reuse them.
+const itsCubes = new Map();  // zarr url -> promise of { zarr, root, x, y, md, dt, arrays }
+const itsPixCache = new Map();  // `${url}|${var}|${time chunk}|${ix},${iy}` -> that pixel's values in the chunk
+function itsCube(url) {
+  if (!itsCubes.has(url)) itsCubes.set(url, (async () => {
+    const zarr = await import('https://cdn.jsdelivr.net/npm/zarrita@0.7.5/+esm');
+    const root = zarr.root(new zarr.FetchStore(url));
+    const read = async n => (await zarr.get(await zarr.open.v2(root.resolve(n), { kind: 'array', attrs: false }))).data;
+    const [x, y, md, dt] = await Promise.all(['x', 'y', 'mid_date', 'date_dt'].map(read));
+    return { zarr, root, x, y, md, dt, arrays: new Map() };
+  })().catch(e => { itsCubes.delete(url); throw e; }));
+  return itsCubes.get(url);
+}
+async function profileIts(it, key, maxDt, onChunk) {
+  // Pairs spanning the product's central date, every pfItsStep m from A:
+  // { d, pairs: [{ t0, t1, v }], cubes (datacubes on the line), end (latest mid date in them, ms) }.
+  const cen = (+it.start + +it.end) / 2 / 86400e3, name = itsVars[key], n = Math.floor(pfLen() / pfItsStep) + 1;
+  const d = Float64Array.from({ length: n }, (_, k) => k * pfItsStep), urls = [];
+  for (let k = 0; k < n; k++) urls.push(await itsCubeUrl(pfAt(d[k])));
+  const pairs = new Map(), jobs = [], cubeUrls = [...new Set(urls.filter(Boolean))];
+  let end = -Infinity;
+  for (const url of cubeUrls) {
+    const cube = await itsCube(url);
+    if (!cube.arrays.has(name)) cube.arrays.set(name, await cube.zarr.open.v2(cube.root.resolve(name), { kind: 'array', attrs: false }));
+    const arr = cube.arrays.get(name), [tc, yc, xc] = arr.chunks, { md, dt } = cube, idx = [];
+    for (let i = 0; i < md.length; i++) {
+      if (md[i] > end) end = md[i];
+      if (dt[i] <= maxDt && md[i] - dt[i] / 2 <= cen && md[i] + dt[i] / 2 >= cen) idx.push(i);
+    }
+    if (!idx.length) continue;
+    const groups = new Map();  // spatial chunk -> samples in it
+    for (let k = 0; k < n; k++) {
+      if (urls[k] !== url) continue;
+      const [px, py] = pfAt(d[k]);
+      const ix = Math.round((px - cube.x[0]) / (cube.x[1] - cube.x[0])), iy = Math.round((py - cube.y[0]) / (cube.y[1] - cube.y[0]));
+      if (ix < 0 || iy < 0 || ix >= cube.x.length || iy >= cube.y.length) continue;
+      const g = `${Math.floor(iy / yc)},${Math.floor(ix / xc)}`;
+      if (!groups.has(g)) groups.set(g, []);
+      groups.get(g).push({ k, ix, iy });
+    }
+    for (const t of new Set(idx.map(i => Math.floor(i / tc)))) {
+      const inT = idx.filter(i => Math.floor(i / tc) === t);
+      for (const [g, ss] of groups) jobs.push({ url, cube, arr, t, g, ss, inT });
+    }
+  }
+  const tasks = jobs.map(({ url, cube, arr, t, g, ss, inT }) => async () => {
+    const [tc, yc, xc] = arr.chunks, pk = s => `${url}|${name}|${t}|${s.ix},${s.iy}`, need = ss.filter(s => !itsPixCache.has(pk(s)));
+    if (need.length) {
+      const [gy, gx] = g.split(',').map(Number), t0 = t * tc, y0 = gy * yc, x0 = gx * xc, z = cube.zarr;
+      const t1 = Math.min(t0 + tc, arr.shape[0]), y1 = Math.min(y0 + yc, arr.shape[1]), x1 = Math.min(x0 + xc, arr.shape[2]);
+      const { data, stride } = await z.get(arr, [z.slice(t0, t1), z.slice(y0, y1), z.slice(x0, x1)]);
+      for (const s of need) {
+        const pix = new Int16Array(t1 - t0), o = (s.iy - y0) * stride[1] + (s.ix - x0) * stride[2];
+        for (let q = 0; q < pix.length; q++) pix[q] = data[q * stride[0] + o];
+        itsPixCache.set(pk(s), pix);
+      }
+    }
+    for (const s of ss) {
+      const pix = itsPixCache.get(pk(s));
+      for (const i of inT) {
+        const val = pix[i - t * tc];
+        if (val === -32767) continue;
+        // The same image pair has the same mid date in every cube, so pairs join up across cube edges.
+        const id = `${cube.md[i]}|${cube.dt[i]}`;
+        if (!pairs.has(id)) pairs.set(id, { t0: (cube.md[i] - cube.dt[i] / 2) * 86400e3, t1: (cube.md[i] + cube.dt[i] / 2) * 86400e3, v: new Float64Array(n).fill(NaN) });
+        pairs.get(id).v[s.k] = val;
+      }
+    }
+  });
+  await runPool(tasks, 4, (k, r, count) => onChunk(count, tasks.length));
+  return { d, pairs: [...pairs.values()], cubes: cubeUrls.length, end: end * 86400e3 };
+}
+async function refreshProfileIts() {
+  const key = pfKey, it = selected, maxDt = +$('pfItsDt').value;
+  if (!($('pfIts').checked && pfLine && it && key in itsVars)) { ++pfItsToken; pfIts = null; $('pfItsNote').textContent = ''; $('pfProg').hidden = true; drawProfile(); return; }
+  if (pfIts && pfIts.it === it && pfIts.key === key && pfIts.maxDt === maxDt) return;
+  const token = ++pfItsToken, day = fmtDate(new Date((+it.start + +it.end) / 2));
+  pfIts = null; drawProfile();
+  $('pfItsNote').textContent = 'ITS_LIVE: finding the datacubes...';
+  try {
+    const r = await profileIts(it, key, maxDt, (count, total) => {
+      if (token !== pfItsToken) return;
+      $('pfProg').hidden = count >= total; $('pfProg').value = count / total;
+      $('pfItsNote').textContent = `ITS_LIVE: read ${count} of ${total} datacube chunks`;
+    });
+    if (token !== pfItsToken) return;
+    $('pfProg').hidden = true;
+    pfIts = { it, key, maxDt, ...r };
+    const apart = maxDt < 1e5 ? `, up to ${maxDt} d apart` : '';
+    $('pfItsNote').textContent = !r.cubes ? 'ITS_LIVE: no datacube along the line.'
+      : r.pairs.length ? `ITS_LIVE: ${r.pairs.length} image pairs spanning ${day}${apart}.`
+      : `ITS_LIVE: no image pairs spanning ${day}${apart}` + ((+it.start + +it.end) / 2 > r.end ? `; the datacubes end ${fmtDate(new Date(r.end))}.` : '.');
+    drawProfile();
+  } catch (e) {
+    if (token === pfItsToken) { $('pfProg').hidden = true; $('pfItsNote').textContent = `ITS_LIVE: could not read (${e.message})`; }
+  }
+}
+
+function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 1) {
+  $('pfCount').textContent = pfCurves.length ? `(${pfCurves.length} curve${pfCurves.length > 1 ? 's' : ''})` : '';
+  if (!pfLine || (canvas === $('pfCanvas') && $('pfPlot').hidden)) return;
+  const W = canvas.clientWidth || 600, H = canvas.clientHeight || 285;
+  canvas.width = W * scale; canvas.height = H * scale;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  const css = getComputedStyle(document.documentElement), tok = n => css.getPropertyValue(n).trim();
+  const fg = tok('--fg'), muted = tok('--muted'), line = tok('--line');
+  ctx.fillStyle = tok('--panel'); ctx.fillRect(0, 0, W, H);
+  const L = 82, R = 14, T = 30, B = 42, pw = W - L - R, ph = H - T - B, km = pfLen() / 1000;
+  const unit = pfCurves.find(c => c.unit)?.unit || '', label = `${pfKey}${unit ? ` (${unit})` : ''}`;
+  const its = $('pfIts').checked && pfIts?.key === pfKey ? pfIts : null;
+  ctx.font = '12px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = fg; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+  ctx.fillText(`Profile A to B: ${label}` + (its ? `; ITS_LIVE (grey): pairs spanning ${fmtDate(new Date((+its.it.start + +its.it.end) / 2))}` : ''), L, 14);
+  // y range from the GrIMP curves (ITS_LIVE is clipped to it), or from ITS_LIVE alone
+  let y0 = Infinity, y1 = -Infinity;
+  const span = vs => { for (const v of vs) if (Number.isFinite(v)) { if (v < y0) y0 = v; if (v > y1) y1 = v; } };
+  for (const c of pfCurves) if (c.v) span(c.v);
+  if (y0 > y1 && its) for (const p of its.pairs) span(p.v);
+  if (y0 > y1) { ctx.fillStyle = muted; ctx.fillText(pfCurves.some(c => !c.v) ? 'Reading values...' : 'No data along the line', L + 10, T + ph / 2); return; }
+  if (y0 === y1) { y0 -= 1; y1 += 1; }
+  const yp = (y1 - y0) * 0.06; y0 -= yp; y1 += yp;
+  const X = dm => L + dm / 1000 / km * pw, Y = v => T + (1 - (v - y0) / (y1 - y0)) * ph;
+  ctx.strokeStyle = line; ctx.lineWidth = 1; ctx.fillStyle = muted; ctx.textAlign = 'right';
+  const ys = niceStep(y1 - y0, 5);
+  for (let v = Math.ceil(y0 / ys) * ys; v <= y1; v += ys) {
+    ctx.beginPath(); ctx.moveTo(L, Y(v)); ctx.lineTo(L + pw, Y(v)); ctx.stroke();
+    ctx.fillText(fmtVal(+v.toPrecision(6)), L - 6, Y(v));
+  }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  const xs = niceStep(km, 6);
+  for (let x = 0; x <= km + 1e-9; x += xs) {
+    ctx.beginPath(); ctx.moveTo(X(x * 1000), T); ctx.lineTo(X(x * 1000), T + ph); ctx.stroke();
+    ctx.fillText(fmtVal(+x.toPrecision(6)), X(x * 1000), T + ph + 6);
+  }
+  ctx.save(); ctx.fillStyle = fg; ctx.textBaseline = 'middle';
+  ctx.translate(12, T + ph / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(label, 0, 0); ctx.restore();
+  ctx.save(); ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText('Distance from A (km)', L + pw / 2, H - 3); ctx.restore();
+  ctx.strokeStyle = muted; ctx.strokeRect(L, T, pw, ph);
+  ctx.save(); ctx.beginPath(); ctx.rect(L, T, pw, ph); ctx.clip();
+  const path = (d, v) => {  // a polyline broken at missing values
+    ctx.beginPath();
+    let on = false;
+    for (let k = 0; k < v.length; k++) {
+      if (!Number.isFinite(v[k])) { on = false; continue; }
+      if (on) ctx.lineTo(X(d[k]), Y(v[k])); else ctx.moveTo(X(d[k]), Y(v[k]));
+      on = true;
+    }
+    ctx.stroke();
+  };
+  if (its) { ctx.strokeStyle = 'rgba(140, 140, 140, 0.45)'; ctx.lineWidth = 1; for (const p of its.pairs) path(its.d, p.v); }
+  const halo = tok('--panel'), shown = c => selected && c.href === selected.assets[pfKey]?.href;
+  for (const c of [...pfCurves.filter(c => !shown(c)), ...pfCurves.filter(shown)]) {  // the shown product on top
+    if (!c.v) continue;
+    ctx.strokeStyle = halo; ctx.lineWidth = shown(c) ? 4.5 : 3.5; path(c.d, c.v);
+    ctx.strokeStyle = c.color; ctx.lineWidth = shown(c) ? 2.4 : 1.4; path(c.d, c.v);
+  }
+  ctx.restore();
+  // legend: each curve's dates (and catalog, when more than one), the shown product in bold
+  const names = new Set(pfCurves.map(c => c.name)), rowsShown = pfCurves.slice(-8);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  const text = c => `${fmtDate(c.it.start)} to ${fmtDate(c.it.end)}${names.size > 1 ? `, ${c.name}` : ''}`;
+  ctx.font = '700 11px "Atkinson Hyperlegible", sans-serif';
+  const lw = Math.max(...rowsShown.map(c => ctx.measureText(text(c)).width)) + 34, lh = 15;
+  const lx = L + pw - lw - 6, ly = T + 6, extra = pfCurves.length - rowsShown.length;
+  ctx.globalAlpha = 0.85; ctx.fillStyle = halo; ctx.fillRect(lx, ly, lw, lh * (rowsShown.length + (extra ? 1 : 0)) + 6); ctx.globalAlpha = 1;
+  rowsShown.forEach((c, k) => {
+    const y = ly + 3 + lh * k + lh / 2;
+    ctx.strokeStyle = c.color; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(lx + 6, y); ctx.lineTo(lx + 24, y); ctx.stroke();
+    ctx.font = `${shown(c) ? 700 : 400} 11px "Atkinson Hyperlegible", sans-serif`; ctx.fillStyle = fg; ctx.fillText(text(c), lx + 28, y);
+  });
+  if (extra) { ctx.fillStyle = muted; ctx.fillText(`and ${extra} earlier`, lx + 28, ly + 3 + lh * rowsShown.length + lh / 2); }
+}
+function setPfPlot(show) {
+  $('pfPlot').hidden = !show;
+  $('pfShow').hidden = false; $('pfShow').textContent = show ? 'Hide plot' : 'Show plot';
+  if (show) drawProfile();
+}
+$('pfDraw').onclick = () => {
+  if (draw) { const was = drawKind; stopDraw(); if (was === 'profile') return; refreshAnimInfo(); }
+  if (tsMode) setTsMode(false);
+  draw = new ol.interaction.Draw({ type: 'LineString', maxPoints: 2, style: outline('#ff3ea5') }); drawKind = 'profile';
+  draw.on('drawend', e => {
+    const c = e.feature.getGeometry().getCoordinates(), line = [c[0], c[c.length - 1]];
+    pfDrawnAt = performance.now();
+    setTimeout(() => {
+      stopDraw();
+      if (line[0][0] === line[1][0] && line[0][1] === line[1][1]) { $('pfNote').textContent = 'A and B must be different points; draw the line again.'; return; }
+      newProfile(line);
+    });
+  });
+  map.addInteraction(draw);
+  $('pfDraw').textContent = 'Cancel';
+  $('pfNote').textContent = 'Click the start of the line (A), then the end (B).';
+};
+$('pfClear').onclick = () => { if (drawKind === 'profile') stopDraw(); clearProfile(); };
+$('pfShow').onclick = () => setPfPlot($('pfPlot').hidden);
+$('pfHide').onclick = () => setPfPlot(false);
+$('pfIts').onchange = () => refreshProfileIts();
+$('pfItsDt').onchange = () => refreshProfileIts();
+$('pfSec').addEventListener('toggle', () => { if (!$('pfSec').open && drawKind === 'profile') stopDraw(); });
+floatingPlot($('pfPlot'), $('pfDrag'), $('pfSize'), () => drawProfile());
+window.addEventListener('resize', () => { if (!$('pfPlot').hidden) drawProfile(); });
+$('pfCsv').onclick = () => {
+  const rows = [['source', 'collection', 'item', 'start', 'end', 'asset', 'unit', 'distance_km', 'x_km', 'y_km', 'lat', 'lon', 'value']];
+  const csvText = t => /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  const pos = dm => {
+    const [x, y] = pfAt(dm), [lon, lat] = ol.proj.toLonLat([x, y], viewCode);
+    return [(dm / 1000).toFixed(3), (x / 1000).toFixed(3), (y / 1000).toFixed(3), lat.toFixed(5), lon.toFixed(5)];
+  };
+  for (const c of pfCurves) {
+    if (!c.v) continue;
+    for (let k = 0; k < c.v.length; k++) rows.push(['GrIMP', csvText(c.name), c.it.id, fmtDate(c.it.start), fmtDate(c.it.end), c.key, c.unit,
+                                                    ...pos(c.d[k]), Number.isNaN(c.v[k]) ? '' : c.v[k]]);
+  }
+  const its = $('pfIts').checked && pfIts?.key === pfKey ? pfIts : null;
+  const unit = pfCurves.find(c => c.unit)?.unit || '';
+  if (its) for (const p of its.pairs) for (let k = 0; k < p.v.length; k++) {
+    if (Number.isFinite(p.v[k])) rows.push(['ITS_LIVE', 'ITS_LIVE', '', fmtDate(new Date(p.t0)), fmtDate(new Date(p.t1)), pfKey, unit, ...pos(its.d[k]), p.v[k]]);
+  }
+  saveBlob(new Blob([rows.map(r => r.join(',')).join('\n') + '\n'], { type: 'text/csv' }), `${items[0]?.raw?.collection || 'grimp'}_${pfKey}_profile.csv`);
+};
+$('pfPng').onclick = () => {
+  const c = document.createElement('canvas'); c.style.width = `${$('pfCanvas').clientWidth}px`; c.style.height = `${$('pfCanvas').clientHeight}px`;
+  document.body.append(c); drawProfile(c, 2); c.remove();
+  saveUrl(c.toDataURL('image/png'), `${items[0]?.raw?.collection || 'grimp'}_${pfKey}_profile.png`);
 };
 
 function applyClip() {
@@ -2497,6 +2854,13 @@ const tips = {
   th1: 'End of the time range: drag, or use the arrow keys',
   treset: 'Show the full time range',
   tsShow: 'Hide or show the time-series plot',
+  pfDraw: 'Click two points on the map (A, then B) to plot the shown product along the line; each product you show next adds its curve',
+  pfShow: 'Hide or show the profile plot',
+  pfClear: 'Remove the line and its plot',
+  pfIts: 'Also plot ITS_LIVE image pairs whose time span includes the shown product\'s central date, sampled every 0.5 km, in grey',
+  pfItsDt: 'Only ITS_LIVE pairs whose images are at most this many days apart',
+  pfCsv: 'Save every curve (and the ITS_LIVE pairs shown) as CSV, one row per sample along the line',
+  pfPng: 'Save the profile plot as a PNG image',
   tsYHi: 'Top of the plot y axis: drag left to zoom in',
   tsYLo: 'Bottom of the plot y axis: drag right to zoom in',
   tsYBand: 'Drag to shift the plot y range up or down, keeping its height',
@@ -2555,7 +2919,8 @@ function setPanel(show) {
 $('panelToggle').onclick = () => setPanel(document.body.classList.contains('nopanel'));
 
 map.on('singleclick', e => {
-  if (draw) return;
+  // singleclick arrives at least 250 ms late, so skip the click that ended a line (it happened by then)
+  if (draw || e.originalEvent.timeStamp <= pfDrawnAt + 100) return;
   if (tsMode) { addTsPoint(e.coordinate); return; }
   // Touch screens have no hover, so a tap shows the readout.
   const touch = e.originalEvent.pointerType === 'touch';

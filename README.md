@@ -61,7 +61,7 @@ The **QR code** link next to either button shows the same link as a QR code, to 
 save as an image for a slide or poster.
 
 Nothing to install: it runs in any current desktop browser (Chrome, Edge, Firefox, Safari). Only
-downloading many files at once uses a small command-line tool (see [Download data](#7-download-data)).
+downloading many files at once uses a small command-line tool (see [Download data](#8-download-data)).
 Hover over any control for a short explanation.
 
 ## A quick tour
@@ -143,7 +143,23 @@ more files per date.
 
 ![Ice speed at three points near Jakobshavn Isbræ, 2015-2025](Documents/images/timeseries.jpg)
 
-### 5. See what changed
+### 5. Plot a profile along a line
+
+Open **Profile along a line**, click **Draw line**, and click the start (A) and the end (B) on the
+map. The product on the map is read along the line and plotted against distance from A.
+
+- Show another date (a timeline tick, a footprint on the map, or a point on the time-series plot) and
+  its curve is added to the same plot, so you can see a front retreat or a speed-up along the flow
+  line. Switching to another collection keeps the line and adds that collection's curve. The product
+  on the map is drawn thickest and in bold in the legend.
+- Choosing another asset (for example vx instead of speed), or drawing a new line, starts a new plot.
+- Tick **ITS_LIVE in grey** to add the ITS_LIVE image pairs whose time span includes the middle date
+  of the product on the map, one grey line per pair, sampled every 0.5 km. **Pairs up to** limits
+  how far apart the two images are. The ITS_LIVE datacubes currently end in May 2025.
+- The plot moves and resizes like the time-series plot. **Save CSV** writes every curve (and the
+  ITS_LIVE pairs shown), one row per sample; **Save plot** writes the picture.
+
+### 6. See what changed
 
 When a product is part of a time series, open **Anomaly and stack** and tick **Show as anomaly** to see how one date differs
 from the average of all dates: blue where the ice was slower than usual, red where it was faster.
@@ -153,7 +169,7 @@ image, or a box you draw with **Draw box** in that section for full resolution.
 
 ![Speed in 2024-25 minus the mean of all 11 years (2014-15 to 2024-25): outlet glaciers faster (red) or slower (blue) than usual](Documents/images/anomaly.jpg)
 
-### 6. Make an animation
+### 7. Make an animation
 
 Open **Animate time series**, draw a box around the area you want (the same box as the anomaly and
 stack, or animate the whole image),
@@ -174,7 +190,7 @@ faster again in 2020-21, and close to or a little below average since.
 
 ![The animation panel with an anomaly frame of Jakobshavn Isbræ and its color bar](Documents/images/animation.jpg)
 
-### 7. Download data
+### 8. Download data
 
 <img src="Documents/images/panel-download.png" align="right" width="300" alt="Download panel with asset checkboxes, crop box and download buttons">
 
@@ -208,7 +224,7 @@ download file: the dates of the displayed site in the time range, or dates you p
 
 ![A TerraSAR-X glacier site at Jakobshavn Isbræ, picked for download](Documents/images/tsx.jpg)
 
-### 8. Antarctica
+### 9. Antarctica
 
 Switch to **Southern** for Antarctic products, drawn with the South Pole at the center:
 
