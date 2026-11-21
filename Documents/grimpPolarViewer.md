@@ -16,13 +16,14 @@ This is the reference and maintainer guide. The illustrated tour for users is th
 |---|---|
 | `src/index.html` | The page: HTML, with `<!-- @include ... -->` lines where the CSS and JavaScript go. |
 | `src/viewer.css` | The styles. |
-| `src/js/*.js` | The script, in pieces by feature (`core`, `catalog`, `display`, `download`, `animation`, `staticAnomaly`, `timeSeries`, `timeSeriesPlot`, `profile`, `profilePlot`, `names`, `arrows`, `ui`). |
-| `src/data/` | Files the page reads at run time, deployed to `viewer/data/`: `greenlandGlacierNames.json`. |
+| `src/js/*.js` | The script, in pieces by feature (`core`, `catalog`, `display`, `download`, `animation`, `staticAnomaly`, `timeSeries`, `timeSeriesPlot`, `compare`, `profile`, `profilePlot`, `names`, `fronts`, `arrows`, `ui`). |
+| `src/data/` | Files the page reads at run time, deployed to `viewer/data/`: `greenlandGlacierNames.json`, `greenlandTermini.json`. |
 | `tools/buildViewer.sh` | Assembles `src/` into one `dist/index.html` (untracked). |
 | `tools/deployViewer.sh` | Builds, stamps and uploads `index.html` to Kopah with s3cmd. |
 | `tests/` | Headless browser tests (`tests/run.sh`). |
 | `tools/makeBksParquet.py` | Catalog builder for the uncalibrated S1 backscatter mosaics (Greenland, Amundsen Sea; newest version per window). |
 | `tools/makeSingleCogParquet.py` | One-item catalog for a single COG (e.g. a display mosaic). |
+| `tools/makeTermini.py` | Writes `src/data/greenlandTermini.json` from the NSIDC-0642 v2 terminus shapefiles. |
 | `tools/makeGlacierNames.py` | Writes `src/data/greenlandGlacierNames.json` from the GGN v01 shapefile. |
 | `tools/makeVelocityParquet.py` | Catalog builder for velocity mosaics (NSIDC-0766 6/12-day, Amundsen Sea quarterly/annual, NSIDC-0481 TSX sites with `--pattern`), one item per window directory. |
 | `tools/guideScreenshots.mjs`, `tools/guideImages.py` | Regenerate the README images. |
@@ -129,7 +130,9 @@ The vertical bar at the left edge of the map has one tick per acquisition date (
 time series (see Catalog requirements). **Show as anomaly** shows the displayed date minus the per-pixel mean of every date in the series,
 in blue-white-red, with a range of ±L: automatic (1% clip over all dates) or typed. **Earlier /
 Later** step through the dates; ticks and list clicks also step while it is on. The series stack is
-kept in memory, so stepping takes under a second.
+kept in memory, so stepping takes under a second. **Minus** picks what is subtracted: the mean (default)
+or one date of the series, for a two-date difference. With a date, the automatic range is the larger 1%
+tail of that one difference, and the note names both dates.
 
 The anomaly is computed at the resolution chosen in its menu, over the **area box** if one is drawn
 (**Draw box** on the section's Area row), otherwise the whole image or site. Whole mosaics therefore
@@ -143,6 +146,12 @@ have data there (a plain, unweighted mean); the readout gives the mean and how m
 it. It shares the anomaly's cached stack and resolution menu, so switching between the two is
 immediate. Checked against GDAL on the nine annual speed mosaics: 688.49 m/yr at (-150, -2280) km on
 the 1600 m grid, the same as the mean of the nine 1600 m overview pixels.
+
+**Swipe: compare with another date** (`src/js/compare.js`) adds a second WebGL copy of the main
+layer showing the date picked under **Left of the line** (same asset, stretch and color map, kept in
+step as they change), clipped with a WebGL scissor to the left of a vertical line; the displayed date
+shows to the right. The round handle drags the line (arrow keys move it 2%, Page Up/Down 10%), and
+labels give both dates. It is hidden while an anomaly, stack or animation replaces the main layer.
 
 ### Time series at points
 
@@ -481,6 +490,7 @@ Everything runs in the browser; there is no server-side code.
 | MP4 packaging | mp4-muxer 5.2.2 with the browser's WebCodecs H.264 encoder |
 | Basemap | NASA GIBS WMS (`BlueMarble_ShadedRelief_Bathymetry`, `Coastlines`) |
 | Flow arrows | The shown item's `vx`/`vy`, read with the animation's `readFrame` on a grid every 44 screen px (fixed in map coordinates) from the overview level nearest the grid spacing, after every move. Length 30-100% of 0.8 cell, log speed from 5 m/yr to the 95th percentile in view; none below 5 m/yr (rock noise near Jakobshavn is 1-4 m/yr). Vector layer, white on a dark outline. Directions are in the product grid, which is the map projection. |
+| Glacier fronts | NSIDC-0642 v2, MEaSUREs Annual Greenland Outlet Glacier Terminus Positions from SAR Mosaics, <https://doi.org/10.5067/ESFWE11AVFKW>: 50 winter files (1972-73 to 2020-21), downloaded from NSIDC 2026-11-21 and converted by `tools/makeTermini.py` (Douglas-Peucker 15 m, metre coordinates) to `data/greenlandTermini.json` (5582 fronts, 110,616 vertices, 2.0 MB, read when first ticked). Colored by winter on a blue-to-red ramp (`frontColors`) with a dark casing; the readout lists the dates of fronts within 3 px (or their span when more than 3 overlap). NSIDC-0642 v2 ends in 2021. |
 | Glacier names | Greenland Glacier Names GGN v01 (Bjørk, A. A., et al. (2015), Brief communication: Getting Greenland's glaciers right, a new data set of all official Greenlandic glacier names, *The Cryosphere*, 9, 2215-2218, <https://doi.org/10.5194/tc-9-2215-2015>), 732 glaciers, converted by `tools/makeGlacierNames.py` from `/Volumes/insar9/ian/Sentinel1/GreenlandGlacierNames_GGNv01_WGS84/` to `data/greenlandGlacierNames.json` (66 KB, read when first ticked). Labels: official name plus a differing foreign name. Coarser than 1500 m/pixel only the 19 `major` glaciers (listed in the tool), then every `GrIS` outlet, and `LGIC` local glaciers finer than 400 m/pixel; OpenLayers declutter drops overlaps. Labels go left of glaciers west of a mid-Greenland longitude (by latitude, `namesMidLon`) and right of those east of it, to keep them over the ocean. Each entry also keeps the new/old Greenlandic and alternative names. |
 | Background image | Any preset whose title contains "backscatter" or "gamma0", for the current hemisphere; one item drawn in gray (catalog mean +/- 2 sigma stretch) between Blue Marble and the main layer; collection and item kept per hemisphere in `sessionStorage` (`grimpBackgroundN`/`S`) |
 
@@ -546,7 +556,9 @@ on a Mac (default `/usr/bin/google-chrome`).
 |---|---|
 | `profileLine.test.mjs` | Drawn profile: curves, a second date, legend hide/show/remove, x/y ranges and Auto, ITS_LIVE annual mode |
 | `flowLine.test.mjs` | Flow line: trace, panel layout, nudge and re-trace, accept, trim; Pine Island on the Amundsen Sea annual |
+| `compare.test.mjs` | Two-date difference (equals displayed minus chosen date) and swipe: hidden under the anomaly, drag, keys, labels |
 | `flowArrows.test.mjs` | Flow arrows: off by default, drawn over Greenland, Jakobshavn points west after a zoom, disabled for backscatter |
+| `glacierFronts.test.mjs` | Glacier fronts: off by default, 5582 loaded, legend years, readout date at Jakobshavn, disabled in Antarctica |
 | `glacierNames.test.mjs` | Glacier names: off by default, 732 loaded, Jakobshavn label, zoom tiers (19 major, 284 outlets), ocean side, disabled in Antarctica |
 | `timeSeries.test.mjs` | Points: read, legend hide/remove, y range slider and Auto, catalog switch with per-catalog hide/remove |
 

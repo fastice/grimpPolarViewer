@@ -33,13 +33,10 @@ function showAsset(key) {
   $('lname').textContent = a.href.split('/').pop();
   $('legend').hidden = false;
   if (rgbMode) {
-    // RGB(A) browse images: let OpenLayers scale each 8-bit band to 0-1 and draw it as color.
-    // Browse images have no alpha band; their background is pure white (255, 255, 255), so make that clear.
-    const white = ['all', ['==', ['band', 1], 1], ['==', ['band', 2], 1], ['==', ['band', 3], 1]];
-    const alpha = a['raster:bands'].length >= 4 ? ['band', 4] : ['case', white, 0, 1];
-    rasterLayer.setStyle({ color: ['array', ['band', 1], ['band', 2], ['band', 3], alpha] });
+    rasterLayer.setStyle(rgbStyle(a));
     rasterLayer.setSource(new ol.source.GeoTIFF({ sources: [{ url: a.href, nodata }], normalize: true, interpolate: true, projection }));
     loadSample(a.href, nodata);
+    compareKey = ''; refreshCompare();
     return;
   }
   // Speeds and errors start at a hard 0; velocity components are stretched symmetrically about 0.
@@ -62,6 +59,15 @@ function showAsset(key) {
   setStretch(...(startStretch || [toDisp(lo), toDisp(hi)]));
   $('lunit').textContent = band.unit || '';
   loadSample(a.href, nodata);
+  compareKey = ''; refreshCompare();
+}
+
+// RGB(A) browse images: let OpenLayers scale each 8-bit band to 0-1 and draw it as color.
+// Browse images have no alpha band; their background is pure white (255, 255, 255), so make that clear.
+function rgbStyle(a) {
+  const white = ['all', ['==', ['band', 1], 1], ['==', ['band', 2], 1], ['==', ['band', 3], 1]];
+  const alpha = a['raster:bands'].length >= 4 ? ['band', 4] : ['case', white, 0, 1];
+  return { color: ['array', ['band', 1], ['band', 2], ['band', 3], alpha] };
 }
 
 function setStretch(dlo, dhi) {
@@ -70,7 +76,7 @@ function setStretch(dlo, dhi) {
   $('lmin').textContent = r(dlo); $('lmax').textContent = r(dhi);
   const changed = rawLo !== toRaw(dlo) || rawHi !== toRaw(dhi);
   rawLo = toRaw(dlo); rawHi = toRaw(dhi);
-  if (!rgbMode) rasterLayer.updateStyleVariables({ lo: rawLo, hi: rawHi });
+  if (!rgbMode) { rasterLayer.updateStyleVariables({ lo: rawLo, hi: rawHi }); if (compareItem) compareLayer.updateStyleVariables({ lo: rawLo, hi: rawHi }); }
   if (changed && frames.length) resetAnimation('The color range changed; load the frames again to use it.');
   if (changed && saShown?.stack) drawStack();
 }
@@ -78,6 +84,7 @@ function setStretch(dlo, dhi) {
 function setColormap(name) {
   if (frames.length) resetAnimation('The color map changed; load the frames again to use it.');
   rasterLayer.setStyle(rasterStyle(cmaps[name], rawLo, rawHi));
+  syncCompareStyle();
   $('bar').style.background = `linear-gradient(90deg, ${cmaps[name].join(', ')})`;
   if (saShown?.stack) drawStack();
 }

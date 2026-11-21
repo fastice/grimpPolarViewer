@@ -32,12 +32,17 @@ const tips = {
   coastOn: 'Coastline overlay',
   footOn: 'Outlines of the items in the time range; click one to show it',
   arrowsOn: 'Flow direction of the shown velocity product (its vx and vy), averaged over each arrow\'s cell; longer arrows are faster (log scale up to the fastest 5% in view); none below 5 m/yr',
+  frontsOn: 'Winter ice-front positions of Greenland outlet glaciers, 1972-73 to 2020-21 (NSIDC-0642 v2), colored by year; point at a front for its date',
   namesOn: 'Greenland glacier names (Bjørk et al. 2015): outlet glaciers at any zoom, local glaciers and ice caps when zoomed in; Greenland only',
   cmap: 'Color map for single-band images',
   clip: 'Percent of pixels saturated at each end of the color range (only the top for speeds; symmetric for vx/vy)',
   smin: 'Lowest value of the color range (type to override the clip)',
   smax: 'Highest value of the color range (type to override the clip)',
-  saOn: 'Show the displayed date minus the per-pixel mean of all dates in its time series',
+  saOn: 'Show the displayed date minus the per-pixel mean of all dates in its time series, or minus one date (Minus)',
+  saRef: 'What the anomaly subtracts: the per-pixel mean of the dates in the time range, or one of those dates (a two-date difference)',
+  swOn: 'Split the map: the chosen date left of a line you can drag, the displayed date right of it, with the same colors',
+  swRef: 'Date shown left of the swipe line',
+  swHandle: 'Drag (or use the arrow keys) to move the swipe line',
   stOn: 'Show the per-pixel mean (stack) of all dates in the time range, with the normal color controls',
   saRes: 'Grid spacing for the anomaly; draw a crop box to get finer levels',
   saRange: 'Color range of the anomaly, ± this value; blank or Auto uses a 1% clip',
@@ -193,8 +198,8 @@ async function readoutValue(coord) {
       const j = fy * c.W + fx, m = c.mean[j];
       return Number.isNaN(m) ? 'no data' : `<b>${esc(c.key)} mean</b> ${fmtVal(m * c.scale + c.offset)} ${esc(c.unit)} (${c.cnt[j]} of ${c.values.size} dates)`;
     }
-    const d = saShown.d[fy * c.W + fx];
-    return Number.isNaN(d) ? 'no data' : `<b>${esc(c.key)} minus mean</b> ${fmtVal(d * c.scale)} ${esc(c.unit)} (${fmtDate(selected.start)})`;
+    const d = saShown.d[fy * c.W + fx], ref = [...c.values.keys()].find(it => it.id === $('saRef').value);
+    return Number.isNaN(d) ? 'no data' : `<b>${esc(c.key)} minus ${ref ? fmtDate(ref.start) : 'mean'}</b> ${fmtVal(d * c.scale)} ${esc(c.unit)} (${fmtDate(selected.start)})`;
   }
   if (frames.length && animGrid && frames[animIdx]?.values) {
     const g = animGrid, fx = Math.floor((coord[0] - g.ext[0]) / g.res), fy = Math.floor((g.ext[3] - coord[1]) / g.res);
@@ -217,7 +222,7 @@ async function readoutValue(coord) {
   return `<b>${esc(key)}</b> ${fmtVal(v * (b.scale ?? 1) + (b.offset ?? 0))} ${esc(b.unit || '')}`;
 }
 function updateReadout(e) {
-  const ro = $('readout'), coords = readoutCoords(e.coordinate);
+  const ro = $('readout'), front = frontNote(e.pixel), coords = readoutCoords(e.coordinate) + (front ? `<br>${front}` : '');
   ro.hidden = false;
   ro.innerHTML = `${coords}<br><span class="note" style="color:inherit">reading value...</span>`;
   clearTimeout(readoutTimer);

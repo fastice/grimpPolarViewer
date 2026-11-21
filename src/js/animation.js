@@ -63,6 +63,7 @@ function animSeries() {
 function refreshAnimInfo() {
   refreshAreaRows();
   refreshStaticAnom();
+  refreshCompare();
   refreshTs();
   if (animBuilding) return;
   const series = timeSeries();

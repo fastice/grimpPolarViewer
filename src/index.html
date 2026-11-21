@@ -43,7 +43,12 @@
       <label><input id="coastOn" type="checkbox" checked> Coastlines</label>
       <label><input id="footOn" type="checkbox" checked> Footprints</label>
       <label><input id="namesOn" type="checkbox"> Glacier names</label>
+      <label><input id="frontsOn" type="checkbox"> Glacier fronts</label>
       <label><input id="arrowsOn" type="checkbox"> Flow arrows</label>
+    </div>
+    <div id="frontsLegend" hidden>
+      <div id="frontsBar" style="height:8px;border-radius:2px;border:1px solid var(--line)"></div>
+      <div class="ends"><span id="frontsMin"></span><span class="note">winter fronts</span><span id="frontsMax"></span></div>
     </div>
     <div class="row"><label class="lab" for="bgColl" style="margin:0;flex:none">Background</label><select id="bgColl"></select></div>
     <div class="row" id="bgItemRow" hidden><label class="lab" for="bgItem" style="margin:0;flex:none">Image</label><select id="bgItem"></select></div>
@@ -76,9 +81,12 @@
         <button id="saDrawBox" type="button">Draw box</button>
         <button id="saWhole" type="button" class="link" hidden>Whole image</button>
       </div>
-      <label class="optrow"><input id="saOn" type="checkbox"> Show as anomaly: minus the mean of <span id="saCount"></span></label>
+      <label class="optrow"><input id="saOn" type="checkbox"> Show as anomaly: the difference from the mean or a date</label>
       <label class="optrow"><input id="stOn" type="checkbox"> Show stack: mean of <span id="stCount"></span></label>
+      <label class="optrow"><input id="swOn" type="checkbox"> Swipe: compare with another date</label>
+      <div class="ctl block-inner" id="swRow" hidden><label for="swRef">Left of the line</label><select id="swRef"></select></div>
       <div id="saOpts" class="block-inner" hidden>
+        <div class="ctl"><label for="saRef">Minus</label><select id="saRef"></select></div>
         <div class="ctl"><label for="saRes">Resolution</label><select id="saRes"></select></div>
         <div class="row" id="saRangeRow">
           <label for="saRange" class="note" style="flex:none">Range &plusmn;</label>
@@ -238,6 +246,8 @@
   <button id="panelToggle" type="button" aria-controls="panel" aria-expanded="true">&lsaquo; Hide controls</button>
   <div id="readout" class="readout" hidden></div>
   <div id="mapfoot"><span id="pixRes" hidden></span></div>
+  <div id="swipe" hidden><div class="swline"></div><span id="swLeft" class="swlab"></span><span id="swRight" class="swlab"></span>
+    <div id="swHandle" tabindex="0" role="slider" aria-label="Swipe line position">&#x2194;</div></div>
   <div id="tsPlot" class="tsplot" hidden>
     <button id="tsHide" type="button" class="link tsclose" title="Hide the plot (Show plot brings it back)">&times;</button>
     <div id="tsDrag" class="tsdrag" title="Drag to move the plot (resize it by its bottom-right corner); double-click to put it back">&#x2725;</div>
@@ -275,6 +285,7 @@
 <!-- @include js/core.js -->
 <!-- @include js/catalog.js -->
 <!-- @include js/display.js -->
+<!-- @include js/compare.js -->
 <!-- @include js/download.js -->
 <!-- @include js/animation.js -->
 <!-- @include js/staticAnomaly.js -->
@@ -283,6 +294,7 @@
 <!-- @include js/profile.js -->
 <!-- @include js/profilePlot.js -->
 <!-- @include js/names.js -->
+<!-- @include js/fronts.js -->
 <!-- @include js/arrows.js -->
 <!-- @include js/ui.js -->
 </script>

@@ -61,7 +61,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .seg button[aria-pressed="true"] { background: var(--accent); color: var(--panel); border-color: var(--accent); }
 #legend[hidden] { display: none; }
 #bar { height: 10px; border-radius: 2px; background: linear-gradient(90deg, #000, #fff); border: 1px solid var(--line); }
-#legend .ends { display: flex; justify-content: space-between; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+#frontsLegend .ends { white-space: nowrap; }
+#legend .ends, #saLegend .ends, #frontsLegend .ends { display: flex; justify-content: space-between; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 #legend .stretch { display: flex; gap: 8px; }
 #legend .stretch label { flex: 1; display: flex; align-items: center; gap: 4px; color: var(--muted); min-width: 0; }
 #legend .stretch input { flex: 1; width: 0; min-width: 0; font-family: var(--font-mono); font-size: 12px; }
@@ -184,3 +185,11 @@ body.nopanel #panel { display: none; }
   .tick { height: 20px; margin-top: -10px; }
   .thumb { left: -3.5px; width: 22px; height: 22px; margin-top: -11px; }
 }
+#swipe { position: absolute; top: 0; bottom: 0; width: 0; pointer-events: none; z-index: 2; }
+#swipe .swline { position: absolute; top: 0; bottom: 0; left: -1px; width: 2px; background: #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55); }
+#swHandle { position: absolute; top: 50%; left: -17px; width: 34px; height: 34px; margin-top: -17px; border-radius: 50%; pointer-events: auto;
+  display: flex; align-items: center; justify-content: center; background: var(--panel); color: var(--fg); border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5); cursor: ew-resize; touch-action: none; font-size: 18px; user-select: none; }
+#swipe .swlab { position: absolute; top: 8px; padding: 2px 6px; border-radius: 3px; background: rgba(12, 16, 20, 0.75); color: #fff;
+  font: 12px var(--font-mono); white-space: nowrap; }
+#swLeft { right: 8px; } #swRight { left: 8px; }

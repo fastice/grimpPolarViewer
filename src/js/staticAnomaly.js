@@ -8,6 +8,7 @@ let saCache = null, saShown = null, saToken = 0, saBusy = false, saTyped = false
 function applyLayers() {
   const anim = frames.length > 0, sa = !anim && !!saShown;
   animLayer.setVisible(anim); staticLayer.setVisible(sa); rasterLayer.setVisible(!anim && !sa);
+  swipeShow();
 }
 
 // Pixel size of what the map draws: the COG level OpenLayers picks for this zoom (full image or an
@@ -42,7 +43,10 @@ function refreshStaticAnom() {
   const series = timeSeries(), ok = !!selected && series.length >= 2 && !rgbMode;
   $('saBlock').hidden = !ok;
   if (!ok) { if (saShown) clearStaticAnom(); return; }
-  $('saCount').textContent = $('stCount').textContent = `${series.length} dates`;
+  $('stCount').textContent = `${series.length} dates`;
+  const ref = $('saRef'), prevRef = ref.value;  // what the anomaly subtracts: the series mean or one date
+  ref.replaceChildren(new Option(`the mean of ${series.length} dates`, ''), ...series.map(it => new Option(itemDates(it), it.id)));
+  ref.value = series.some(it => it.id === prevRef) ? prevRef : '';
   $('saSecCount').textContent = `(${series.length} dates)`;
   const pos = series.indexOf(selected);
   $('saPrev').disabled = pos <= 0; $('saNext').disabled = pos < 0 || pos >= series.length - 1;
@@ -68,7 +72,7 @@ function saKeys() {
   const key = $('asset').value, series = timeSeries(), ext = animExtent(), lvl = levels?.[+$('saRes').value];
   if (!lvl || !selected) return null;
   const base = [key, ext.map(Math.round).join(','), lvl.res.toFixed(3), series.map(s => s.id).join(';')].join('|');
-  return { key, series, ext, res: lvl.res, base, full: base + '|' + ($('stOn').checked ? 'stack' : selected.id) };
+  return { key, series, ext, res: lvl.res, base, full: base + '|' + ($('stOn').checked ? 'stack' : `${selected.id}|${$('saRef').value}`) };
 }
 
 async function showStaticAnom() {
@@ -112,11 +116,11 @@ function saRange() {
 }
 
 function drawStaticAnom(full = saShown?.full) {
-  const c = saCache, v = c.values.get(selected);
+  const c = saCache, v = c.values.get(selected), refItem = [...c.values.keys()].find(it => it.id === $('saRef').value);
   if (!v) return;
-  const n = c.W * c.H, d = new Float32Array(n);
-  for (let j = 0; j < n; j++) d[j] = v[j] - c.mean[j];
-  const L = saRange(), stops = cmaps['blue-white-red'];
+  const n = c.W * c.H, d = new Float32Array(n), base = refItem ? c.values.get(refItem) : c.mean;
+  for (let j = 0; j < n; j++) d[j] = v[j] - base[j];
+  const L = refItem ? diffRange(d) : saRange(), stops = cmaps['blue-white-red'];
   const canvas = frameCanvas({ values: d }, c.W, c.H, buildLut(stops), -L, L, '');
   staticLayer.setSource(new ol.source.ImageStatic({ url: canvas.toDataURL('image/png'), imageExtent: c.ext, projection: viewCode }));
   saShown = { full, d, L };
@@ -128,8 +132,19 @@ function drawStaticAnom(full = saShown?.full) {
   $('saLegend').hidden = false;
   $('saBar').style.background = `linear-gradient(90deg, ${stops.join(', ')})`;
   $('saMin').textContent = -Ld; $('saMax').textContent = `${Ld} ${c.unit}`.trim();
-  $('saNote').textContent = `${fmtDate(selected.start)} minus the mean of ${c.values.size} dates; ${c.W} x ${c.H} px at `
-    + `${+c.res.toPrecision(4)} m; ±${Ld} ${c.unit} ${saTyped ? '(typed)' : '(auto, 1% clip)'}. Blue below the mean, red above.`;
+  $('saNote').textContent = `${fmtDate(selected.start)} minus ${refItem ? fmtDate(refItem.start) : `the mean of ${c.values.size} dates`}; `
+    + `${c.W} x ${c.H} px at ${+c.res.toPrecision(4)} m; ±${Ld} ${c.unit} ${saTyped ? '(typed)' : '(auto, 1% clip)'}. `
+    + `Blue below ${refItem ? 'that date' : 'the mean'}, red above.`;
+}
+
+// Automatic ± range of a difference from one date: the typed value, or the larger 1% tail of this difference.
+function diffRange(d) {
+  const typed = +$('saRange').value;
+  if (saTyped && typed > 0) return typed / saCache.scale;
+  const step = Math.max(1, Math.floor(d.length / 1e6)), picks = [];
+  for (let j = 0; j < d.length; j += step) if (!Number.isNaN(d[j])) picks.push(d[j]);
+  const s = Float32Array.from(picks).sort(), at = q => s[Math.min(s.length - 1, Math.max(0, Math.round(q * (s.length - 1))))] ?? 0;
+  return Math.max(Math.abs(at(0.01)), Math.abs(at(0.99))) || 1;
 }
 
 function drawStack(full = saShown?.full) {
@@ -159,6 +174,7 @@ $('saOn').onchange = $('stOn').onchange = e => {
   if (saActive()) { saShown = null; refreshStaticAnom(); } else clearStaticAnom();
 };
 $('saRes').onchange = () => { if (saActive()) showStaticAnom(); };
+$('saRef').onchange = () => { if ($('saOn').checked) showStaticAnom(); };
 $('saRange').onchange = () => { saTyped = +$('saRange').value > 0; if (saShown) drawStaticAnom(); };
 function saStep(dir) {
   const series = timeSeries(), i = series.indexOf(selected), j = i + dir;

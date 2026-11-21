@@ -116,6 +116,10 @@ Tick **Flow arrows** on a velocity product to see which way the ice moves: each 
 averaged over its patch of the screen, and longer arrows are faster. They are redrawn as you pan and
 zoom, and left out where ice moves slower than 5 m/yr (and on rock).
 
+Tick **Glacier fronts** (Greenland only) to draw the winter ice-front positions of up to 239 outlet
+glaciers from 1972-73 to 2020-21, colored from blue (oldest) to red (newest), so a retreat reads as a
+sweep of color up the fjord. Point at a front to see its date in the readout.
+
 Tick **Glacier names** (Greenland only) to label the glaciers with their official names, followed by a
 different foreign name in parentheses, e.g. *Sermeq Kujalleq (Jakobshavn Isbræ)*. Zoomed all the way out
 only the major glaciers are named; zoom in for every outlet glacier, then local glaciers and ice caps.
@@ -197,6 +201,11 @@ from the average of all dates: blue where the ice was slower than usual, red whe
 Step through the years with **Earlier** and **Later**, or by clicking the ticks on the timeline.
 **Show stack** instead averages every date in the time range into one image. Both cover the whole
 image, or a box you draw with **Draw box** in that section for full resolution.
+
+To compare two dates directly, pick one under **Minus**: the anomaly then shows the displayed date
+minus that date, e.g. 2024-25 minus 2014-15. Or tick **Swipe: compare with another date** to split
+the map: the date you pick shows left of a line and the displayed date right of it, in the same
+colors. Drag the round handle (or use the arrow keys) to slide the line across a glacier.
 
 ![Speed in 2024-25 minus the mean of all 11 years (2014-15 to 2024-25): outlet glaciers faster (red) or slower (blue) than usual](Documents/images/anomaly.jpg)
 
@@ -309,5 +318,7 @@ workflow, using one or more of the following:
 - Copernicus Sentinel-1 data processed by ESA, archived at the ASF DAAC
 - TerraSAR-X/TanDEM-X data processed and archived by DLR
 - Landsat 8/9 data processed and archived by USGS
+
+Glacier fronts: NSIDC-0642 v2, MEaSUREs Annual Greenland Outlet Glacier Terminus Positions from SAR Mosaics, <https://doi.org/10.5067/ESFWE11AVFKW>.
 
 Glacier names: Bjørk, A. A., et al. (2015), Brief communication: Getting Greenland's glaciers right, a new data set of all official Greenlandic glacier names, *The Cryosphere*, 9, 2215-2218, <https://doi.org/10.5194/tc-9-2215-2015>.
