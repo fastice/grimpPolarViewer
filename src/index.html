@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GrIMP Polar Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@10.11.0/ol.css">
+<style>
+<!-- @include viewer.css -->
+</style>
+</head>
+<body>
+<aside id="panel">
+  <header>
+    <h1 id="title">GrIMP Polar Map<small>stac-geoparquet catalogs in polar stereographic · build dev</small></h1>
+    <div class="seg" role="group" aria-label="Hemisphere">
+      <button id="hemN" type="button" aria-pressed="true">Northern</button>
+      <button id="hemS" type="button" aria-pressed="false">Southern</button>
+    </div>
+    <div class="collections">
+      <label class="lab" for="preset">Collections: choose a data set</label>
+      <select id="preset"></select>
+    </div>
+    <div>
+      <label class="lab" for="href">Catalog URL (.parquet)</label>
+      <div class="row"><input id="href" type="text" spellcheck="false"><button id="load" type="button">Load</button></div>
+    </div>
+    <div class="row"><button id="share" type="button">Share this view</button><button id="shareQr" type="button" class="link">QR code</button><span id="shareNote" class="note"></span></div>
+    <div id="status" role="status"></div>
+    <div id="maintNow" class="maint now" role="alert" hidden></div>
+    <p class="maint">Data are served from UW Kopah storage, which is offline for scheduled maintenance on the
+      second Tuesday of each month, 9 a.m.&ndash;5 p.m. Pacific. In January, April, July and October the window
+      runs 24 hours, to 9 a.m. the next day.</p>
+  </header>
+  <section class="block">
+    <div class="row"><label class="lab" for="asset" style="margin:0;flex:none">Asset</label><select id="asset"></select></div>
+    <div class="row"><label class="lab" for="opacity" style="margin:0;flex:none">Opacity</label><input id="opacity" type="range" min="0" max="1" step="0.05" value="1"></div>
+    <div class="toggles">
+      <label><input id="baseOn" type="checkbox" checked> Blue Marble</label>
+      <label><input id="coastOn" type="checkbox" checked> Coastlines</label>
+      <label><input id="footOn" type="checkbox" checked> Footprints</label>
+    </div>
+    <div class="row"><label class="lab" for="bgColl" style="margin:0;flex:none">Background</label><select id="bgColl"></select></div>
+    <div class="row" id="bgItemRow" hidden><label class="lab" for="bgItem" style="margin:0;flex:none">Image</label><select id="bgItem"></select></div>
+    <div id="bgNote" class="note" hidden></div>
+  </section>
+  <details id="legend" class="block" open hidden>
+    <summary>Color bar</summary>
+    <div class="block-inner">
+    <div class="name" id="lname"></div>
+    <div id="rgbNote" class="note" hidden>RGB image, shown as stored.</div>
+    <div id="stretchCtl" class="block-inner">
+    <div id="bar"></div>
+    <div class="ends"><span id="lmin"></span><span id="lunit"></span><span id="lmax"></span></div>
+    <div class="ctl"><label for="cmap">Color map</label><select id="cmap"></select></div>
+    <div class="ctl"><label for="clip">Clip <span id="clipv">1%</span> <span id="clipwhere">each end</span></label>
+      <input id="clip" type="range" min="0" max="10" step="0.1" value="1"></div>
+    <div class="stretch">
+      <label>Min <input id="smin" type="number" step="any"></label>
+      <label>Max <input id="smax" type="number" step="any"></label>
+    </div>
+    <div id="clipnote" class="note"></div>
+    </div>
+    </div>
+  </details>
+  <details id="saBlock" class="block" hidden>
+    <summary>Anomaly and stack <span id="saSecCount"></span></summary>
+    <div class="block-inner">
+      <div class="row" id="saAreaRow">
+        <span class="note" style="flex:none">Area:</span><b id="saArea" class="note" style="flex:1"></b>
+        <button id="saDrawBox" type="button">Draw box</button>
+        <button id="saWhole" type="button" class="link" hidden>Whole image</button>
+      </div>
+      <label class="optrow"><input id="saOn" type="checkbox"> Show as anomaly: minus the mean of <span id="saCount"></span></label>
+      <label class="optrow"><input id="stOn" type="checkbox"> Show stack: mean of <span id="stCount"></span></label>
+      <div id="saOpts" class="block-inner" hidden>
+        <div class="ctl"><label for="saRes">Resolution</label><select id="saRes"></select></div>
+        <div class="row" id="saRangeRow">
+          <label for="saRange" class="note" style="flex:none">Range &plusmn;</label>
+          <input id="saRange" type="number" min="0" step="any" placeholder="auto" style="width:7em">
+          <span id="saUnit" class="note"></span>
+          <button id="saAuto" type="button" class="link">Auto</button>
+        </div>
+        <div class="row" id="saStepRow">
+          <button id="saPrev" type="button">&#9664; Earlier</button>
+          <button id="saNext" type="button">Later &#9654;</button>
+          <span id="saPos" class="note"></span>
+        </div>
+        <div id="saLegend" hidden>
+          <div id="saBar" style="height:10px;border-radius:2px;border:1px solid var(--line)"></div>
+          <div class="ends"><span id="saMin"></span><span>0</span><span id="saMax"></span></div>
+        </div>
+        <div id="saNote" class="note"></div>
+      </div>
+    </div>
+  </details>
+  <details id="animSec" class="block" hidden>
+    <summary>Animate time series <span id="animCount"></span></summary>
+    <div class="block-inner">
+      <div id="animInfo" class="note"></div>
+      <div class="row" id="animAreaRow">
+        <span class="note" style="flex:none">Area:</span><b id="animArea" class="note" style="flex:1"></b>
+        <button id="animDrawBox" type="button">Draw box</button>
+        <button id="animWhole" type="button" class="link" hidden>Whole image</button>
+      </div>
+      <div class="row" id="animStepRow">
+        <label for="animStep" class="note" style="flex:none">At least</label>
+        <input id="animStep" type="number" min="0" step="1" placeholder="any" style="width:5em">
+        <span class="note">days between frames</span>
+      </div>
+      <div class="ctl"><label for="animRes">Frame resolution</label><select id="animRes"></select></div>
+      <label class="optrow" id="animAnomRow"><input id="animAnom" type="checkbox"> Anomaly: difference from the mean of the frames</label>
+      <div class="row" id="animRangeRow" hidden>
+        <label for="animRange" class="note" style="flex:none">Anomaly range &plusmn;</label>
+        <input id="animRange" type="number" min="0" step="any" placeholder="auto" style="width:7em">
+        <span id="animRangeUnit" class="note"></span>
+        <button id="animRangeAuto" type="button" class="link">Auto</button>
+      </div>
+      <label class="optrow" id="animBarRow"><input id="animBar" type="checkbox"> Color bar on the frames</label>
+      <div class="row">
+        <label for="animFps" class="note" style="flex:none">Speed</label>
+        <select id="animFps"><option value="1">1 frame/s</option><option value="2" selected>2 frames/s</option>
+          <option value="4">4 frames/s</option><option value="8">8 frames/s</option></select>
+        <label class="optrow"><input id="animLoop" type="checkbox" checked> Loop</label>
+      </div>
+      <div class="row">
+        <button id="animBuild" type="button">Load frames</button>
+        <button id="animPlay" type="button" disabled>Play</button>
+        <button id="animClose" type="button" class="link" hidden>Close animation</button>
+      </div>
+      <input id="animPos" type="range" min="0" max="0" value="0" aria-label="Animation frame" hidden>
+      <button id="animExport" type="button" disabled>Save movie (MP4, opens in QuickTime)</button>
+      <div class="row"><button id="animShare" type="button">Share this animation</button><button id="animShareQr" type="button" class="link">QR code</button></div>
+      <div id="animNote" class="note"></div>
+    </div>
+  </details>
+  <details id="tsSec" class="block" hidden>
+    <summary>Time series at points <span id="tsCount"></span></summary>
+    <div class="block-inner">
+      <div class="row">
+        <button id="tsAdd" type="button">Add points</button>
+        <button id="tsLoad" type="button" class="link">Load points</button>
+        <button id="tsShow" type="button" class="link" hidden>Show plot</button>
+        <button id="tsClear" type="button" class="link" hidden>Clear points</button>
+        <input id="tsFile" type="file" accept=".csv,.txt,.tsv,text/csv,text/plain" hidden>
+      </div>
+      <div id="tsLoadNote" class="note"></div>
+      <label class="optrow"><input id="tsRange" type="checkbox" checked> Only dates in the time range</label>
+      <label class="optrow" id="tsErrRow"><input id="tsErr" type="checkbox"> Error bars (from ex/ey; slower)</label>
+      <div class="optrow" id="tsItsRow"><label class="optrow"><input id="tsIts" type="checkbox"> ITS_LIVE in grey,</label>
+        <label class="optrow">pairs up to <select id="tsItsDt"><option value="100000">any</option><option value="120">120 d</option>
+        <option value="30">30 d</option><option value="12" selected>12 d</option></select></label></div>
+      <div id="tsItsNote" class="note"></div>
+      <div id="tsYRow" class="block-inner" hidden>
+        <label class="optrow"><input id="tsXBar" type="checkbox" checked> Plot x axis follows the time-bar range</label>
+        <label class="optrow"><span style="white-space:nowrap">Plot style</span> <select id="tsStyle"><option value="both" selected>lines and points</option>
+          <option value="points">points only</option><option value="lines">lines only</option></select></label>
+        <div class="ctl"><span>Plot y range <b id="tsYMinV"></b> to <b id="tsYMaxV"></b> <button id="tsYAuto" type="button" class="link">Auto</button></span>
+          <div id="tsYTrack" class="yslider"><div id="tsYBand" class="yband" tabindex="0" role="group" aria-label="Plot y range"></div>
+            <div id="tsYLo" class="ythumb" tabindex="0" role="slider" aria-label="Bottom of the plot y axis"></div>
+            <div id="tsYHi" class="ythumb" tabindex="0" role="slider" aria-label="Top of the plot y axis"></div></div></div>
+      </div>
+      <div class="row">
+        <button id="tsCsv" type="button" disabled>Save CSV</button>
+        <button id="tsPng" type="button" disabled>Save plot (PNG)</button>
+      </div>
+      <progress id="tsProg" max="1" value="0" hidden></progress>
+      <div id="tsNote" class="note"></div>
+    </div>
+  </details>
+  <details id="pfSec" class="block" hidden>
+    <summary>Profile along a line <span id="pfCount"></span></summary>
+    <div class="block-inner">
+      <div class="row">
+        <button id="pfDraw" type="button">Draw line</button>
+        <button id="pfFlow" type="button">Flow line</button>
+        <button id="pfAccept" type="button" hidden>Use this line</button>
+        <div class="links"><button id="pfShow" type="button" class="link" hidden>Show plot</button>
+          <button id="pfClear" type="button" class="link" hidden>Clear line</button></div>
+      </div>
+      <div id="pfFlowRow" hidden>
+        <div class="dual"><div class="track"></div><div class="fill" id="pfFill"></div><div class="zero" id="pfZero"></div>
+          <input id="pfLo" type="range" aria-label="Length upstream of the point (km)">
+          <input id="pfHi" type="range" aria-label="Length downstream of the point (km)"></div>
+        <div id="pfFlowText" class="note"></div>
+      </div>
+      <div class="optrow" id="pfItsRow"><label class="optrow"><input id="pfIts" type="checkbox"> ITS_LIVE in grey,</label>
+        <label class="optrow">pairs up to <select id="pfItsDt"><option value="100000">any</option><option value="120">120 d</option>
+        <option value="30">30 d</option><option value="12" selected>12 d</option></select></label></div>
+      <div id="pfItsNote" class="note"></div>
+      <div id="pfAxRow" class="block-inner" hidden>
+        <div class="ctl"><span>Plot x range <b id="pfXMinV"></b> to <b id="pfXMaxV"></b> km <button id="pfXAuto" type="button" class="link">Auto</button></span>
+          <div id="pfXTrack" class="yslider"><div id="pfXBand" class="yband" tabindex="0" role="group" aria-label="Plot x range"></div>
+            <div id="pfXLo" class="ythumb" tabindex="0" role="slider" aria-label="Left end of the plot x axis"></div>
+            <div id="pfXHi" class="ythumb" tabindex="0" role="slider" aria-label="Right end of the plot x axis"></div></div></div>
+        <div class="ctl"><span>Plot y range <b id="pfYMinV"></b> to <b id="pfYMaxV"></b> <button id="pfYAuto" type="button" class="link">Auto</button></span>
+          <div id="pfYTrack" class="yslider"><div id="pfYBand" class="yband" tabindex="0" role="group" aria-label="Plot y range"></div>
+            <div id="pfYLo" class="ythumb" tabindex="0" role="slider" aria-label="Bottom of the plot y axis"></div>
+            <div id="pfYHi" class="ythumb" tabindex="0" role="slider" aria-label="Top of the plot y axis"></div></div></div>
+      </div>
+      <div class="row">
+        <button id="pfCsv" type="button" disabled>Save CSV</button>
+        <button id="pfPng" type="button" disabled>Save plot (PNG)</button>
+      </div>
+      <progress id="pfProg" max="1" value="0" hidden></progress>
+      <div id="pfNote" class="note"></div>
+    </div>
+  </details>
+  <details id="cropSec" class="block" hidden>
+    <summary id="dlTitle">Download</summary>
+    <div class="block-inner">
+      <div id="pickBlock" class="pickblock" hidden>
+        <label class="allbox" hidden><input id="pickAllSites" type="checkbox"> Select all sites in the time range</label>
+        <div class="note">One site box per download file: the displayed site's dates in the time range, or dates you tick in the list below or Shift-click on the map. <b id="pickCount"></b></div>
+      </div>
+      <div class="ctl"><span>Assets (one file each)</span>
+        <div class="checks"><label class="allbox"><input id="assetsAll" type="checkbox"> All</label><span id="cropAssets" class="checks"></span></div></div>
+      <label class="optrow" id="cropRow"><input id="cropOn" type="checkbox"> Crop to a box</label>
+      <div id="cropOpts" class="block-inner" hidden>
+        <div class="row"><button id="drawBox" type="button">Draw box</button><button id="clearBox" type="button" class="link" hidden>Clear</button><span id="boxInfo" class="note"></span></div>
+        <div class="ctl"><label for="cropRes">Resolution</label><select id="cropRes" disabled></select></div>
+      </div>
+      <button id="dlImage" type="button">Download this product's assets</button>
+      <button id="dlSel" type="button">Download selection</button>
+      <div id="cropNote" class="note"></div>
+    </div>
+  </details>
+  <div class="row countrow"><label class="allbox"><input id="pickAll" type="checkbox" aria-label="Pick every item in the time range"> <span id="count"></span></label><button id="clearPicks" type="button" class="link" hidden>Clear picks</button></div>
+  <ul id="items"></ul>
+</aside>
+<div id="mapwrap">
+  <div id="map"></div>
+  <button id="panelToggle" type="button" aria-controls="panel" aria-expanded="true">&lsaquo; Hide controls</button>
+  <div id="readout" class="readout" hidden></div>
+  <div id="mapfoot"><span id="pixRes" hidden></span></div>
+  <div id="tsPlot" class="tsplot" hidden>
+    <button id="tsHide" type="button" class="link tsclose" title="Hide the plot (Show plot brings it back)">&times;</button>
+    <div id="tsDrag" class="tsdrag" title="Drag to move the plot (resize it by its bottom-right corner); double-click to put it back">&#x2725;</div>
+    <div id="tsSize" class="tssize" title="Drag to resize the plot; double-click the move grip to put it back"></div>
+    <canvas id="tsCanvas"></canvas>
+  </div>
+  <div id="pfPlot" class="tsplot" hidden>
+    <button id="pfHide" type="button" class="link tsclose" title="Hide the plot (Show plot brings it back)">&times;</button>
+    <div id="pfDrag" class="tsdrag" title="Drag to move the plot (resize it by its bottom-right corner); double-click to put it back">&#x2725;</div>
+    <div id="pfSize" class="tssize" title="Drag to resize the plot; double-click the move grip to put it back"></div>
+    <canvas id="pfCanvas"></canvas>
+  </div>
+  <div id="timebar" hidden>
+    <div id="ttrack">
+      <div id="trange"></div>
+      <div id="tticks"></div>
+      <div class="thumb" id="th0" role="slider" tabindex="0" aria-label="Start of time range"><span></span></div>
+      <div class="thumb" id="th1" role="slider" tabindex="0" aria-label="End of time range"><span></span></div>
+    </div>
+    <button id="treset" type="button">Reset</button>
+  </div>
+</div>
+
+<dialog id="qrDlg" aria-label="QR code of the shared link">
+  <canvas id="qrCanvas" width="10" height="10"></canvas>
+  <div id="qrNote" class="note"></div>
+  <div class="row"><button id="qrSave" type="button">Save image</button><button id="qrClose" type="button">Close</button></div>
+</dialog>
+<script src="https://cdn.jsdelivr.net/npm/proj4@2.22.0/dist/proj4.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/geotiff@3.1.0-beta.0/dist-browser/geotiff.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ol@10.11.0/dist/ol.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script type="module">
+<!-- @include js/core.js -->
+<!-- @include js/catalog.js -->
+<!-- @include js/display.js -->
+<!-- @include js/download.js -->
+<!-- @include js/animation.js -->
+<!-- @include js/staticAnomaly.js -->
+<!-- @include js/timeSeries.js -->
+<!-- @include js/timeSeriesPlot.js -->
+<!-- @include js/profile.js -->
+<!-- @include js/profilePlot.js -->
+<!-- @include js/ui.js -->
+</script>
+</body>
+</html>

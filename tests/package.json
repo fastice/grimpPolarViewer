@@ -1,0 +1,9 @@
+{
+  "name": "grimp-polar-viewer-tests",
+  "private": true,
+  "type": "module",
+  "description": "Headless browser tests of the GrIMP Polar Viewer (run.sh)",
+  "dependencies": {
+    "puppeteer-core": "^24.43.1"
+  }
+}

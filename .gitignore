@@ -2,3 +2,7 @@ node_modules/
 build/
 *.egg-info/
 __pycache__/
+dist/
+tests/node_modules/
+tests/serve/
+tests/out/

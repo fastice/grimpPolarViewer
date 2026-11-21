@@ -4,7 +4,8 @@ A browser viewer for GrIMP/NISAR ice products: cloud-optimized GeoTIFFs (COGs) d
 stac-geoparquet catalog, drawn in polar stereographic. Written 2026-11-18.
 
 - Live: <https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html>
-- Source: this repository (`index.html` is the whole app).
+- Source: this repository. The app is one page, `index.html`, assembled from `src/` by
+  `tools/buildViewer.sh`.
 
 This is the reference and maintainer guide. The illustrated tour for users is the
 [README](../README.md).
@@ -13,8 +14,12 @@ This is the reference and maintainer guide. The illustrated tour for users is th
 
 | Path | What it is |
 |---|---|
-| `index.html` | The whole viewer (HTML, CSS and JavaScript in one file). |
-| `tools/deployViewer.sh` | Stamps the build and uploads `index.html` to Kopah with s3cmd. |
+| `src/index.html` | The page: HTML, with `<!-- @include ... -->` lines where the CSS and JavaScript go. |
+| `src/viewer.css` | The styles. |
+| `src/js/*.js` | The script, in pieces by feature (`core`, `catalog`, `display`, `download`, `animation`, `staticAnomaly`, `timeSeries`, `timeSeriesPlot`, `profile`, `profilePlot`, `ui`). |
+| `tools/buildViewer.sh` | Assembles `src/` into one `dist/index.html` (untracked). |
+| `tools/deployViewer.sh` | Builds, stamps and uploads `index.html` to Kopah with s3cmd. |
+| `tests/` | Headless browser tests (`tests/run.sh`). |
 | `tools/makeBksParquet.py` | Catalog builder for the uncalibrated S1 backscatter mosaics (Greenland, Amundsen Sea; newest version per window). |
 | `tools/makeSingleCogParquet.py` | One-item catalog for a single COG (e.g. a display mosaic). |
 | `tools/makeVelocityParquet.py` | Catalog builder for velocity mosaics (NSIDC-0766 6/12-day, Amundsen Sea quarterly/annual, NSIDC-0481 TSX sites with `--pattern`), one item per window directory. |
@@ -38,7 +43,7 @@ both viewers.
 ### Opening a catalog
 
 - **Northern / Southern** buttons pick the hemisphere; **Collections** lists that hemisphere's
-  presets (the `presets` array near the top of the script). Switching hemisphere opens its first
+  presets (the `presets` array in `src/js/core.js`). Switching hemisphere opens its first
   collection.
 - **Catalog URL** loads any public `.parquet` catalog. The hemisphere follows the catalog's EPSG.
 - Link parameters: `?href=<catalog URL>` opens a catalog; `&asset=<name>` picks the first asset shown
@@ -453,7 +458,7 @@ on every host.
 - **Maintenance:** Kopah is offline the second Tuesday of each month, 9 a.m.-5 p.m. Pacific, and for
   24 hours (to 9 a.m. the next day) in January, April, July and October. The viewer shows these
   hours and warns during a window, but because the page itself is on Kopah, it cannot load at all
-  during an outage. Hosting `index.html` elsewhere (e.g. GitHub Pages from this repository) would
+  during an outage. Hosting the built `index.html` elsewhere (e.g. GitHub Pages) would
   let the warning reach visitors.
 - **No download logging.** Kopah refuses S3 bucket logging (`PutBucketLogging` returns 405), and
   UW-IT confirms it has none. Counting downloads would need a service in front of Kopah (e.g.
@@ -507,18 +512,37 @@ These are the viewer's own limits (`maxFramePixels`, `maxAnimPixels`), not the b
 
 ## Development
 
-Edit `index.html` and test it from a local web server (the data come from Kopah, whose CORS allows
-any origin):
+Edit the files in `src/`, build, and test the page from a local web server (the data come from Kopah,
+whose CORS allows any origin):
 
 ```bash
-python -m http.server 8000
+tools/buildViewer.sh
+cd dist && python -m http.server 8000
 ```
 
 Then open `http://localhost:8000/index.html?href=<catalog URL>`. Deploy with
 `tools/deployViewer.sh` once it works, and check the build stamp under the title.
 
 **Adding a collection to the menu:** append `[title, catalog URL, 'N' or 'S']` to the `presets`
-array near the top of the script, then deploy.
+array in `src/js/core.js`, then deploy.
+
+**Source layout:** the build only concatenates. Each `<!-- @include path -->` line of `src/index.html` is
+replaced by that file, so the `src/js/` pieces are still one module sharing one scope, in the order
+listed: a top-level name declared in one piece is visible in all of them, and must be unique across
+them. Split 2026-11-21 from the single `index.html` (the build reproduced it byte for byte).
+
+**Tests:** `tests/run.sh` builds the page with a test hook (it adds the profile and time-series state
+to `window.grimpViewer`), serves it on 127.0.0.1 and runs each `tests/*.test.mjs` in headless Chrome;
+`tests/run.sh flowLine.test.mjs` runs one. They read data from Kopah, install puppeteer-core into
+`tests/node_modules` on the first run, and take about a minute. Each check prints `ok` or `FAIL`; the
+script exits 1 if any failed, and screenshots go to `tests/out/`. Set `CHROME` to the Chrome binary
+on a Mac (default `/usr/bin/google-chrome`).
+
+| Test | Covers |
+|---|---|
+| `profileLine.test.mjs` | Drawn profile: curves, a second date, legend hide/show/remove, x/y ranges and Auto, ITS_LIVE annual mode |
+| `flowLine.test.mjs` | Flow line: trace, panel layout, nudge and re-trace, accept, trim; Pine Island on the Amundsen Sea annual |
+| `timeSeries.test.mjs` | Points: read, legend hide/remove, y range slider and Auto, catalog switch with per-catalog hide/remove |
 
 **Scripting hook:** the page sets `window.grimpViewer = { map }` (the OpenLayers map), for the
 screenshot script and for debugging in the browser console.
