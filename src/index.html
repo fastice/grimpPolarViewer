@@ -246,6 +246,8 @@
   <button id="panelToggle" type="button" aria-controls="panel" aria-expanded="true">&lsaquo; Hide controls</button>
   <div id="readout" class="readout" hidden></div>
   <div id="mapfoot"><span id="pixRes" hidden></span></div>
+  <div id="search" role="search"><input id="searchBox" type="search" placeholder="Search places" autocomplete="off" spellcheck="false" aria-label="Search places"><button id="searchClear" type="button" class="link" hidden aria-label="Clear the search">&times;</button>
+    <ul id="searchResults" hidden></ul></div>
   <div id="swipe" hidden><div class="swline"></div><span id="swLeft" class="swlab"></span><span id="swRight" class="swlab"></span>
     <div id="swHandle" tabindex="0" role="slider" aria-label="Swipe line position">&#x2194;</div></div>
   <div id="tsPlot" class="tsplot" hidden>
@@ -294,6 +296,7 @@
 <!-- @include js/profile.js -->
 <!-- @include js/profilePlot.js -->
 <!-- @include js/names.js -->
+<!-- @include js/search.js -->
 <!-- @include js/fronts.js -->
 <!-- @include js/arrows.js -->
 <!-- @include js/ui.js -->

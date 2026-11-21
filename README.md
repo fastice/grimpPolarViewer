@@ -77,6 +77,11 @@ so you can compare data sets at one glacier (the **⤢** button beside **+** and
 to the whole collection). Every product in the collection is outlined on the map, and listed
 under **Download** when that section is open; click either to show it.
 
+To find a glacier, type its name in **Search places** at the top right of the map and pick it from
+the list (or press Enter for the first). Old and foreign names work too: *Jakobshavn* finds
+Sermeq Kujalleq, and accents are optional (*isbrae* finds Isbræ). In Antarctica it searches glaciers, ice
+shelves, bays, stations, ranges and other large features from the SCAR Composite Gazetteer.
+
 Anyone can open their own data by pasting a catalog link into **Catalog URL** (see
 [Using your own data](#using-your-own-data)).
 
@@ -319,6 +324,20 @@ workflow, using one or more of the following:
 - TerraSAR-X/TanDEM-X data processed and archived by DLR
 - Landsat 8/9 data processed and archived by USGS
 
-Glacier fronts: NSIDC-0642 v2, MEaSUREs Annual Greenland Outlet Glacier Terminus Positions from SAR Mosaics, <https://doi.org/10.5067/ESFWE11AVFKW>.
+Other data shown in the viewer:
 
-Glacier names: Bjørk, A. A., et al. (2015), Brief communication: Getting Greenland's glaciers right, a new data set of all official Greenlandic glacier names, *The Cryosphere*, 9, 2215-2218, <https://doi.org/10.5194/tc-9-2215-2015>.
+- Glacier fronts: NSIDC-0642 v2, MEaSUREs Annual Greenland Outlet Glacier Terminus Positions from SAR
+  Mosaics, <https://doi.org/10.5067/ESFWE11AVFKW>.
+- Greenland glacier names: Bjørk, A. A., et al. (2015), Brief communication: Getting Greenland's glaciers
+  right, a new data set of all official Greenlandic glacier names, *The Cryosphere*, 9, 2215-2218,
+  <https://doi.org/10.5194/tc-9-2215-2015>.
+- Antarctic place names: Secretariat SCAR (1992, updated 2025), Composite Gazetteer of Antarctica,
+  Scientific Committee on Antarctic Research, <https://placenames.aq/>.
+- ITS_LIVE velocities (image-pair datacubes and annual mosaics, version 2) for comparison in the time
+  series and profile plots: provided by the NASA MEaSUREs ITS_LIVE project, <https://its-live.jpl.nasa.gov/>.
+- Basemap (Blue Marble shaded relief and bathymetry, coastlines): we acknowledge the use of imagery
+  provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science
+  Data and Information System (ESDIS).
+
+The viewer is built with the open-source libraries OpenLayers, geotiff.js, proj4js, hyparquet,
+zarrita, mp4-muxer and qrcode-generator.

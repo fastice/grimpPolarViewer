@@ -26,17 +26,21 @@ const namesLayer = new ol.layer.Vector({ source: namesSource, zIndex: 7, visible
 } });
 map.addLayer(namesLayer);
 
+// The names list, read once (shared with place search); a failed read is tried again next time.
+function loadGreenlandNames() {
+  namesLoading ||= fetch(namesUrl).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+    .then(d => (namesList = d.names), e => { namesLoading = null; throw e; });
+  return namesLoading;
+}
+
 async function refreshNames() {
   const here = viewCode === namesCode, on = $('namesOn').checked && here;
   $('namesOn').disabled = !here;
   namesLayer.setVisible(on);
   if (!on) return;
-  if (!namesList) {
-    namesLoading ||= fetch(namesUrl).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
-    try { namesList = (await namesLoading).names; } catch (e) {
-      namesLoading = null; $('namesOn').checked = false; namesLayer.setVisible(false);
-      setStatus(`Could not read the glacier names (${e.message})`); return;
-    }
+  try { await loadGreenlandNames(); } catch (e) {
+    $('namesOn').checked = false; namesLayer.setVisible(false);
+    setStatus(`Could not read the glacier names (${e.message})`); return;
   }
   if (namesSource.get('code') !== viewCode) {
     namesSource.clear(); namesSource.set('code', viewCode);

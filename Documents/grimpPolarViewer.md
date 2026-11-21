@@ -16,13 +16,14 @@ This is the reference and maintainer guide. The illustrated tour for users is th
 |---|---|
 | `src/index.html` | The page: HTML, with `<!-- @include ... -->` lines where the CSS and JavaScript go. |
 | `src/viewer.css` | The styles. |
-| `src/js/*.js` | The script, in pieces by feature (`core`, `catalog`, `display`, `download`, `animation`, `staticAnomaly`, `timeSeries`, `timeSeriesPlot`, `compare`, `profile`, `profilePlot`, `names`, `fronts`, `arrows`, `ui`). |
-| `src/data/` | Files the page reads at run time, deployed to `viewer/data/`: `greenlandGlacierNames.json`, `greenlandTermini.json`. |
+| `src/js/*.js` | The script, in pieces by feature (`core`, `catalog`, `display`, `download`, `animation`, `staticAnomaly`, `timeSeries`, `timeSeriesPlot`, `compare`, `profile`, `profilePlot`, `names`, `search`, `fronts`, `arrows`, `ui`). |
+| `src/data/` | Files the page reads at run time, deployed to `viewer/data/`: `greenlandGlacierNames.json`, `greenlandTermini.json`, `antarcticPlaceNames.json`. |
 | `tools/buildViewer.sh` | Assembles `src/` into one `dist/index.html` (untracked). |
 | `tools/deployViewer.sh` | Builds, stamps and uploads `index.html` to Kopah with s3cmd. |
 | `tests/` | Headless browser tests (`tests/run.sh`). |
 | `tools/makeBksParquet.py` | Catalog builder for the uncalibrated S1 backscatter mosaics (Greenland, Amundsen Sea; newest version per window). |
 | `tools/makeSingleCogParquet.py` | One-item catalog for a single COG (e.g. a display mosaic). |
+| `tools/makeAntarcticNames.py` | Writes `src/data/antarcticPlaceNames.json` from the SCAR Composite Gazetteer API (placenames.aq). |
 | `tools/makeTermini.py` | Writes `src/data/greenlandTermini.json` from the NSIDC-0642 v2 terminus shapefiles. |
 | `tools/makeGlacierNames.py` | Writes `src/data/greenlandGlacierNames.json` from the GGN v01 shapefile. |
 | `tools/makeVelocityParquet.py` | Catalog builder for velocity mosaics (NSIDC-0766 6/12-day, Amundsen Sea quarterly/annual, NSIDC-0481 TSX sites with `--pattern`), one item per window directory. |
@@ -491,6 +492,7 @@ Everything runs in the browser; there is no server-side code.
 | Basemap | NASA GIBS WMS (`BlueMarble_ShadedRelief_Bathymetry`, `Coastlines`) |
 | Flow arrows | The shown item's `vx`/`vy`, read with the animation's `readFrame` on a grid every 44 screen px (fixed in map coordinates) from the overview level nearest the grid spacing, after every move. Length 30-100% of 0.8 cell, log speed from 5 m/yr to the 95th percentile in view; none below 5 m/yr (rock noise near Jakobshavn is 1-4 m/yr). Vector layer, white on a dark outline. Directions are in the product grid, which is the map projection. |
 | Glacier fronts | NSIDC-0642 v2, MEaSUREs Annual Greenland Outlet Glacier Terminus Positions from SAR Mosaics, <https://doi.org/10.5067/ESFWE11AVFKW>: 50 winter files (1972-73 to 2020-21), downloaded from NSIDC 2026-11-21 and converted by `tools/makeTermini.py` (Douglas-Peucker 15 m, metre coordinates) to `data/greenlandTermini.json` (5582 fronts, 110,616 vertices, 2.0 MB, read when first ticked). Colored by winter on a blue-to-red ramp (`frontColors`) with a dark casing; the readout lists the dates of fronts within 3 px (or their span when more than 3 overlap). NSIDC-0642 v2 ends in 2021. |
+| Place search | `src/js/search.js`: a box at the top right of the map. Per projection a name list (`searchSets`; Greenland: the glacier-name file, shared with Glacier names, every name field searchable; Antarctica: `data/antarcticPlaceNames.json`, 3802 places (8038 names, 0.2 MB) of 27 feature types from the SCAR Composite Gazetteer, fetched 2026-11-21 by `tools/makeAntarcticNames.py`, grouped by place with the majority name as the label and every country's name searchable). Case and accents folded (NFD, æ→ae, ø→o); score exact < prefix < word prefix < substring, then major < outlet < local glacier (Greenland) or ice shelf/stream, glacier, station and region types first, more naming countries first (Antarctica); 8 results. Picking one zooms to it (150 m/pixel or closer) with a pink marker and label, cleared by the × or a change of projection. |
 | Glacier names | Greenland Glacier Names GGN v01 (Bjørk, A. A., et al. (2015), Brief communication: Getting Greenland's glaciers right, a new data set of all official Greenlandic glacier names, *The Cryosphere*, 9, 2215-2218, <https://doi.org/10.5194/tc-9-2215-2015>), 732 glaciers, converted by `tools/makeGlacierNames.py` from `/Volumes/insar9/ian/Sentinel1/GreenlandGlacierNames_GGNv01_WGS84/` to `data/greenlandGlacierNames.json` (66 KB, read when first ticked). Labels: official name plus a differing foreign name. Coarser than 1500 m/pixel only the 19 `major` glaciers (listed in the tool), then every `GrIS` outlet, and `LGIC` local glaciers finer than 400 m/pixel; OpenLayers declutter drops overlaps. Labels go left of glaciers west of a mid-Greenland longitude (by latitude, `namesMidLon`) and right of those east of it, to keep them over the ocean. Each entry also keeps the new/old Greenlandic and alternative names. |
 | Background image | Any preset whose title contains "backscatter" or "gamma0", for the current hemisphere; one item drawn in gray (catalog mean +/- 2 sigma stretch) between Blue Marble and the main layer; collection and item kept per hemisphere in `sessionStorage` (`grimpBackgroundN`/`S`) |
 
@@ -559,6 +561,7 @@ on a Mac (default `/usr/bin/google-chrome`).
 | `compare.test.mjs` | Two-date difference (equals displayed minus chosen date) and swipe: hidden under the anomaly, drag, keys, labels |
 | `flowArrows.test.mjs` | Flow arrows: off by default, drawn over Greenland, Jakobshavn points west after a zoom, disabled for backscatter |
 | `glacierFronts.test.mjs` | Glacier fronts: off by default, 5582 loaded, legend years, readout date at Jakobshavn, disabled in Antarctica |
+| `placeSearch.test.mjs` | Place search: old/foreign names, accents, ranking, keys, zoom and marker, clear, no match; Antarctica: Pine Island, Thwaites zoom, McMurdo |
 | `glacierNames.test.mjs` | Glacier names: off by default, 732 loaded, Jakobshavn label, zoom tiers (19 major, 284 outlets), ocean side, disabled in Antarctica |
 | `timeSeries.test.mjs` | Points: read, legend hide/remove, y range slider and Auto, catalog switch with per-catalog hide/remove |
 
