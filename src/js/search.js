@@ -83,7 +83,7 @@ function goToPlace(p) {
   const c = ol.proj.fromLonLat([p.lon, p.lat], viewCode), view = map.getView();
   searchSource.clear();
   searchSource.addFeature(new ol.Feature({ geometry: new ol.geom.Point(c), label: p.label }));
-  view.animate({ center: c, resolution: Math.min(view.getResolution(), 150), duration: 400 });
+  view.animate({ center: c, resolution: Math.min(view.getResolution(), 400), duration: 400 });
   $('searchBox').value = p.label; $('searchClear').hidden = false;
   searchHits = []; delete $('searchResults').dataset.note; showSearchHits();
   $('searchBox').blur();

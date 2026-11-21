@@ -157,7 +157,8 @@ for each hemisphere while the browser tab is open:
 Open **Time series at points**, click **Add points**, and click the spots on the map you want to
 follow, or **Load points** from a CSV file of sites (lat/lon or x/y, with optional names). Each
 point is read at full resolution from every date and plotted against time as the values arrive, one
-color per point. Tick **Error bars** for velocity errors; it is slower, since a speed error needs four
+color per point. With a velocity **browse** image on the map, points (and profile lines) read the
+speed (vv), so the browse image can serve as the map to pick on. Tick **Error bars** for velocity errors; it is slower, since a speed error needs four
 more files per date.
 
 - The plot and the timeline are linked: the date on the map is marked on the plot, and clicking a

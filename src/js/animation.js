@@ -11,9 +11,9 @@ const animLayer = new ol.layer.Image({ zIndex: 2, visible: false });
 map.addLayer(animLayer);
 let animExtKey = '', frames = [], frameBox = null, animIdx = 0, animTimer = null, animDate = null, animBuilding = false, animToken = 0;
 
-function timeSeries(allDates = false) {
+function timeSeries(allDates = false, key = $('asset').value) {
   if (!selected) return [];
-  const key = $('asset').value, e0 = selected.feature.getGeometry().getExtent();
+  const e0 = selected.feature.getGeometry().getExtent();
   const overlap = e => {
     const i = ol.extent.getIntersection(e, e0);
     return ol.extent.isEmpty(i) ? 0 : ol.extent.getArea(i) / Math.min(ol.extent.getArea(e), ol.extent.getArea(e0));

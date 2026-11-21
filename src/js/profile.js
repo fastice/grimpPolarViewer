@@ -55,7 +55,7 @@ function setProfileLine(line, off) {
   if (pfPoint) pfSource.addFeature(pfPoint);
   $('pfClear').hidden = false;
   for (const [it, off] of shown) { addProfileCurve(it, pfKey); if (off) pfCurves.find(c => c.it === it).off = true; }
-  if (selected && !rgbMode) pfOnShown($('asset').value);
+  if (selected && plotAsset()) pfOnShown(plotAsset());
 }
 function newProfile(line) {
   clearProfile();
@@ -228,9 +228,9 @@ for (const id of ['pfLo', 'pfHi']) {
 }
 // Called whenever a product's asset is shown.
 function pfOnShown(key) {
-  $('pfSec').hidden = rgbMode;
+  $('pfSec').hidden = !key;
   $('pfItsRow').hidden = !(key in itsVars);
-  if (!pfLine || rgbMode) return;
+  if (!pfLine || !key) return;
   if (key !== pfKey) { pfCurves = []; pfKey = key; pfIts = null; pfAx.y.typed = null; }
   addProfileCurve(selected, key);
   refreshProfileIts();

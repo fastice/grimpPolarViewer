@@ -12,12 +12,12 @@ let tsPoints = [], tsMode = false, tsToken = 0, tsKey = '', tsNext = 1;
 const tsLayerOff = new Set();  // catalogs whose series are hidden on the plot (by name)
 const tsCache = new Map();  // `${x},${y}|${href}` -> value in physical units (NaN = no data)
 
-function tsSeries() { return timeSeries(!$('tsRange').checked); }
+function tsSeries() { return timeSeries(!$('tsRange').checked, plotAsset()); }
 // Site collections: each point reads every product whose box contains it, so points can be at different
 // sites; mosaics read the series of the product shown.
 function pointSeries(p, series) {
   if (!siteMode) return series;
-  const key = $('asset').value;
+  const key = plotAsset();
   return ($('tsRange').checked ? inRange() : items).filter(it => it.assets[key] && it.feature.getGeometry().intersectsCoordinate(p.coord))
     .sort((a, b) => a.start - b.start);
 }
@@ -28,7 +28,7 @@ const tsKeyOf = (key, per) => [key, per.map(s => s.map(i => i.id).join(';')).joi
 // pixel is read (into the point cache) rather than trusting the footprint.
 async function selectSiteAt(coords) {
   if (!siteMode || !selected) return;
-  const key = $('asset').value, start = selected, has = async (it, c) => Number.isFinite(await pointValue(it, key, c));
+  const key = plotAsset(), start = selected, has = async (it, c) => Number.isFinite(await pointValue(it, key, c));
   const inside = (it, c) => it.feature.getGeometry().intersectsCoordinate(c);
   try {
     for (const c of coords) if (inside(selected, c) && await has(selected, c)) return;
@@ -48,16 +48,16 @@ function tsHasErrors(key, series) {
 }
 
 function refreshTs() {
-  const series = selected && !rgbMode ? tsSeries() : [];
-  const ok = series.length >= 2 || (siteMode && selected && !rgbMode && items.length >= 2);
+  const series = selected && plotAsset() ? tsSeries() : [];
+  const ok = series.length >= 2 || (siteMode && selected && plotAsset() && items.length >= 2);
   $('tsSec').hidden = !ok;
   if (!ok) { $('tsPlot').hidden = true; return; }
   $('tsCount').textContent = tsPoints.length ? `(${tsPoints.length} point${tsPoints.length > 1 ? 's' : ''})` : '';
   const per = tsPoints.map(p => pointSeries(p, series));
-  $('tsErrRow').hidden = !tsHasErrors($('asset').value, siteMode ? [...series, ...per.flat()] : series);
-  $('tsItsRow').hidden = !($('asset').value in itsVars);
+  $('tsErrRow').hidden = !tsHasErrors(plotAsset(), siteMode ? [...series, ...per.flat()] : series);
+  $('tsItsRow').hidden = !(plotAsset() in itsVars);
   if (!tsPoints.length) return;
-  const key = tsKeyOf($('asset').value, per);
+  const key = tsKeyOf(plotAsset(), per);
   if (key !== tsKey) computeTs(); else if (tsPlotInfo && !$('tsPlot').hidden) drawTsPlot();
   refreshIts();
 }
@@ -138,7 +138,7 @@ function itsSeries(coord, key) {
   return itsCache.get(ck);
 }
 function refreshIts() {
-  const key = $('asset').value, on = $('tsIts').checked && key in itsVars;
+  const key = plotAsset(), on = $('tsIts').checked && key in itsVars;
   $('tsItsRow').hidden = !(key in itsVars);
   if (!on || !tsPoints.length) { $('tsItsNote').textContent = ''; if (tsPlotInfo) drawTsPlot(); return; }
   $('tsItsNote').textContent = 'ITS_LIVE: reading...';
@@ -146,7 +146,7 @@ function refreshIts() {
     p.its = await itsSeries(p.coord, key); p.itsKey = key;
     if (tsPlotInfo) drawTsPlot();
   })).then(rs => {
-    if (!$('tsIts').checked || $('asset').value !== key) return;
+    if (!$('tsIts').checked || plotAsset() !== key) return;
     const failed = rs.find(r => r.status === 'rejected'), maxDt = +$('tsItsDt').value;
     const n = tsPoints.reduce((a, p) => a + (p.itsKey === key && p.its ? p.its.filter(q => q.dt <= maxDt).length : 0), 0);
     const none = tsPoints.filter(p => !p.its).map(p => p.n);
@@ -156,7 +156,7 @@ function refreshIts() {
 }
 
 async function computeTs() {
-  const key = $('asset').value, token = ++tsToken, per = tsPoints.map(p => pointSeries(p, tsSeries()));
+  const key = plotAsset(), token = ++tsToken, per = tsPoints.map(p => pointSeries(p, tsSeries()));
   const series = [...new Set(per.flat())].sort((a, b) => a.start - b.start);
   const withErr = $('tsErr').checked && tsHasErrors(key, series);
   tsKey = tsKeyOf(key, per);

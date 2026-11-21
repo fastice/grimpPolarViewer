@@ -32,7 +32,7 @@ await p.keyboard.press('Enter'); await sleep(1200);
 const v = await p.evaluate(() => { const m = window.grimpViewer.map, v = m.getView(), l = m.getLayers().getArray().find(l => l.getZIndex() === 8);
   return { center: v.getCenter().map(Math.round), res: Math.round(v.getResolution()), marker: l.getSource().getFeatures().map(f => f.get('label')) }; });
 const P = (await toMap(p, -60.05, 80.5833)).map(Math.round);
-check('Enter zooms to Petermann with a marker', Math.hypot(v.center[0] - P[0], v.center[1] - P[1]) < 500 && v.res <= 150 && v.marker[0] === 'Petermann Gletsjer', { v, P });
+check('Enter zooms to Petermann with a marker', Math.hypot(v.center[0] - P[0], v.center[1] - P[1]) < 500 && v.res <= 400 && v.marker[0] === 'Petermann Gletsjer', { v, P });
 check('results close and the box collapses after picking; marker stays', (await hidden(p, 'searchResults')) && (await collapsed()));
 await shot(p, 'placeSearchPetermann');
 await p.click('#searchOpen'); await sleep(200);

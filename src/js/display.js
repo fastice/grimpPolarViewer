@@ -17,6 +17,10 @@ let animScrollPending = false;  // a shared animation scrolls the panel to the A
 function toRaw(v) { return (v - (band.offset ?? 0)) / (band.scale ?? 1); }
 function toDisp(v) { return v * (band.scale ?? 1) + (band.offset ?? 0); }
 
+// The asset the point and line plots read: the one shown, or vv under an RGB browse image (so the browse
+// image serves as the map to pick on).
+function plotAsset() { return !rgbMode ? $('asset').value : selected?.assets.vv ? 'vv' : ''; }
+
 function showAsset(key) {
   if (!selected || !key) return;
   saReady = false;  // wait for this asset's levels before computing a static anomaly
@@ -27,7 +31,7 @@ function showAsset(key) {
   const nodata = band.nodata ?? undefined;
   const projection = selected.epsg ? `EPSG:${selected.epsg}` : undefined;
   rgbMode = (a['raster:bands']?.length ?? 1) >= 3;
-  pfOnShown(key);
+  pfOnShown(plotAsset());
   refreshArrows();
   $('stretchCtl').hidden = rgbMode; $('rgbNote').hidden = !rgbMode;
   $('lname').textContent = a.href.split('/').pop();
