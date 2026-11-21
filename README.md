@@ -162,7 +162,10 @@ there is none, from the loaded catalog's velocity product with the longest avera
   line. Switching to another collection keeps the line and adds that collection's curve. The product
   on the map is drawn thickest and in bold in the legend. Click an entry in the legend to hide its
   curve (the entry fades), and click it again to show it; click the **×** at the end of an entry to
-  remove that curve (show its date again to bring it back).
+  remove that curve (show its date again to bring it back). Drag the legend to move it off the data.
+- **Plot x range** and **Plot y range** zoom the plot: drag either handle, or drag the band between
+  them to pan; **Auto** goes back to the full line and the automatic y range. With x zoomed in, the
+  automatic y range fits the part of the line shown.
 - Choosing another asset (for example vx instead of speed), or drawing a new line, starts a new plot.
 - Tick **ITS_LIVE in grey** to add the ITS_LIVE image pairs whose time span includes the middle date
   of the product on the map, one grey line per pair, sampled every 120 m. **Pairs up to** limits

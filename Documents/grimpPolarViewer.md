@@ -234,7 +234,15 @@ near the top of the map, clear of the time-series plot).
   follows the visible curves, or all of them when every one is hidden); hidden curves stay hidden
   when a flow line is trimmed, and are left out of the CSV and PNG. The x at the end of an entry
   (screen only, not in the PNG) removes the curve; showing that product again adds it back, and a new
-  curve takes the first color not in use.
+  curve takes the first color not in use. The legend can be dragged anywhere inside the plot area
+  (a press that moves less than 4 px is a click on an entry instead); its place is kept as fractions
+  of the free room across and down, so it stays put through redraws and resizes, and the PNG uses it.
+- **Plot x / y range** (appear with the first curve): two-handle sliders sharing the time-series y
+  slider's code (`rangeSlider`: handles, band to pan, track click, arrow/Page keys). x spans the
+  whole line in plotted km; y spans the automatic range and the 1st-99th percentile of the ITS_LIVE
+  values in view, half a span beyond each. The automatic y range uses only samples inside the x
+  range. A new or trimmed line resets x; another asset resets y; **Auto** resets either. The PNG
+  uses the set ranges; the CSV always has the whole line.
 - **ITS_LIVE in grey** (vv, vx, vy): the image pairs whose span (mid date ± half the separation)
   includes the shown product's central date, separation up to **Pairs up to** (default 12 d), one
   grey line per pair, sampled every 120 m from A (the cube pixel, nearest pixel; the cube for each sample

@@ -50,10 +50,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 /* Plot y range: two handles on one track; the band between them drags both. */
 .yslider { position: relative; height: 22px; margin: 0 8px; touch-action: none; cursor: pointer; }
 .yslider::before { content: ""; position: absolute; left: -8px; right: -8px; top: 50%; height: 6px; margin-top: -3px; border-radius: 3px; background: var(--line); }
-#tsYBand { position: absolute; top: 50%; height: 10px; margin-top: -5px; border-radius: 5px; background: var(--accent); opacity: .45; cursor: grab; }
+.yband { position: absolute; top: 50%; height: 10px; margin-top: -5px; border-radius: 5px; background: var(--accent); opacity: .45; cursor: grab; }
 .ythumb { position: absolute; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; box-sizing: border-box; border-radius: 50%;
   background: var(--accent); border: 2px solid var(--panel); box-shadow: 0 0 0 1px var(--accent); cursor: grab; }
-.ythumb:focus-visible, #tsYBand:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+.ythumb:focus-visible, .yband:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
 #items { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; min-height: 72px; }
 #items li { padding: 7px 16px; border-bottom: 1px solid var(--line); cursor: pointer; display: grid; gap: 1px; }
 #items li:hover { background: var(--accent-soft); }
@@ -89,6 +89,7 @@ button:disabled { opacity: .45; cursor: default; }
 .checks label { display: flex; align-items: center; gap: 4px; }
 .optrow { display: flex; align-items: center; gap: 6px; font-size: 13px; }
 /* Two-handle slider (flow-line lengths): two transparent range inputs over one drawn track. */
+#pfCanvas { touch-action: none; }  /* the legend can be dragged by touch */
 .dual { position: relative; height: 24px; margin: 4px 0 2px; }
 .dual .track, .dual .fill { position: absolute; top: 10px; height: 4px; border-radius: 2px; }
 .dual .track { left: 8px; right: 8px; background: var(--line); }
@@ -342,7 +343,7 @@ body.nopanel #panel { display: none; }
         <label class="optrow"><span style="white-space:nowrap">Plot style</span> <select id="tsStyle"><option value="both" selected>lines and points</option>
           <option value="points">points only</option><option value="lines">lines only</option></select></label>
         <div class="ctl"><span>Plot y range <b id="tsYMinV"></b> to <b id="tsYMaxV"></b> <button id="tsYAuto" type="button" class="link">Auto</button></span>
-          <div id="tsYTrack" class="yslider"><div id="tsYBand" tabindex="0" role="group" aria-label="Plot y range"></div>
+          <div id="tsYTrack" class="yslider"><div id="tsYBand" class="yband" tabindex="0" role="group" aria-label="Plot y range"></div>
             <div id="tsYLo" class="ythumb" tabindex="0" role="slider" aria-label="Bottom of the plot y axis"></div>
             <div id="tsYHi" class="ythumb" tabindex="0" role="slider" aria-label="Top of the plot y axis"></div></div></div>
       </div>
@@ -374,6 +375,16 @@ body.nopanel #panel { display: none; }
         <label class="optrow">pairs up to <select id="pfItsDt"><option value="100000">any</option><option value="120">120 d</option>
         <option value="30">30 d</option><option value="12" selected>12 d</option></select></label></div>
       <div id="pfItsNote" class="note"></div>
+      <div id="pfAxRow" class="block-inner" hidden>
+        <div class="ctl"><span>Plot x range <b id="pfXMinV"></b> to <b id="pfXMaxV"></b> km <button id="pfXAuto" type="button" class="link">Auto</button></span>
+          <div id="pfXTrack" class="yslider"><div id="pfXBand" class="yband" tabindex="0" role="group" aria-label="Plot x range"></div>
+            <div id="pfXLo" class="ythumb" tabindex="0" role="slider" aria-label="Left end of the plot x axis"></div>
+            <div id="pfXHi" class="ythumb" tabindex="0" role="slider" aria-label="Right end of the plot x axis"></div></div></div>
+        <div class="ctl"><span>Plot y range <b id="pfYMinV"></b> to <b id="pfYMaxV"></b> <button id="pfYAuto" type="button" class="link">Auto</button></span>
+          <div id="pfYTrack" class="yslider"><div id="pfYBand" class="yband" tabindex="0" role="group" aria-label="Plot y range"></div>
+            <div id="pfYLo" class="ythumb" tabindex="0" role="slider" aria-label="Bottom of the plot y axis"></div>
+            <div id="pfYHi" class="ythumb" tabindex="0" role="slider" aria-label="Top of the plot y axis"></div></div></div>
+      </div>
       <div class="row">
         <button id="pfCsv" type="button" disabled>Save CSV</button>
         <button id="pfPng" type="button" disabled>Save plot (PNG)</button>
@@ -2062,38 +2073,40 @@ function tsYSet(a, b) {
   tsYTyped = [v(a), v(b)];
   drawTsPlot();
 }
-{
+function rangeSlider(track, [loId, hiId, bandId], pos, set) {
+  // A plot-range slider: pos() gives the handle positions [a, b] (0-1, null while inactive), set(a, b) applies new ones.
   // Drag a handle, click the track to move the nearer handle there, or drag the band to shift the range
   // keeping its height; arrow keys move a focused handle or the band by 1% (Page Up/Down 10%).
-  const track = $('tsYTrack'), gap = 0.01;
+  const gap = 0.01;
   let drag = null;
   const frac = e => { const r = track.getBoundingClientRect(); return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); };
   const move = f => {
-    const { which, f0, a, b } = drag;
-    if (which === 'band') { const d = Math.min(Math.max(f - f0, -a), 1 - b); tsYSet(a + d, b + d); }
-    else if (which === 0) tsYSet(Math.min(f, tsYPos[1] - gap), tsYPos[1]);
-    else tsYSet(tsYPos[0], Math.max(f, tsYPos[0] + gap));
+    const { which, f0, a, b } = drag, p = pos();
+    if (which === 'band') { const d = Math.min(Math.max(f - f0, -a), 1 - b); set(a + d, b + d); }
+    else if (which === 0) set(Math.min(f, p[1] - gap), p[1]);
+    else set(p[0], Math.max(f, p[0] + gap));
   };
   track.addEventListener('pointerdown', e => {
-    if (!tsYSpan) return;
-    const f = frac(e), [a, b] = tsYPos, id = e.target.id;
-    drag = { which: id === 'tsYLo' ? 0 : id === 'tsYHi' ? 1 : id === 'tsYBand' ? 'band' : Math.abs(f - a) <= Math.abs(f - b) ? 0 : 1, f0: f, a, b };
+    if (!pos()) return;
+    const f = frac(e), [a, b] = pos(), id = e.target.id;
+    drag = { which: id === loId ? 0 : id === hiId ? 1 : id === bandId ? 'band' : Math.abs(f - a) <= Math.abs(f - b) ? 0 : 1, f0: f, a, b };
     track.setPointerCapture(e.pointerId); e.preventDefault(); e.target.focus?.();
     if (drag.which !== 'band') move(f);
   });
   track.addEventListener('pointermove', e => { if (drag) move(frac(e)); });
   for (const t of ['pointerup', 'pointercancel']) track.addEventListener(t, () => { drag = null; });
-  for (const [id, k] of [['tsYLo', 0], ['tsYHi', 1], ['tsYBand', 2]]) $(id).addEventListener('keydown', e => {
+  for (const [id, k] of [[loId, 0], [hiId, 1], [bandId, 2]]) $(id).addEventListener('keydown', e => {
     const step = { ArrowLeft: -gap, ArrowDown: -gap, ArrowRight: gap, ArrowUp: gap, PageDown: -0.1, PageUp: 0.1 }[e.key];
-    if (step === undefined || !tsYSpan) return;
+    if (step === undefined || !pos()) return;
     e.preventDefault();
-    let [a, b] = tsYPos;
+    let [a, b] = pos();
     if (k === 2) { const d = Math.min(Math.max(step, -a), 1 - b); a += d; b += d; }
     else if (k === 0) a = Math.min(Math.max(a + step, 0), b - gap);
     else b = Math.max(Math.min(b + step, 1), a + gap);
-    tsYSet(a, b);
+    set(a, b);
   });
 }
+rangeSlider($('tsYTrack'), ['tsYLo', 'tsYHi', 'tsYBand'], () => tsYSpan && tsYPos, tsYSet);
 // Each point's ITS_LIVE cloud gets its own grey level, shown beside the point in the legend.
 const itsGreys = [175, 95, 135, 210, 60, 155, 115, 190];
 const itsGrey = (p, a = 1) => { const g = itsGreys[(p.n - 1) % itsGreys.length]; return `rgba(${g}, ${g}, ${g}, ${a})`; };
@@ -2498,6 +2511,7 @@ map.addLayer(new ol.layer.Vector({ source: pfSource, zIndex: 6, style: f => {
 } }));
 let pfLine = null, pfKey = null, pfCurves = [], pfIts = null, pfToken = 0, pfItsToken = 0, pfDrawnAt = -Infinity;
 let pfCum = null, pfOff = 0, pfFlow = null;  // cumulative m along pfLine; plotted distance of its start; flow trace
+const pfAx = { x: { typed: null, span: null, pos: [0, 1] }, y: { typed: null, span: null, pos: [0, 1] } };  // plot ranges
 let pfPoint = null, pfAdjust = null, pfWant = [0, 0];  // flow point feature; its drag interaction; lengths asked for (m)
 const pfItsStep = 120;  // m between ITS_LIVE pair samples
 const itsAnnualRegion = { 3413: 'RGI05A', 3031: 'RGI19A' };  // ITS_LIVE annual mosaic region per projection
@@ -2515,6 +2529,7 @@ const pfAt = d => alongPath(pfLine, pfCum, d);
 function clearProfile() {
   ++pfToken; ++pfItsToken;
   pfLine = null; pfKey = null; pfCurves = []; pfIts = null; pfFlow = null; pfOff = 0; pfPoint = null;
+  pfAx.x.typed = pfAx.y.typed = null; $('pfAxRow').hidden = true;
   if (pfAdjust) { map.removeInteraction(pfAdjust); pfAdjust = null; }
   pfSource.clear(); itsPixCache.clear();
   $('pfPlot').hidden = true; $('pfShow').hidden = true; $('pfClear').hidden = true; $('pfProg').hidden = true; $('pfFlowRow').hidden = true;
@@ -2525,7 +2540,7 @@ function clearProfile() {
 function setProfileLine(line, off) {
   ++pfToken; ++pfItsToken;
   const shown = pfCurves.map(c => [c.it, c.off]);
-  pfLine = line; pfCum = cumDist(line); pfOff = off; pfCurves = []; pfIts = null;
+  pfLine = line; pfCum = cumDist(line); pfOff = off; pfCurves = []; pfIts = null; pfAx.x.typed = null;
   pfSource.clear(); pfSource.addFeature(new ol.Feature(new ol.geom.LineString(line)));
   if (pfPoint) pfSource.addFeature(pfPoint);
   $('pfClear').hidden = false;
@@ -2706,7 +2721,7 @@ function pfOnShown(key) {
   $('pfSec').hidden = rgbMode;
   $('pfItsRow').hidden = !(key in itsVars);
   if (!pfLine || rgbMode) return;
-  if (key !== pfKey) { pfCurves = []; pfKey = key; pfIts = null; }
+  if (key !== pfKey) { pfCurves = []; pfKey = key; pfIts = null; pfAx.y.typed = null; }
   addProfileCurve(selected, key);
   refreshProfileIts();
 }
@@ -2892,16 +2907,32 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
   ctx.font = '12px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = fg; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
   ctx.fillText(`${pfFlow ? 'Flow line' : 'Profile A to B'}: ${label}` + (!its ? '' : its.annual ? `; ITS_LIVE (dashed grey): ${its.year} annual mosaic`
     : `; ITS_LIVE (grey): pairs spanning ${fmtDate(new Date((+its.it.start + +its.it.end) / 2))}`), L, 14);
-  // y range from the GrIMP curves (ITS_LIVE is clipped to it), or from ITS_LIVE alone
+  // x range: the whole line, or as set on its slider (plotted km: from the flow line's point, or from A)
+  const xFull = [pfOff / 1000, pfOff / 1000 + km];
+  if (canvas === $('pfCanvas')) pfAxSliders('x', xFull, xFull);
+  const [xa, xb] = pfAx.x.typed || xFull, inX = dm => (dm + pfOff) / 1000 >= xa - 1e-9 && (dm + pfOff) / 1000 <= xb + 1e-9;
+  // y range from the GrIMP curves in that x range (ITS_LIVE is clipped to it), or from ITS_LIVE alone
   let y0 = Infinity, y1 = -Infinity;
-  const span = vs => { for (const v of vs) if (Number.isFinite(v)) { if (v < y0) y0 = v; if (v > y1) y1 = v; } };
-  for (const c of pfCurves) if (c.v && !c.off) span(c.v);
-  if (y0 > y1) for (const c of pfCurves) if (c.v) span(c.v);  // every curve hidden: keep their axes
-  if (y0 > y1 && its) for (const p of its.pairs) span(p.v);
+  const span = (d, vs) => { for (let k = 0; k < vs.length; k++) { const v = vs[k]; if (Number.isFinite(v) && inX(d[k])) { if (v < y0) y0 = v; if (v > y1) y1 = v; } } };
+  for (const c of pfCurves) if (c.v && !c.off) span(c.d, c.v);
+  if (y0 > y1) for (const c of pfCurves) if (c.v) span(c.d, c.v);  // every curve hidden: keep their axes
+  if (y0 > y1 && its) for (const p of its.pairs) span(its.d, p.v);
   if (y0 > y1) { ctx.fillStyle = muted; ctx.fillText(!pfCurves.length ? 'No curves: show a product to add one' : pfCurves.some(c => !c.v) ? 'Reading values...' : 'No data along the line', L + 10, T + ph / 2); return; }
   if (y0 === y1) { y0 -= 1; y1 += 1; }
   const yp = (y1 - y0) * 0.06; y0 -= yp; y1 += yp;
-  const X = dm => L + dm / 1000 / km * pw, Y = v => T + (1 - (v - y0) / (y1 - y0)) * ph;
+  if (canvas === $('pfCanvas')) {
+    // the y slider spans these and the 1st-99th percentile of the ITS_LIVE values shown, half a span beyond each
+    let lo = y0, hi = y1;
+    if (its) {
+      const v = its.pairs.flatMap(p => [...p.v].filter((q, k) => Number.isFinite(q) && inX(its.d[k]))).sort((a, b) => a - b);
+      if (v.length) { lo = Math.min(lo, v[Math.floor(v.length * 0.01)]); hi = Math.max(hi, v[Math.floor(v.length * 0.99)]); }
+    }
+    const pad = (hi - lo) * 0.5;
+    pfAxSliders('y', [y0, y1], [lo - pad, hi + pad]);
+    $('pfAxRow').hidden = false;
+  }
+  if (pfAx.y.typed) [y0, y1] = pfAx.y.typed;
+  const X = dm => L + ((dm + pfOff) / 1000 - xa) / (xb - xa) * pw, Y = v => T + (1 - (v - y0) / (y1 - y0)) * ph;
   ctx.strokeStyle = line; ctx.lineWidth = 1; ctx.fillStyle = muted; ctx.textAlign = 'right';
   const ys = niceStep(y1 - y0, 5);
   for (let v = Math.ceil(y0 / ys) * ys; v <= y1; v += ys) {
@@ -2909,9 +2940,9 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
     ctx.fillText(fmtVal(+v.toPrecision(6)), L - 6, Y(v));
   }
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  const xs = niceStep(km, 6), x0 = pfOff / 1000;  // ticks in plotted km (from the flow line's point, or from A)
-  for (let k = Math.ceil(x0 / xs - 1e-9); k * xs <= x0 + km + 1e-9; k++) {
-    const x = k * xs, px = X((x - x0) * 1000);
+  const xs = niceStep(xb - xa, 6);  // ticks in plotted km
+  for (let k = Math.ceil(xa / xs - 1e-9); k * xs <= xb + 1e-9; k++) {
+    const x = k * xs, px = L + (x - xa) / (xb - xa) * pw;
     ctx.beginPath(); ctx.moveTo(px, T); ctx.lineTo(px, T + ph); ctx.stroke();
     ctx.fillText(fmtVal(+x.toPrecision(6) || 0), px, T + ph + 6);
   }
@@ -2950,8 +2981,11 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
   const text = c => `${fmtDate(c.it.start)} to ${fmtDate(c.it.end)}${names.size > 1 ? `, ${c.name}` : ''}`;
   ctx.font = '700 11px "Atkinson Hyperlegible", sans-serif';
   const lw = Math.max(...rowsShown.map(c => ctx.measureText(text(c)).width)) + 50, lh = 15;
-  const lx = L + pw - lw - 6, ly = T + 6, extra = pfCurves.length - rowsShown.length;
-  ctx.globalAlpha = 0.85; ctx.fillStyle = halo; ctx.fillRect(lx, ly, lw, lh * (rowsShown.length + (extra ? 1 : 0)) + 6); ctx.globalAlpha = 1;
+  const extra = pfCurves.length - rowsShown.length, lhgt = lh * (rowsShown.length + (extra ? 1 : 0)) + 6;
+  // placed by pfLegendPos: fractions of the free room across and down the plot (dragged by the user)
+  const lx = L + 6 + pfLegendPos[0] * Math.max(0, pw - lw - 12), ly = T + 6 + pfLegendPos[1] * Math.max(0, ph - lhgt - 12);
+  if (canvas === $('pfCanvas')) pfLegendBox = { x: lx, y: ly, w: lw, h: lhgt, roomX: Math.max(0, pw - lw - 12), roomY: Math.max(0, ph - lhgt - 12) };
+  ctx.globalAlpha = 0.85; ctx.fillStyle = halo; ctx.fillRect(lx, ly, lw, lhgt); ctx.globalAlpha = 1;
   if (canvas === $('pfCanvas')) pfLegendHits = [];
   rowsShown.forEach((c, k) => {
     const y = ly + 3 + lh * k + lh / 2;
@@ -2966,17 +3000,59 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
   });
   if (extra) { ctx.fillStyle = muted; ctx.fillText(`and ${extra} earlier`, lx + 28, ly + 3 + lh * rowsShown.length + lh / 2); }
 }
+// Plot x and y ranges (pfAx): automatic, or set with two-handle sliders like the time-series y range.
+function pfAxSliders(k, auto, span) {
+  const a = pfAx[k], P = k.toUpperCase(), [v0, v1] = a.typed || auto;
+  a.span = span[1] > span[0] ? span : [span[0] - 1, span[1] + 1];
+  const pos = v => Math.min(1, Math.max(0, (v - a.span[0]) / (a.span[1] - a.span[0])));
+  a.pos = [pos(v0), pos(v1)];
+  const [l, r] = a.pos.map(f => `${(100 * f).toFixed(2)}%`);
+  $(`pf${P}Lo`).style.left = l; $(`pf${P}Hi`).style.left = r; $(`pf${P}Band`).style.left = l;
+  $(`pf${P}Band`).style.width = `${(100 * (a.pos[1] - a.pos[0])).toFixed(2)}%`;
+  $(`pf${P}Lo`).setAttribute('aria-valuetext', fmtVal(+v0.toPrecision(4))); $(`pf${P}Hi`).setAttribute('aria-valuetext', fmtVal(+v1.toPrecision(4)));
+  $(`pf${P}MinV`).textContent = fmtVal(+v0.toPrecision(4) || 0); $(`pf${P}MaxV`).textContent = fmtVal(+v1.toPrecision(4) || 0);
+  $(`pf${P}Auto`).hidden = !a.typed;
+}
+for (const k of ['x', 'y']) {
+  const P = k.toUpperCase(), a = pfAx[k];
+  rangeSlider($(`pf${P}Track`), [`pf${P}Lo`, `pf${P}Hi`, `pf${P}Band`], () => a.span && a.pos, (f0, f1) => {
+    const v = f => a.span[0] + (a.span[1] - a.span[0]) * f;
+    a.typed = [v(f0), v(f1)];
+    drawProfile();
+  });
+  $(`pf${P}Auto`).onclick = () => { a.typed = null; drawProfile(); };
+}
 let pfLegendHits = [];  // legend entries on the plot: { x, y, w, h, c } in CSS px
-const pfLegendAt = e => { const r = $('pfCanvas').getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
-  return pfLegendHits.find(h => x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h); };
+let pfLegendPos = [1, 0], pfLegendBox = null, pfLegendDrag = null, pfLegendDropped = -Infinity;  // top right at first
+const pfXY = e => { const r = $('pfCanvas').getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+const inBox = ([x, y], h) => h && x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h;
+const pfLegendAt = e => pfLegendHits.find(h => inBox(pfXY(e), h));
+// Dragging the legend moves it (a press that moves less than 4 px is a click on an entry instead).
+$('pfCanvas').addEventListener('pointerdown', e => {
+  if (!inBox(pfXY(e), pfLegendBox)) return;
+  pfLegendDrag = { start: pfXY(e), pos: [...pfLegendPos], moved: false };
+  $('pfCanvas').setPointerCapture(e.pointerId);
+});
+$('pfCanvas').addEventListener('pointermove', e => {
+  const xy = pfXY(e);
+  if (!pfLegendDrag) { $('pfCanvas').style.cursor = pfLegendAt(e)?.remove ? 'pointer' : inBox(xy, pfLegendBox) ? 'move' : ''; return; }
+  const dx = xy[0] - pfLegendDrag.start[0], dy = xy[1] - pfLegendDrag.start[1];
+  if (!pfLegendDrag.moved && Math.hypot(dx, dy) < 4) return;
+  pfLegendDrag.moved = true;
+  const f = (v, room) => Math.min(1, Math.max(0, room ? v : 0));
+  pfLegendPos = [f(pfLegendDrag.pos[0] + dx / pfLegendBox.roomX, pfLegendBox.roomX), f(pfLegendDrag.pos[1] + dy / pfLegendBox.roomY, pfLegendBox.roomY)];
+  drawProfile();
+});
+$('pfCanvas').addEventListener('pointerup', e => { if (pfLegendDrag?.moved) pfLegendDropped = e.timeStamp; pfLegendDrag = null; });
+$('pfCanvas').addEventListener('pointercancel', () => { pfLegendDrag = null; });
 $('pfCanvas').addEventListener('click', e => {
+  if (e.timeStamp - pfLegendDropped < 300) return;  // the end of a drag, not a click
   const h = pfLegendAt(e);
   if (!h) return;
   if (h.remove) pfCurves.splice(pfCurves.indexOf(h.c), 1); else h.c.off = !h.c.off;
   $('pfCsv').disabled = $('pfPng').disabled = !pfCurves.length;
   drawProfile();
 });
-$('pfCanvas').addEventListener('mousemove', e => { $('pfCanvas').style.cursor = pfLegendAt(e) ? 'pointer' : ''; });
 function setPfPlot(show) {
   $('pfPlot').hidden = !show;
   $('pfShow').hidden = false; $('pfShow').textContent = show ? 'Hide plot' : 'Show plot';
@@ -3130,7 +3206,13 @@ const tips = {
   pfIts: 'Also plot ITS_LIVE image pairs whose time span includes the shown product\'s central date, sampled every 120 m, in grey; for an annual product, the ITS_LIVE annual mosaic of that calendar year instead (dashed)',
   pfItsDt: 'Only ITS_LIVE pairs whose images are at most this many days apart (not used for annual products)',
   pfCsv: 'Save the curves shown (and the ITS_LIVE pairs shown) as CSV, one row per sample along the line; curves hidden in the legend are left out',
-  pfCanvas: 'Click a legend entry to hide or show its curve; click its x to remove it',
+  pfXLo: 'Left end of the plot x axis: drag right to zoom in',
+  pfXHi: 'Right end of the plot x axis: drag left to zoom in',
+  pfXBand: 'Drag to pan the plot x range along the line, keeping its width',
+  pfYLo: 'Bottom of the plot y axis: drag right to zoom in',
+  pfYHi: 'Top of the plot y axis: drag left to zoom in',
+  pfYBand: 'Drag to shift the plot y range up or down, keeping its height',
+  pfCanvas: 'Drag the legend to move it; click an entry to hide or show its curve, or its x to remove it',
   pfPng: 'Save the profile plot as a PNG image',
   tsYHi: 'Top of the plot y axis: drag left to zoom in',
   tsYLo: 'Bottom of the plot y axis: drag right to zoom in',
