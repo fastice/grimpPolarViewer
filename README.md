@@ -112,6 +112,12 @@ in latitude and longitude:
 
 ![Value readout over Jakobshavn Isbræ showing a speed of 2127.4 m/yr](Documents/images/readout.jpg)
 
+Tick **Glacier names** (Greenland only) to label the glaciers with their official names, followed by a
+different foreign name in parentheses, e.g. *Sermeq Kujalleq (Jakobshavn Isbræ)*. Zoomed all the way out
+only the major glaciers are named; zoom in for every outlet glacier, then local glaciers and ice caps.
+Labels sit on the ocean side of each glacier. Names come from the official
+Greenland glacier names set (Bjørk et al. 2015).
+
 To see the ice and rock under the data, choose a radar image in **Background** (below the Blue Marble
 and Coastlines boxes), pick one of its dates under **Image**, and lower **Opacity**. The choice is kept
 for each hemisphere while the browser tab is open:
@@ -299,3 +305,5 @@ workflow, using one or more of the following:
 - Copernicus Sentinel-1 data processed by ESA, archived at the ASF DAAC
 - TerraSAR-X/TanDEM-X data processed and archived by DLR
 - Landsat 8/9 data processed and archived by USGS
+
+Glacier names: Bjørk, A. A., et al. (2015), Brief communication: Getting Greenland's glaciers right, a new data set of all official Greenlandic glacier names, *The Cryosphere*, 9, 2215-2218, <https://doi.org/10.5194/tc-9-2215-2015>.

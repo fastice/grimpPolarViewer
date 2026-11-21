@@ -31,6 +31,7 @@ const tips = {
   bgItem: 'Which image of the background collection to show',
   coastOn: 'Coastline overlay',
   footOn: 'Outlines of the items in the time range; click one to show it',
+  namesOn: 'Greenland glacier names (Bjørk et al. 2015): outlet glaciers at any zoom, local glaciers and ice caps when zoomed in; Greenland only',
   cmap: 'Color map for single-band images',
   clip: 'Percent of pixels saturated at each end of the color range (only the top for speeds; symmetric for vx/vy)',
   smin: 'Lowest value of the color range (type to override the clip)',

@@ -1,7 +1,8 @@
 #!/bin/bash
 # Assemble the single-file viewer from src/: each line "<!-- @include <path> -->" in src/index.html is
 # replaced by that file (relative to src/). The JavaScript pieces are one module, concatenated in the
-# order listed, so they share one scope exactly as when the viewer was a single file.
+# order listed, so they share one scope exactly as when the viewer was a single file. src/data/ (files the
+# page reads at run time, e.g. glacier names) is copied to data/ beside the output.
 #
 #   tools/buildViewer.sh [out]      (default dist/index.html)
 set -euo pipefail
@@ -17,4 +18,6 @@ awk -v src="$repo/src" '
     close(f); next
   }
   { print }' "$repo/src/index.html" > "$out"
+mkdir -p "$(dirname "$out")/data"
+cp "$repo"/src/data/* "$(dirname "$out")/data/"
 echo "Built $out"

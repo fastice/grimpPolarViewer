@@ -22,4 +22,8 @@ sed "s/build dev/$stamp/" "$tmp/built.html" > "$tmp/index.html"
 # text/html so browsers render it; no-cache so a reload always picks up a new deploy.
 s3cmd put --mime-type='text/html; charset=utf-8' --add-header='Cache-Control: no-cache' \
     "$tmp/index.html" "${target%/}/index.html"
+for f in "$tmp"/data/*; do
+    s3cmd put --mime-type="$(case $f in *.json) echo application/json;; *) echo application/octet-stream;; esac)" \
+        --add-header='Cache-Control: no-cache' "$f" "${target%/}/data/$(basename "$f")"
+done
 echo "Deployed $stamp to ${target%/}/index.html"
