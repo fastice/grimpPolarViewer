@@ -2457,8 +2457,9 @@ $('tsPng').onclick = () => {
 // the resolution level nearest 1/1000 of the line length (never finer than the full image). Each product
 // shown while the line is up adds its curve (another date, or another catalog in the same projection);
 // a new line or another asset starts a new plot. ITS_LIVE image pairs whose time span includes the shown
-// product's central date are drawn in grey, sampled every 0.5 km; of each datacube chunk the line
-// crosses, only the time chunks holding such pairs are read.
+// product's central date are drawn in grey, sampled every 120 m (the datacube pixel); of each datacube
+// chunk the line crosses, only the time chunks holding such pairs are read. For an annual product the
+// ITS_LIVE annual mosaic of the calendar year holding its central date is drawn instead (dashed grey).
 const pfSource = new ol.source.Vector();
 map.addLayer(new ol.layer.Vector({ source: pfSource, zIndex: 6, style: f => {
   const c = f.getGeometry().getCoordinates();
@@ -2470,7 +2471,9 @@ map.addLayer(new ol.layer.Vector({ source: pfSource, zIndex: 6, style: f => {
           new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#ff3ea5', width: 2.5 }) }), end(0, 'A'), end(c.length - 1, 'B')];
 } }));
 let pfLine = null, pfKey = null, pfCurves = [], pfIts = null, pfToken = 0, pfItsToken = 0, pfDrawnAt = -Infinity;
-const pfItsStep = 500;  // m between ITS_LIVE samples
+const pfItsStep = 120;  // m between ITS_LIVE pair samples
+const itsAnnualRegion = { 3413: 'RGI05A', 3031: 'RGI19A' };  // ITS_LIVE annual mosaic region per projection
+const pfAnnual = it => { const days = (it.end - it.start) / 86400e3; return days > 350 && days < 380; };
 const pfLen = () => Math.hypot(pfLine[1][0] - pfLine[0][0], pfLine[1][1] - pfLine[0][1]);
 const pfAt = d => { const f = d / pfLen(); return [pfLine[0][0] + f * (pfLine[1][0] - pfLine[0][0]), pfLine[0][1] + f * (pfLine[1][1] - pfLine[0][1])]; };
 
@@ -2624,24 +2627,37 @@ async function profileIts(it, key, maxDt, onChunk) {
   await runPool(tasks, 4, (k, r, count) => onChunk(count, tasks.length));
   return { d, pairs: [...pairs.values()], cubes: cubeUrls.length, end: end * 86400e3 };
 }
+async function profileItsAnnual(it, key) {
+  // The ITS_LIVE annual mosaic (calendar year, 120 m COG) of the year holding the product's central date,
+  // as one 'pair': { d, res, year, pairs } (pairs empty, with the reason in none, when there is no mosaic).
+  const year = new Date((+it.start + +it.end) / 2).getUTCFullYear(), region = itsAnnualRegion[viewCode.split(':')[1]];
+  if (!region) return { year, pairs: [], none: 'no annual mosaics in this projection' };
+  const href = `https://its-live-data.s3.amazonaws.com/velocity_mosaic/v2/annual/cog/ITS_LIVE_velocity_120m_${region}_${year}_v02_${itsVars[key]}.tif`;
+  if (!(await fetch(href, { method: 'HEAD' })).ok) return { year, pairs: [], none: `no annual mosaic for ${year}` };
+  const r = await profileValues({ assets: { [key]: { href, 'raster:bands': [{ nodata: -32767 }] } } }, key);
+  return { d: r.d, res: r.res, year, pairs: [{ t0: Date.UTC(year, 0, 1), t1: Date.UTC(year, 11, 31), v: r.v }] };
+}
 async function refreshProfileIts() {
-  const key = pfKey, it = selected, maxDt = +$('pfItsDt').value;
+  const key = pfKey, it = selected, maxDt = +$('pfItsDt').value, annual = !!it && pfAnnual(it);
+  $('pfItsDt').disabled = annual;
   if (!($('pfIts').checked && pfLine && it && key in itsVars)) { ++pfItsToken; pfIts = null; $('pfItsNote').textContent = ''; $('pfProg').hidden = true; drawProfile(); return; }
-  if (pfIts && pfIts.it === it && pfIts.key === key && pfIts.maxDt === maxDt) return;
+  if (pfIts && pfIts.it === it && pfIts.key === key && (annual || pfIts.maxDt === maxDt)) return;
   const token = ++pfItsToken, day = fmtDate(new Date((+it.start + +it.end) / 2));
   pfIts = null; drawProfile();
-  $('pfItsNote').textContent = 'ITS_LIVE: finding the datacubes...';
+  $('pfItsNote').textContent = annual ? 'ITS_LIVE: reading the annual mosaic...' : 'ITS_LIVE: finding the datacubes...';
   try {
-    const r = await profileIts(it, key, maxDt, (count, total) => {
+    const r = annual ? await profileItsAnnual(it, key) : await profileIts(it, key, maxDt, (count, total) => {
       if (token !== pfItsToken) return;
       $('pfProg').hidden = count >= total; $('pfProg').value = count / total;
       $('pfItsNote').textContent = `ITS_LIVE: read ${count} of ${total} datacube chunks`;
     });
     if (token !== pfItsToken) return;
     $('pfProg').hidden = true;
-    pfIts = { it, key, maxDt, ...r };
+    pfIts = { it, key, maxDt, annual, ...r };
     const apart = maxDt < 1e5 ? `, up to ${maxDt} d apart` : '';
-    $('pfItsNote').textContent = !r.cubes ? 'ITS_LIVE: no datacube along the line.'
+    $('pfItsNote').textContent = annual ? (!r.pairs.length ? `ITS_LIVE: ${r.none}.`
+        : `ITS_LIVE: ${r.year} annual mosaic, read every ${Math.round(r.res)} m` + (r.pairs[0].v.some(Number.isFinite) ? '.' : ', but it has no data along the line.'))
+      : !r.cubes ? 'ITS_LIVE: no datacube along the line.'
       : r.pairs.length ? `ITS_LIVE: ${r.pairs.length} image pairs spanning ${day}${apart}.`
       : `ITS_LIVE: no image pairs spanning ${day}${apart}` + ((+it.start + +it.end) / 2 > r.end ? `; the datacubes end ${fmtDate(new Date(r.end))}.` : '.');
     drawProfile();
@@ -2664,7 +2680,8 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
   const unit = pfCurves.find(c => c.unit)?.unit || '', label = `${pfKey}${unit ? ` (${unit})` : ''}`;
   const its = $('pfIts').checked && pfIts?.key === pfKey ? pfIts : null;
   ctx.font = '12px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = fg; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
-  ctx.fillText(`Profile A to B: ${label}` + (its ? `; ITS_LIVE (grey): pairs spanning ${fmtDate(new Date((+its.it.start + +its.it.end) / 2))}` : ''), L, 14);
+  ctx.fillText(`Profile A to B: ${label}` + (!its ? '' : its.annual ? `; ITS_LIVE (dashed grey): ${its.year} annual mosaic`
+    : `; ITS_LIVE (grey): pairs spanning ${fmtDate(new Date((+its.it.start + +its.it.end) / 2))}`), L, 14);
   // y range from the GrIMP curves (ITS_LIVE is clipped to it), or from ITS_LIVE alone
   let y0 = Infinity, y1 = -Infinity;
   const span = vs => { for (const v of vs) if (Number.isFinite(v)) { if (v < y0) y0 = v; if (v > y1) y1 = v; } };
@@ -2701,7 +2718,8 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
     }
     ctx.stroke();
   };
-  if (its) { ctx.strokeStyle = 'rgba(140, 140, 140, 0.45)'; ctx.lineWidth = 1; for (const p of its.pairs) path(its.d, p.v); }
+  if (its?.annual) { ctx.strokeStyle = muted; ctx.lineWidth = 1.8; ctx.setLineDash([6, 4]); for (const p of its.pairs) path(its.d, p.v); ctx.setLineDash([]); }
+  else if (its) { ctx.strokeStyle = 'rgba(140, 140, 140, 0.45)'; ctx.lineWidth = 1; for (const p of its.pairs) path(its.d, p.v); }
   const halo = tok('--panel'), shown = c => selected && c.href === selected.assets[pfKey]?.href;
   for (const c of [...pfCurves.filter(c => !shown(c)), ...pfCurves.filter(shown)]) {  // the shown product on top
     if (!c.v) continue;
@@ -2769,7 +2787,7 @@ $('pfCsv').onclick = () => {
   const its = $('pfIts').checked && pfIts?.key === pfKey ? pfIts : null;
   const unit = pfCurves.find(c => c.unit)?.unit || '';
   if (its) for (const p of its.pairs) for (let k = 0; k < p.v.length; k++) {
-    if (Number.isFinite(p.v[k])) rows.push(['ITS_LIVE', 'ITS_LIVE', '', fmtDate(new Date(p.t0)), fmtDate(new Date(p.t1)), pfKey, unit, ...pos(its.d[k]), p.v[k]]);
+    if (Number.isFinite(p.v[k])) rows.push(['ITS_LIVE', its.annual ? 'ITS_LIVE annual' : 'ITS_LIVE', '', fmtDate(new Date(p.t0)), fmtDate(new Date(p.t1)), pfKey, unit, ...pos(its.d[k]), p.v[k]]);
   }
   saveBlob(new Blob([rows.map(r => r.join(',')).join('\n') + '\n'], { type: 'text/csv' }), `${items[0]?.raw?.collection || 'grimp'}_${pfKey}_profile.csv`);
 };
@@ -2857,8 +2875,8 @@ const tips = {
   pfDraw: 'Click two points on the map (A, then B) to plot the shown product along the line; each product you show next adds its curve',
   pfShow: 'Hide or show the profile plot',
   pfClear: 'Remove the line and its plot',
-  pfIts: 'Also plot ITS_LIVE image pairs whose time span includes the shown product\'s central date, sampled every 0.5 km, in grey',
-  pfItsDt: 'Only ITS_LIVE pairs whose images are at most this many days apart',
+  pfIts: 'Also plot ITS_LIVE image pairs whose time span includes the shown product\'s central date, sampled every 120 m, in grey; for an annual product, the ITS_LIVE annual mosaic of that calendar year instead (dashed)',
+  pfItsDt: 'Only ITS_LIVE pairs whose images are at most this many days apart (not used for annual products)',
   pfCsv: 'Save every curve (and the ITS_LIVE pairs shown) as CSV, one row per sample along the line',
   pfPng: 'Save the profile plot as a PNG image',
   tsYHi: 'Top of the plot y axis: drag left to zoom in',

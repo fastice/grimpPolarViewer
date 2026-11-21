@@ -154,8 +154,10 @@ map. The product on the map is read along the line and plotted against distance 
   on the map is drawn thickest and in bold in the legend.
 - Choosing another asset (for example vx instead of speed), or drawing a new line, starts a new plot.
 - Tick **ITS_LIVE in grey** to add the ITS_LIVE image pairs whose time span includes the middle date
-  of the product on the map, one grey line per pair, sampled every 0.5 km. **Pairs up to** limits
-  how far apart the two images are. The ITS_LIVE datacubes currently end in May 2025.
+  of the product on the map, one grey line per pair, sampled every 120 m. **Pairs up to** limits
+  how far apart the two images are. The ITS_LIVE datacubes currently end in May 2025. For an annual
+  product, the ITS_LIVE annual mosaic of the calendar year holding its middle date is drawn instead,
+  as one dashed grey line (ITS_LIVE annual mosaics currently end with 2022).
 - The plot moves and resizes like the time-series plot. **Save CSV** writes every curve (and the
   ITS_LIVE pairs shown), one row per sample; **Save plot** writes the picture.
 
