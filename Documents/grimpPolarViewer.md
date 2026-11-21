@@ -230,7 +230,11 @@ near the top of the map, clear of the time-series plot).
   points are). Showing a product already on the plot adds nothing. A different asset or a new line
   starts a new plot; **Clear line** removes both. The legend (newest 8 curves) gives each curve's
   dates, plus its catalog when the plot holds more than one; the shown product is drawn thickest and
-  named in bold.
+  named in bold. A click on a legend entry hides or shows its curve (hidden entries fade; the y range
+  follows the visible curves, or all of them when every one is hidden); hidden curves stay hidden
+  when a flow line is trimmed, and are left out of the CSV and PNG. The x at the end of an entry
+  (screen only, not in the PNG) removes the curve; showing that product again adds it back, and a new
+  curve takes the first color not in use.
 - **ITS_LIVE in grey** (vv, vx, vy): the image pairs whose span (mid date ± half the separation)
   includes the shown product's central date, separation up to **Pairs up to** (default 12 d), one
   grey line per pair, sampled every 120 m from A (the cube pixel, nearest pixel; the cube for each sample

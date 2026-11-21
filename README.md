@@ -160,14 +160,16 @@ there is none, from the loaded catalog's velocity product with the longest avera
 - Show another date (a timeline tick, a footprint on the map, or a point on the time-series plot) and
   its curve is added to the same plot, so you can see a front retreat or a speed-up along the flow
   line. Switching to another collection keeps the line and adds that collection's curve. The product
-  on the map is drawn thickest and in bold in the legend.
+  on the map is drawn thickest and in bold in the legend. Click an entry in the legend to hide its
+  curve (the entry fades), and click it again to show it; click the **×** at the end of an entry to
+  remove that curve (show its date again to bring it back).
 - Choosing another asset (for example vx instead of speed), or drawing a new line, starts a new plot.
 - Tick **ITS_LIVE in grey** to add the ITS_LIVE image pairs whose time span includes the middle date
   of the product on the map, one grey line per pair, sampled every 120 m. **Pairs up to** limits
   how far apart the two images are. The ITS_LIVE datacubes currently end in May 2025. For an annual
   product, the ITS_LIVE annual mosaic of the calendar year holding its middle date is drawn instead,
   as one dashed grey line (ITS_LIVE annual mosaics currently end with 2022).
-- The plot moves and resizes like the time-series plot. **Save CSV** writes every curve (and the
+- The plot moves and resizes like the time-series plot. **Save CSV** writes the curves shown (and the
   ITS_LIVE pairs shown), one row per sample; **Save plot** writes the picture.
 
 ### 6. See what changed

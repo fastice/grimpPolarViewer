@@ -2524,12 +2524,12 @@ function clearProfile() {
 // (Re)start the plot on a line; the products already on the plot are read again along it.
 function setProfileLine(line, off) {
   ++pfToken; ++pfItsToken;
-  const shown = pfCurves.map(c => c.it);
+  const shown = pfCurves.map(c => [c.it, c.off]);
   pfLine = line; pfCum = cumDist(line); pfOff = off; pfCurves = []; pfIts = null;
   pfSource.clear(); pfSource.addFeature(new ol.Feature(new ol.geom.LineString(line)));
   if (pfPoint) pfSource.addFeature(pfPoint);
   $('pfClear').hidden = false;
-  for (const it of shown) addProfileCurve(it, pfKey);
+  for (const [it, off] of shown) { addProfileCurve(it, pfKey); if (off) pfCurves.find(c => c.it === it).off = true; }
   if (selected && !rgbMode) pfOnShown($('asset').value);
 }
 function newProfile(line) {
@@ -2745,7 +2745,8 @@ async function addProfileCurve(it, key) {
   const href = it.assets[key].href;
   if (pfCurves.some(c => c.href === href)) { drawProfile(); return; }
   const token = pfToken, b = it.assets[key]['raster:bands']?.[0] || {};
-  const c = { it, href, key, unit: b.unit || '', name: tsCollectionName(), color: tsColors[pfCurves.length % tsColors.length] };
+  const c = { it, href, key, unit: b.unit || '', name: tsCollectionName(),
+              color: tsColors.find(x => !pfCurves.some(q => q.color === x)) || tsColors[pfCurves.length % tsColors.length] };
   pfCurves.push(c);
   setPfPlot(true);
   $('pfNote').textContent = `Reading ${fmtDate(it.start)} along the line...`;
@@ -2894,9 +2895,10 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
   // y range from the GrIMP curves (ITS_LIVE is clipped to it), or from ITS_LIVE alone
   let y0 = Infinity, y1 = -Infinity;
   const span = vs => { for (const v of vs) if (Number.isFinite(v)) { if (v < y0) y0 = v; if (v > y1) y1 = v; } };
-  for (const c of pfCurves) if (c.v) span(c.v);
+  for (const c of pfCurves) if (c.v && !c.off) span(c.v);
+  if (y0 > y1) for (const c of pfCurves) if (c.v) span(c.v);  // every curve hidden: keep their axes
   if (y0 > y1 && its) for (const p of its.pairs) span(p.v);
-  if (y0 > y1) { ctx.fillStyle = muted; ctx.fillText(pfCurves.some(c => !c.v) ? 'Reading values...' : 'No data along the line', L + 10, T + ph / 2); return; }
+  if (y0 > y1) { ctx.fillStyle = muted; ctx.fillText(!pfCurves.length ? 'No curves: show a product to add one' : pfCurves.some(c => !c.v) ? 'Reading values...' : 'No data along the line', L + 10, T + ph / 2); return; }
   if (y0 === y1) { y0 -= 1; y1 += 1; }
   const yp = (y1 - y0) * 0.06; y0 -= yp; y1 += yp;
   const X = dm => L + dm / 1000 / km * pw, Y = v => T + (1 - (v - y0) / (y1 - y0)) * ph;
@@ -2936,26 +2938,45 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
   else if (its) { ctx.strokeStyle = 'rgba(140, 140, 140, 0.45)'; ctx.lineWidth = 1; for (const p of its.pairs) path(its.d, p.v); }
   const halo = tok('--panel'), shown = c => selected && c.href === selected.assets[pfKey]?.href;
   for (const c of [...pfCurves.filter(c => !shown(c)), ...pfCurves.filter(shown)]) {  // the shown product on top
-    if (!c.v) continue;
+    if (!c.v || c.off) continue;
     ctx.strokeStyle = halo; ctx.lineWidth = shown(c) ? 4.5 : 3.5; path(c.d, c.v);
     ctx.strokeStyle = c.color; ctx.lineWidth = shown(c) ? 2.4 : 1.4; path(c.d, c.v);
   }
   ctx.restore();
-  // legend: each curve's dates (and catalog, when more than one), the shown product in bold
+  // legend: each curve's dates (and catalog, when more than one), the shown product in bold; a click on
+  // an entry hides or shows its curve (hidden entries are faded), a click on its x removes it
   const names = new Set(pfCurves.map(c => c.name)), rowsShown = pfCurves.slice(-8);
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   const text = c => `${fmtDate(c.it.start)} to ${fmtDate(c.it.end)}${names.size > 1 ? `, ${c.name}` : ''}`;
   ctx.font = '700 11px "Atkinson Hyperlegible", sans-serif';
-  const lw = Math.max(...rowsShown.map(c => ctx.measureText(text(c)).width)) + 34, lh = 15;
+  const lw = Math.max(...rowsShown.map(c => ctx.measureText(text(c)).width)) + 50, lh = 15;
   const lx = L + pw - lw - 6, ly = T + 6, extra = pfCurves.length - rowsShown.length;
   ctx.globalAlpha = 0.85; ctx.fillStyle = halo; ctx.fillRect(lx, ly, lw, lh * (rowsShown.length + (extra ? 1 : 0)) + 6); ctx.globalAlpha = 1;
+  if (canvas === $('pfCanvas')) pfLegendHits = [];
   rowsShown.forEach((c, k) => {
     const y = ly + 3 + lh * k + lh / 2;
+    ctx.globalAlpha = c.off ? 0.35 : 1;
     ctx.strokeStyle = c.color; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(lx + 6, y); ctx.lineTo(lx + 24, y); ctx.stroke();
     ctx.font = `${shown(c) ? 700 : 400} 11px "Atkinson Hyperlegible", sans-serif`; ctx.fillStyle = fg; ctx.fillText(text(c), lx + 28, y);
+    ctx.globalAlpha = 1;
+    if (canvas === $('pfCanvas')) {  // the x (screen only, not in the saved PNG)
+      ctx.fillStyle = muted; ctx.textAlign = 'center'; ctx.font = '700 12px sans-serif'; ctx.fillText('\u00d7', lx + lw - 9, y); ctx.textAlign = 'left';
+      pfLegendHits.push({ x: lx + lw - 18, y: y - lh / 2, w: 18, h: lh, c, remove: true }, { x: lx, y: y - lh / 2, w: lw - 18, h: lh, c });
+    }
   });
   if (extra) { ctx.fillStyle = muted; ctx.fillText(`and ${extra} earlier`, lx + 28, ly + 3 + lh * rowsShown.length + lh / 2); }
 }
+let pfLegendHits = [];  // legend entries on the plot: { x, y, w, h, c } in CSS px
+const pfLegendAt = e => { const r = $('pfCanvas').getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  return pfLegendHits.find(h => x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h); };
+$('pfCanvas').addEventListener('click', e => {
+  const h = pfLegendAt(e);
+  if (!h) return;
+  if (h.remove) pfCurves.splice(pfCurves.indexOf(h.c), 1); else h.c.off = !h.c.off;
+  $('pfCsv').disabled = $('pfPng').disabled = !pfCurves.length;
+  drawProfile();
+});
+$('pfCanvas').addEventListener('mousemove', e => { $('pfCanvas').style.cursor = pfLegendAt(e) ? 'pointer' : ''; });
 function setPfPlot(show) {
   $('pfPlot').hidden = !show;
   $('pfShow').hidden = false; $('pfShow').textContent = show ? 'Hide plot' : 'Show plot';
@@ -3007,7 +3028,7 @@ $('pfCsv').onclick = () => {
     return [((dm + pfOff) / 1000).toFixed(3), (x / 1000).toFixed(3), (y / 1000).toFixed(3), lat.toFixed(5), lon.toFixed(5)];
   };
   for (const c of pfCurves) {
-    if (!c.v) continue;
+    if (!c.v || c.off) continue;
     for (let k = 0; k < c.v.length; k++) rows.push(['GrIMP', csvText(c.name), c.it.id, fmtDate(c.it.start), fmtDate(c.it.end), c.key, c.unit,
                                                     ...pos(c.d[k]), Number.isNaN(c.v[k]) ? '' : c.v[k]]);
   }
@@ -3108,7 +3129,8 @@ const tips = {
   pfClear: 'Remove the line and its plot',
   pfIts: 'Also plot ITS_LIVE image pairs whose time span includes the shown product\'s central date, sampled every 120 m, in grey; for an annual product, the ITS_LIVE annual mosaic of that calendar year instead (dashed)',
   pfItsDt: 'Only ITS_LIVE pairs whose images are at most this many days apart (not used for annual products)',
-  pfCsv: 'Save every curve (and the ITS_LIVE pairs shown) as CSV, one row per sample along the line',
+  pfCsv: 'Save the curves shown (and the ITS_LIVE pairs shown) as CSV, one row per sample along the line; curves hidden in the legend are left out',
+  pfCanvas: 'Click a legend entry to hide or show its curve; click its x to remove it',
   pfPng: 'Save the profile plot as a PNG image',
   tsYHi: 'Top of the plot y axis: drag left to zoom in',
   tsYLo: 'Bottom of the plot y axis: drag right to zoom in',
