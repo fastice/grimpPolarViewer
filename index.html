@@ -2128,14 +2128,19 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   const ovAll = tsOverlays(), ovNames = [...new Set(ovAll.map(o => o.l.name))], vis = tsVisible();
   const ovs = ovAll.filter(o => vis.includes(o.p) && !tsLayerOff.has(o.l.name)), curOff = tsLayerOff.has(tsPlotInfo.name), scr = canvas === $('tsCanvas');
   if (scr) tsLegendHits = [];
-  const L = 82, R = 14, T = ovAll.length ? 46 : 30, B = 42, pw = W - L - R, ph = H - T - B;
+  // Title, left of the point legend (top right); the ITS_LIVE part goes on a second line when both do not fit.
+  const itsOn = $('tsIts').checked && tsPlotInfo.key in itsVars;
+  const head1 = `GrIMP (color): ${tsPlotInfo.key}${tsPlotInfo.unit ? ` (${tsPlotInfo.unit})` : ''}${tsPlotInfo.withErr ? ', error bars 1 sigma' : ''}`;
+  const head2 = itsOn ? `ITS_LIVE (grey): pairs${+$('tsItsDt').value < 1e5 ? ` up to ${$('tsItsDt').value} d` : ''}` : '';
+  const R = 14, L = 82, titleMax = Math.max(60, W - R - L - (scr ? 30 * tsPoints.length + 22 : 18 * tsPoints.length + 16));
+  ctx.font = '12px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = fg; ctx.textBaseline = 'middle';
+  const split = head2 && ctx.measureText(`${head1}; ${head2}`).width > titleMax, hy = split ? 16 : 0;  // hy: height of the extra line
+  const T = (ovAll.length ? 46 : 30) + hy, B = 42, pw = W - L - R, ph = H - T - B;
   const pts = (curOff ? [] : vis).flatMap(p => p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v, e: x.e })))
     .concat(ovs.flatMap(o => o.l.values));
   const finite = pts.filter(q => Number.isFinite(q.v));
-  ctx.font = '12px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = fg; ctx.textBaseline = 'middle';
-  const itsOn = $('tsIts').checked && tsPlotInfo.key in itsVars;
-  ctx.fillText(`GrIMP (color): ${tsPlotInfo.key}${tsPlotInfo.unit ? ` (${tsPlotInfo.unit})` : ''}${tsPlotInfo.withErr ? ', error bars 1 sigma' : ''}`
-    + (itsOn ? `; ITS_LIVE (grey): pairs${+$('tsItsDt').value < 1e5 ? ` up to ${$('tsItsDt').value} d` : ''}` : ''), L, 14);
+  ctx.fillText(split || !head2 ? head1 : `${head1}; ${head2}`, L, 14, titleMax);  // maxWidth squeezes what still does not fit
+  if (split) ctx.fillText(head2, L, 30, titleMax);
   if (ovAll.length) {
     // Which line style is which catalog: filled circles = the catalog shown now.
     ctx.save(); ctx.font = '11px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = muted; ctx.strokeStyle = muted;
@@ -2145,12 +2150,13 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
     const entry = (shape, fill, dash, text, name, removable) => {
       const x0 = lx;
       ctx.globalAlpha = tsLayerOff.has(name) ? 0.35 : 1;
-      if ($('tsStyle').value !== 'points') { ctx.setLineDash(dash); ctx.beginPath(); ctx.moveTo(lx, 32); ctx.lineTo(lx + 18, 32); ctx.stroke(); ctx.setLineDash([]); }
-      if ($('tsStyle').value !== 'lines') tsMarker(ctx, shape, lx + 9, 32, 3.2, fill); ctx.fillText(text, lx + 23, 32); lx += 23 + ctx.measureText(text).width;
+      const ry = 32 + hy;
+      if ($('tsStyle').value !== 'points') { ctx.setLineDash(dash); ctx.beginPath(); ctx.moveTo(lx, ry); ctx.lineTo(lx + 18, ry); ctx.stroke(); ctx.setLineDash([]); }
+      if ($('tsStyle').value !== 'lines') tsMarker(ctx, shape, lx + 9, ry, 3.2, fill); ctx.fillText(text, lx + 23, ry); lx += 23 + ctx.measureText(text).width;
       ctx.globalAlpha = 1;
       if (scr) {
-        tsLegendHits.push({ x: x0, y: 24, w: lx - x0, h: 16, name });
-        if (removable) { ctx.fillText('\u00d7', lx + 4, 32); tsLegendHits.push({ x: lx + 1, y: 24, w: 11, h: 16, name, remove: true }); lx += 12; }
+        tsLegendHits.push({ x: x0, y: ry - 8, w: lx - x0, h: 16, name });
+        if (removable) { ctx.fillText('\u00d7', lx + 4, ry); tsLegendHits.push({ x: lx + 1, y: ry - 8, w: 11, h: 16, name, remove: true }); lx += 12; }
       }
       lx += 14;
     };
@@ -2961,7 +2967,7 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
   const its = $('pfIts').checked && pfIts?.key === pfKey ? pfIts : null;
   ctx.font = '12px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = fg; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
   ctx.fillText(`${pfFlow ? 'Flow line' : 'Profile A to B'}: ${label}` + (!its ? '' : its.annual ? `; ITS_LIVE (dashed grey): ${its.year} annual mosaic`
-    : `; ITS_LIVE (grey): pairs spanning ${fmtDate(new Date((+its.it.start + +its.it.end) / 2))}`), L, 14);
+    : `; ITS_LIVE (grey): pairs spanning ${fmtDate(new Date((+its.it.start + +its.it.end) / 2))}`), L, 14, Math.max(60, W - L - 30));  // clear of the close x
   // x range: the whole line, or as set on its slider (plotted km: from the flow line's point, or from A)
   const xFull = [pfOff / 1000, pfOff / 1000 + km];
   if (canvas === $('pfCanvas')) pfAxSliders('x', xFull, xFull);
