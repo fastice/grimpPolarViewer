@@ -66,5 +66,14 @@ await sleep(1500); await itsDone();
 q = await its();
 check('ITS_LIVE 2022 annual mosaic read for the Dec 2021-Nov 2022 product', q.annual && q.year === 2022 && q.finite > 0.5, q);
 check('pair window disabled in annual mode', await p.$eval('#pfItsDt', e => e.disabled));
+
+// CSV export: GrIMP curves only, never the ITS_LIVE samples shown
+const out = new URL('./out/', import.meta.url).pathname, fs = await import('fs');
+for (const f of fs.readdirSync(out)) if (f.endsWith('_profile.csv')) fs.unlinkSync(out + f);
+const cdp = await p.createCDPSession(); await cdp.send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: out });
+await p.click('#pfCsv');
+let csv = null; for (let i = 0; i < 40 && !csv; i++) { await sleep(250); const f = fs.readdirSync(out).find(f => f.endsWith('_profile.csv')); if (f) csv = fs.readFileSync(out + f, 'utf8'); }
+const csvRows = csv ? csv.trim().split('\n').slice(1) : [];
+check('profile CSV has GrIMP rows only (no ITS_LIVE)', csvRows.length > 100 && csvRows.every(r => r.startsWith('GrIMP,')) && !/ITS_LIVE/.test(csv), { rows: csvRows.length, sources: [...new Set(csvRows.map(r => r.split(',')[0]))] });
 await shot(p, 'profileLineIts');
 await finish(browser);

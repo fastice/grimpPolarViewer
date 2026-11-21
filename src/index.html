@@ -44,12 +44,16 @@
       <label><input id="footOn" type="checkbox" checked> Footprints</label>
       <label><input id="namesOn" type="checkbox"> Glacier names</label>
       <label><input id="frontsOn" type="checkbox"> Glacier fronts</label>
+      <label><input id="boundsOn" type="checkbox"> Boundaries</label>
       <label><input id="arrowsOn" type="checkbox"> Flow arrows</label>
     </div>
     <div id="frontsLegend" hidden>
       <div id="frontsBar" style="height:8px;border-radius:2px;border:1px solid var(--line)"></div>
       <div class="ends"><span id="frontsMin"></span><span class="note">winter fronts</span><span id="frontsMax"></span></div>
     </div>
+    <div id="boundsLegend" class="note" hidden><span class="swatch" style="border-color:#fff"></span>grounding line <span class="swatch" style="border-color:#4fd8ff"></span>ice shelves <span class="swatch" style="border-color:#ffd23f;border-top-style:dashed"></span>IMBIE basins</div>
+    <div class="row"><button id="olAdd" type="button" class="link">Add outlines (GeoJSON, KML, GPX)</button><span class="note">or drop files on the map</span><input id="olFile" type="file" accept=".geojson,.json,.kml,.gpx" multiple hidden></div>
+    <ul id="olList"></ul>
     <div class="row"><label class="lab" for="bgColl" style="margin:0;flex:none">Background</label><select id="bgColl"></select></div>
     <div class="row" id="bgItemRow" hidden><label class="lab" for="bgItem" style="margin:0;flex:none">Image</label><select id="bgItem"></select></div>
     <div id="bgNote" class="note" hidden></div>
@@ -298,6 +302,8 @@
 <!-- @include js/names.js -->
 <!-- @include js/search.js -->
 <!-- @include js/fronts.js -->
+<!-- @include js/boundaries.js -->
+<!-- @include js/outlines.js -->
 <!-- @include js/arrows.js -->
 <!-- @include js/ui.js -->
 </script>

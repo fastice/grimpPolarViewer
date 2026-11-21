@@ -121,6 +121,16 @@ Tick **Flow arrows** on a velocity product to see which way the ice moves: each 
 averaged over its patch of the screen, and longer arrows are faster. They are redrawn as you pan and
 zoom, and left out where ice moves slower than 5 m/yr (and on rock).
 
+In Antarctica, tick **Boundaries** for the grounding line (white), ice shelf outlines (cyan, named as you
+zoom in) and the IMBIE drainage basins (dashed yellow).
+
+Reference layers from other sources (glacier names and fronts, boundaries, ITS_LIVE) are for display
+and comparison only; the downloads and saved files contain GrIMP data only.
+
+To see your own field sites, tracks or outlines on the map, drop GeoJSON, KML or GPX files on it (or use
+**Add outlines**). They stay in your browser: nothing is uploaded, and the list under the boxes has
+**Zoom** and **×** for each file.
+
 Tick **Glacier fronts** (Greenland only) to draw the winter ice-front positions of up to 239 outlet
 glaciers from 1972-73 to 2020-21, colored from blue (oldest) to red (newest), so a retreat reads as a
 sweep of color up the fjord. Point at a front to see its date in the readout.
@@ -196,8 +206,8 @@ there is none, from the loaded catalog's velocity product with the longest avera
   how far apart the two images are. The ITS_LIVE datacubes currently end in May 2025. For an annual
   product, the ITS_LIVE annual mosaic of the calendar year holding its middle date is drawn instead,
   as one dashed grey line (ITS_LIVE annual mosaics currently end with 2022).
-- The plot moves and resizes like the time-series plot. **Save CSV** writes the curves shown (and the
-  ITS_LIVE pairs shown), one row per sample; **Save plot** writes the picture.
+- The plot moves and resizes like the time-series plot. **Save CSV** writes the GrIMP curves shown,
+  one row per sample (ITS_LIVE is drawn for comparison only and is not saved); **Save plot** writes the picture.
 
 ### 6. See what changed
 
@@ -331,6 +341,7 @@ Other data shown in the viewer:
 - Greenland glacier names: Bjørk, A. A., et al. (2015), Brief communication: Getting Greenland's glaciers
   right, a new data set of all official Greenlandic glacier names, *The Cryosphere*, 9, 2215-2218,
   <https://doi.org/10.5194/tc-9-2215-2015>.
+- Antarctic grounding line, ice shelves and IMBIE basins: NSIDC-0709 v2, MEaSUREs Antarctic Boundaries for IPY 2007-2009 from Satellite Radar, <https://doi.org/10.5067/AXE4121732AD>.
 - Antarctic place names: Secretariat SCAR (1992, updated 2025), Composite Gazetteer of Antarctica,
   Scientific Committee on Antarctic Research, <https://placenames.aq/>.
 - ITS_LIVE velocities (image-pair datacubes and annual mosaics, version 2) for comparison in the time

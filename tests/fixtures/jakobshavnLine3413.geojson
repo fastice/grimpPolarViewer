@@ -1,0 +1,2 @@
+{"type": "FeatureCollection", "features": [
+ {"type": "Feature", "properties": {"name": "gate"}, "geometry": {"type": "LineString", "coordinates": [[-180000, -2285000], [-180000, -2262000]]}}]}

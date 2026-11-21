@@ -215,11 +215,7 @@ $('pfCsv').onclick = () => {
     for (let k = 0; k < c.v.length; k++) rows.push(['GrIMP', csvText(c.name), c.it.id, fmtDate(c.it.start), fmtDate(c.it.end), c.key, c.unit,
                                                     ...pos(c.d[k]), Number.isNaN(c.v[k]) ? '' : c.v[k]]);
   }
-  const its = $('pfIts').checked && pfIts?.key === pfKey ? pfIts : null;
-  const unit = pfCurves.find(c => c.unit)?.unit || '';
-  if (its) for (const p of its.pairs) for (let k = 0; k < p.v.length; k++) {
-    if (Number.isFinite(p.v[k])) rows.push(['ITS_LIVE', its.annual ? 'ITS_LIVE annual' : 'ITS_LIVE', '', fmtDate(new Date(p.t0)), fmtDate(new Date(p.t1)), pfKey, unit, ...pos(its.d[k]), p.v[k]]);
-  }
+  // ITS_LIVE is drawn for comparison only: data that are not GrIMP products are shown, never exported.
   saveBlob(new Blob([rows.map(r => r.join(',')).join('\n') + '\n'], { type: 'text/csv' }), `${items[0]?.raw?.collection || 'grimp'}_${pfKey}_profile.csv`);
 };
 $('pfPng').onclick = () => {
