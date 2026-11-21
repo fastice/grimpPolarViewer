@@ -255,6 +255,32 @@ near the top of the map, clear of the time-series plot).
   annual mosaic `collection` is ITS_LIVE annual and start/end are 1 Jan and 31 Dec).
   **Save plot:** a PNG at twice screen resolution.
 
+**Flow line** (point, then two-handle slider):
+
+- **Trace:** one click places the point; the line is traced from it upstream and downstream on the
+  newest annual velocity mosaic in the map's projection (`nsidc-0725` in EPSG:3413, `ase-annual` in
+  EPSG:3031, catalog read once), whatever product is shown, so every product is compared along the
+  same path. If that catalog is unavailable or gives no flow at the point, the loaded catalog's
+  velocity items covering the point are tried, longest averaging period first (newest first among
+  equals, at most 3). Steps are one pixel (200 m GL, 250 m ASE) of midpoint (RK2) integration of the
+  unit flow direction, bilinear vx/vy between pixel centres from full-resolution 256 x 256 tiles read
+  as the trace reaches them; a direction stops where data end, speed falls below 1 m/yr, the
+  direction turns back, or after 150 km. Tracing takes under 1 s (150 km up, 17 km down at
+  Jakobshavn).
+- **Nudge, then accept:** the new point can be dragged (OpenLayers Translate); each move traces again
+  (a move during a trace queues one more), drawing only the map line. **Use this line** reads the
+  products along it; **Adjust point** turns dragging back on, and the next **Use this line** reads
+  the products on the plot again along the new line.
+- **Slider:** two range inputs over one track, from the traced upstream length (left, negative) to
+  the traced downstream length; the handles stay either side of the point and start at 25 km each
+  way. Dragging trims only the map line; letting go re-reads the plot's products along the trimmed
+  line (the trace itself is kept). Lengths asked for are remembered across nudges and clipped to
+  what each trace reaches.
+- **Plot and CSV:** x is distance downstream of the point (negative upstream), with the point
+  marked by a dashed line; `distance_km` in the CSV is the same. The sampling rule is that of a
+  straight line, applied to the trimmed path. Checked: the middle sample of a nudged Jakobshavn
+  flow line (60 km up, 5 km down) is 434.94086 m/yr in the viewer and from `gdallocationinfo`.
+
 Checked against GDAL: the middle sample of the 2024-25 annual speed line (x -176.123 km,
 y -2277.678 km) is 294.27005 m/yr in the viewer and from `gdallocationinfo`.
 

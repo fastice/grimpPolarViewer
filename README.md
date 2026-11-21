@@ -148,6 +148,15 @@ more files per date.
 Open **Profile along a line**, click **Draw line**, and click the start (A) and the end (B) on the
 map. The product on the map is read along the line and plotted against distance from A.
 
+Or click **Flow line** and click a point on a glacier: a line is traced along the ice flow, upstream
+and downstream of the point. Drag the white point to nudge the line until it follows the glacier the
+way you want (it is traced again as you drag), then click **Use this line** to plot it; **Adjust
+point** lets you move it again later. The two handles on the slider set how far the line runs
+upstream (left) and downstream (right) of the point, up to 150 km each way, and the plot gives
+distance downstream of the point (negative upstream). The flow comes from the newest annual
+velocity mosaic (Greenland, or the Amundsen Sea in Antarctica), whatever product is shown, or, where
+there is none, from the loaded catalog's velocity product with the longest averaging period.
+
 - Show another date (a timeline tick, a footprint on the map, or a point on the time-series plot) and
   its curve is added to the same plot, so you can see a front retreat or a speed-up along the flow
   line. Switching to another collection keeps the line and adds that collection's curve. The product

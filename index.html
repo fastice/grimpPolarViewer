@@ -88,6 +88,20 @@ button:disabled { opacity: .45; cursor: default; }
 .checks { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--fg); font-size: 13px; }
 .checks label { display: flex; align-items: center; gap: 4px; }
 .optrow { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+/* Two-handle slider (flow-line lengths): two transparent range inputs over one drawn track. */
+.dual { position: relative; height: 24px; margin: 4px 0 2px; }
+.dual .track, .dual .fill { position: absolute; top: 10px; height: 4px; border-radius: 2px; }
+.dual .track { left: 8px; right: 8px; background: var(--line); }
+.dual .fill { background: #ff3ea5; }
+.dual .zero { position: absolute; top: 4px; width: 2px; height: 16px; margin-left: -1px; background: var(--fg); }
+.dual input { position: absolute; inset: 0; width: 100%; height: 24px; margin: 0; background: transparent;
+  -webkit-appearance: none; appearance: none; pointer-events: none; }
+.dual input::-webkit-slider-runnable-track { background: transparent; }
+.dual input::-moz-range-track { background: transparent; }
+.dual input::-webkit-slider-thumb { -webkit-appearance: none; pointer-events: auto; cursor: pointer; width: 16px; height: 16px;
+  border-radius: 50%; background: #ff3ea5; border: 2px solid #ffffff; box-shadow: 0 0 0 1px #00000066; }
+.dual input::-moz-range-thumb { pointer-events: auto; cursor: pointer; width: 12px; height: 12px;
+  border-radius: 50%; background: #ff3ea5; border: 2px solid #ffffff; box-shadow: 0 0 0 1px #00000066; }
 .allbox { display: flex; align-items: center; gap: 4px; font-weight: 700; }
 .maint { margin: 0; font-size: 11px; line-height: 1.4; color: var(--muted); }
 .maint.now { font-size: 12px; font-weight: 700; color: var(--fg); background: var(--accent-soft);
@@ -345,8 +359,16 @@ body.nopanel #panel { display: none; }
     <div class="block-inner">
       <div class="row">
         <button id="pfDraw" type="button">Draw line</button>
+        <button id="pfFlow" type="button">Flow line</button>
         <button id="pfShow" type="button" class="link" hidden>Show plot</button>
         <button id="pfClear" type="button" class="link" hidden>Clear line</button>
+      </div>
+      <div id="pfFlowRow" hidden>
+        <div class="dual"><div class="track"></div><div class="fill" id="pfFill"></div><div class="zero" id="pfZero"></div>
+          <input id="pfLo" type="range" aria-label="Length upstream of the point (km)">
+          <input id="pfHi" type="range" aria-label="Length downstream of the point (km)"></div>
+        <div id="pfFlowText" class="note"></div>
+        <div class="row"><button id="pfAccept" type="button">Use this line</button></div>
       </div>
       <div class="optrow" id="pfItsRow"><label class="optrow"><input id="pfIts" type="checkbox"> ITS_LIVE in grey,</label>
         <label class="optrow">pairs up to <select id="pfItsDt"><option value="100000">any</option><option value="120">120 d</option>
@@ -968,7 +990,7 @@ let draw = null, drawKind = null, cropBox = null, areaBox = null;
 
 function stopDraw() {
   if (draw) map.removeInteraction(draw);
-  draw = null; drawKind = null; $('drawBox').textContent = 'Draw box'; $('pfDraw').textContent = 'Draw line';
+  draw = null; drawKind = null; $('drawBox').textContent = 'Draw box'; $('pfDraw').textContent = 'Draw line'; $('pfFlow').textContent = 'Flow line';
 }
 const boxDraw = (source, color) => new ol.interaction.Draw({ source, type: 'Circle', geometryFunction: ol.interaction.Draw.createBox(), style: outline(color) });
 $('drawBox').onclick = () => {
@@ -2456,12 +2478,16 @@ $('tsPng').onclick = () => {
 // Profile along a line: two clicks draw the line (A to B), and the shown product is sampled along it at
 // the resolution level nearest 1/1000 of the line length (never finer than the full image). Each product
 // shown while the line is up adds its curve (another date, or another catalog in the same projection);
-// a new line or another asset starts a new plot. ITS_LIVE image pairs whose time span includes the shown
+// a new line or another asset starts a new plot. A flow line instead follows the ice flow up and down
+// stream from a clicked point, traced once on the newest annual velocity mosaic; its two-handle slider
+// trims the traced path, and the products on the plot are read again along the trimmed part. ITS_LIVE image pairs whose time span includes the shown
 // product's central date are drawn in grey, sampled every 120 m (the datacube pixel); of each datacube
 // chunk the line crosses, only the time chunks holding such pairs are read. For an annual product the
 // ITS_LIVE annual mosaic of the calendar year holding its central date is drawn instead (dashed grey).
 const pfSource = new ol.source.Vector();
 map.addLayer(new ol.layer.Vector({ source: pfSource, zIndex: 6, style: f => {
+  if (f.getGeometry().getType() === 'Point') return new ol.style.Style({ image: new ol.style.Circle({ radius: 6,
+    fill: new ol.style.Fill({ color: '#ffffff' }), stroke: new ol.style.Stroke({ color: '#ff3ea5', width: 3 }) }) });
   const c = f.getGeometry().getCoordinates();
   const end = (k, text) => new ol.style.Style({ geometry: new ol.geom.Point(c[k]),
     image: new ol.style.Circle({ radius: 5, fill: new ol.style.Fill({ color: '#ff3ea5' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }),
@@ -2471,26 +2497,209 @@ map.addLayer(new ol.layer.Vector({ source: pfSource, zIndex: 6, style: f => {
           new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#ff3ea5', width: 2.5 }) }), end(0, 'A'), end(c.length - 1, 'B')];
 } }));
 let pfLine = null, pfKey = null, pfCurves = [], pfIts = null, pfToken = 0, pfItsToken = 0, pfDrawnAt = -Infinity;
+let pfCum = null, pfOff = 0, pfFlow = null;  // cumulative m along pfLine; plotted distance of its start; flow trace
+let pfPoint = null, pfAdjust = null, pfWant = [0, 0];  // flow point feature; its drag interaction; lengths asked for (m)
 const pfItsStep = 120;  // m between ITS_LIVE pair samples
 const itsAnnualRegion = { 3413: 'RGI05A', 3031: 'RGI19A' };  // ITS_LIVE annual mosaic region per projection
 const pfAnnual = it => { const days = (it.end - it.start) / 86400e3; return days > 350 && days < 380; };
-const pfLen = () => Math.hypot(pfLine[1][0] - pfLine[0][0], pfLine[1][1] - pfLine[0][1]);
-const pfAt = d => { const f = d / pfLen(); return [pfLine[0][0] + f * (pfLine[1][0] - pfLine[0][0]), pfLine[0][1] + f * (pfLine[1][1] - pfLine[0][1])]; };
+const cumDist = path => path.reduce((c, p, i) => (c.push(i ? c[i - 1] + Math.hypot(p[0] - path[i - 1][0], p[1] - path[i - 1][1]) : 0), c), []);
+function alongPath(path, cum, d) {  // the point d metres along a polyline
+  let lo = 1, hi = path.length - 1;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (cum[m] < d) lo = m + 1; else hi = m; }
+  const f = Math.min(1, Math.max(0, (d - cum[lo - 1]) / ((cum[lo] - cum[lo - 1]) || 1))), a = path[lo - 1], b = path[lo];
+  return [a[0] + f * (b[0] - a[0]), a[1] + f * (b[1] - a[1])];
+}
+const pfLen = () => pfCum[pfCum.length - 1];
+const pfAt = d => alongPath(pfLine, pfCum, d);
 
 function clearProfile() {
   ++pfToken; ++pfItsToken;
-  pfLine = null; pfKey = null; pfCurves = []; pfIts = null;
+  pfLine = null; pfKey = null; pfCurves = []; pfIts = null; pfFlow = null; pfOff = 0; pfPoint = null;
+  if (pfAdjust) { map.removeInteraction(pfAdjust); pfAdjust = null; }
   pfSource.clear(); itsPixCache.clear();
-  $('pfPlot').hidden = true; $('pfShow').hidden = true; $('pfClear').hidden = true; $('pfProg').hidden = true;
+  $('pfPlot').hidden = true; $('pfShow').hidden = true; $('pfClear').hidden = true; $('pfProg').hidden = true; $('pfFlowRow').hidden = true;
   $('pfCsv').disabled = true; $('pfPng').disabled = true;
   $('pfNote').textContent = ''; $('pfItsNote').textContent = ''; $('pfCount').textContent = '';
 }
+// (Re)start the plot on a line; the products already on the plot are read again along it.
+function setProfileLine(line, off) {
+  ++pfToken; ++pfItsToken;
+  const shown = pfCurves.map(c => c.it);
+  pfLine = line; pfCum = cumDist(line); pfOff = off; pfCurves = []; pfIts = null;
+  pfSource.clear(); pfSource.addFeature(new ol.Feature(new ol.geom.LineString(line)));
+  if (pfPoint) pfSource.addFeature(pfPoint);
+  $('pfClear').hidden = false;
+  for (const it of shown) addProfileCurve(it, pfKey);
+  if (selected && !rgbMode) pfOnShown($('asset').value);
+}
 function newProfile(line) {
   clearProfile();
-  pfLine = line;
-  pfSource.addFeature(new ol.Feature(new ol.geom.LineString(line)));
+  setProfileLine(line, 0);
+}
+
+// Flow lines are traced on the newest annual velocity mosaic in the map's projection (GrIMP Greenland,
+// or the Amundsen Sea mosaic in Antarctica), whatever product is shown. Where there is none, or it has no
+// flow at the point, the loaded catalog's velocity product with the longest averaging period is used.
+const pfFlowCatalogs = { 'EPSG:3413': 'https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0725/v06/nsidc-0725.parquet',
+                         'EPSG:3031': 'https://s3.kopah.uw.edu/ianj-grimp/public/pig/annual/ase-annual.parquet' };
+const pfFlowMax = 150e3, pfFlowStart = 25e3;  // m traced each way from the point; m shown each way at first
+const pfFlowItems = new Map();  // catalog href -> promise of its newest item with vx and vy
+function flowItem(href) {
+  if (!pfFlowItems.has(href)) pfFlowItems.set(href, (async () => {
+    const resp = await fetch(href, { cache: 'no-cache' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status} reading the annual velocity catalog`);
+    const its = (await parquetReadObjects({ file: await resp.arrayBuffer(), compressors })).map(toItem).filter(it => it.assets.vx && it.assets.vy);
+    if (!its.length) throw new Error('the annual velocity catalog has no vx/vy');
+    return its.sort((a, b) => b.start - a.start)[0];
+  })().catch(e => { pfFlowItems.delete(href); throw e; }));
+  return pfFlowItems.get(href);
+}
+async function traceFlow(p0) {
+  // The first candidate mosaic with flow at the point, or null.
+  const href = pfFlowCatalogs[viewCode], cands = [];
+  if (href) cands.push(await flowItem(href).catch(() => null));
+  const covers = it => !it.feature || it.feature.getGeometry().intersectsCoordinate(p0);
+  cands.push(...items.filter(it => it.assets.vx && it.assets.vy && (!it.epsg || `EPSG:${it.epsg}` === viewCode) && covers(it))
+    .sort((a, b) => (b.end - b.start) - (a.end - a.start) || b.start - a.start).slice(0, 3));
+  const seen = new Set();
+  let err = null;
+  for (const it of cands) {
+    if (!it || seen.has(it.assets.vx.href)) continue;
+    seen.add(it.assets.vx.href);
+    try { const f = await traceOn(it, p0); if (f.up || f.down) return f; } catch (e) { err = e; }
+  }
+  if (err) throw err;
+  return null;
+}
+async function traceOn(it, p0) {
+  // { path (upstream end first), cum, up, down (m traced each way), p0, it (the mosaic traced on) }
+  const comps = await Promise.all(['vx', 'vy'].map(async k => ({ ...(await assetLevels(it.assets[k].href)), nodata: it.assets[k]['raster:bands']?.[0]?.nodata })));
+  const org = comps[0].origin, r = comps[0].levels[0].res, W = comps[0].levels[0].img.getWidth(), H = comps[0].levels[0].img.getHeight(), T = 256;
+  const tiles = new Map();  // full-resolution 256 x 256 tiles of vx and vy, read as the trace reaches them
+  const tile = (tx, ty) => {
+    const k = `${tx},${ty}`;
+    if (!tiles.has(k)) tiles.set(k, Promise.all(comps.map(c => c.levels[0].img.readRasters({
+      window: [tx * T, ty * T, Math.min(W, tx * T + T), Math.min(H, ty * T + T)], samples: [0] }).then(a => a[0]))));
+    return tiles.get(k);
+  };
+  const pix = async (i, j) => {
+    if (i < 0 || j < 0 || i >= W || j >= H) return null;
+    const tx = Math.floor(i / T), ty = Math.floor(j / T), w = Math.min(W, tx * T + T) - tx * T, t = await tile(tx, ty), o = (j - ty * T) * w + i - tx * T;
+    const v = t.map((a, n) => a[o] === comps[n].nodata || !Number.isFinite(a[o]) ? NaN : a[o]);
+    return v.some(Number.isNaN) ? null : v;
+  };
+  const vel = async ([x, y]) => {  // bilinear vx, vy between pixel centres; null where any is missing
+    const fx = (x - org[0]) / r - 0.5, fy = (org[1] - y) / r - 0.5, i = Math.floor(fx), j = Math.floor(fy), a = fx - i, b = fy - j;
+    const q = await Promise.all([pix(i, j), pix(i + 1, j), pix(i, j + 1), pix(i + 1, j + 1)]);
+    if (q.some(v => !v)) return null;
+    return [0, 1].map(n => (1 - b) * ((1 - a) * q[0][n] + a * q[1][n]) + b * ((1 - a) * q[2][n] + a * q[3][n]));
+  };
+  const walk = async sign => {
+    // Midpoint steps of one pixel along the flow direction (sign -1: upstream); stops where the data end,
+    // the ice is nearly still (< 1 m/yr) or the direction turns back.
+    const pts = [], dir = v => { const sp = v && Math.hypot(v[0], v[1]); return sp >= 1 ? [sign * v[0] / sp, sign * v[1] / sp] : null; };
+    let p = p0, prev = null;
+    while (pts.length * r < pfFlowMax) {
+      const d1 = dir(await vel(p));
+      if (!d1) break;
+      const d2 = dir(await vel([p[0] + d1[0] * r / 2, p[1] + d1[1] * r / 2]));
+      if (!d2 || (prev && d2[0] * prev[0] + d2[1] * prev[1] < 0)) break;
+      p = [p[0] + d2[0] * r, p[1] + d2[1] * r]; pts.push(p); prev = d2;
+    }
+    return pts;
+  };
+  const up = await walk(-1), down = await walk(1), path = [...up.reverse(), p0, ...down];
+  return { path, cum: cumDist(path), up: up.length * r, down: down.length * r, p0, it };
+}
+function flowTrim(lo, hi) {  // the traced path from lo to hi m (lo <= 0 <= hi) about the point
+  const { path, cum, up } = pfFlow, s0 = up + lo, s1 = up + hi;
+  return [alongPath(path, cum, s0), ...path.filter((p, i) => cum[i] > s0 && cum[i] < s1), alongPath(path, cum, s1)];
+}
+function flowSlider() {  // the slider's fill, zero mark and text from its two handles
+  const lo = +$('pfLo').value, hi = +$('pfHi').value, a = +$('pfLo').min, b = +$('pfLo').max, pos = v => (b > a ? (v - a) / (b - a) : 0.5);
+  const at = f => `calc(8px + ${f} * (100% - 16px))`;
+  $('pfFill').style.left = at(pos(lo)); $('pfFill').style.width = `calc(${pos(hi) - pos(lo)} * (100% - 16px))`;
+  $('pfZero').style.left = at(pos(0));
+  $('pfFlowText').textContent = `${(-lo).toFixed(1)} km upstream (traced ${(pfFlow.up / 1000).toFixed(1)}), ${hi.toFixed(1)} km downstream `
+    + `(traced ${(pfFlow.down / 1000).toFixed(1)}); flow from ${pfFlow.it.id}.`;
+}
+// A new flow point starts in adjust mode: the point can be dragged and the line is traced again as it
+// moves (map only, nothing read) until 'Use this line' reads the products along it.
+const pfLineFeature = () => pfSource.getFeatures().find(f => f.getGeometry().getType() === 'LineString');
+function newFlowProfile(p0) {
+  clearProfile();
+  pfPoint = new ol.Feature(new ol.geom.Point(p0)); pfWant = [-pfFlowStart, pfFlowStart];
+  pfSource.addFeature(new ol.Feature(new ol.geom.LineString([p0, p0]))); pfSource.addFeature(pfPoint);
   $('pfClear').hidden = false;
-  if (selected && !rgbMode) pfOnShown($('asset').value);
+  setAdjust(true);
+  retrace();
+}
+function setAdjust(on) {
+  if (on && !pfAdjust) {
+    pfAdjust = new ol.interaction.Translate({ features: new ol.Collection([pfPoint]), hitTolerance: 8 });
+    pfAdjust.on(['translating', 'translateend'], () => retrace());
+    map.addInteraction(pfAdjust);
+  } else if (!on && pfAdjust) { map.removeInteraction(pfAdjust); pfAdjust = null; }
+  $('pfAccept').textContent = on ? 'Use this line' : 'Adjust point';
+  $('pfAccept').disabled = on && !pfFlow;
+}
+let pfTracing = false, pfTraceAgain = false;
+async function retrace() {
+  // Trace from where the point is now; a move during a trace traces once more when it finishes.
+  if (pfTracing) { pfTraceAgain = true; return; }
+  pfTracing = true;
+  const token = pfToken;
+  try {
+    do {
+      pfTraceAgain = false;
+      const p0 = pfPoint.getGeometry().getCoordinates();
+      $('pfNote').textContent = 'Tracing the flow line...';
+      let f = null;
+      try { f = await traceFlow(p0); } catch (e) { if (token === pfToken) $('pfNote').textContent = `Could not trace the flow line: ${e.message}`; }
+      if (token !== pfToken) return;
+      pfFlow = f;
+      $('pfFlowRow').hidden = false;
+      if (!f) {
+        pfLineFeature()?.setGeometry(new ol.geom.LineString([p0, p0]));
+        if (!/Could not/.test($('pfNote').textContent)) $('pfNote').textContent = 'No velocity mosaic has flow at that point; drag it onto moving ice.';
+        $('pfFlowText').textContent = '';
+        continue;
+      }
+      const lo = Math.max(pfWant[0], -f.up), hi = Math.min(pfWant[1], f.down);
+      for (const [id, v] of [['pfLo', lo], ['pfHi', hi]])
+        Object.assign($(id), { min: String(-f.up / 1000), max: String(f.down / 1000), step: 'any', value: String(v / 1000) });
+      flowSlider();
+      pfLineFeature()?.setGeometry(new ol.geom.LineString(flowTrim(lo, hi)));
+      if (pfAdjust) $('pfNote').textContent = 'Drag the white point to nudge the flow line, then Use this line.';
+    } while (pfTraceAgain);
+  } finally {
+    pfTracing = false;
+    if (token === pfToken) $('pfAccept').disabled = !!pfAdjust && !pfFlow;
+  }
+}
+$('pfAccept').onclick = () => {
+  if (!pfAdjust) { setAdjust(true); $('pfNote').textContent = 'Drag the white point to nudge the flow line, then Use this line.'; return; }
+  if (!pfFlow || pfTracing) return;
+  const lo = +$('pfLo').value * 1000, hi = +$('pfHi').value * 1000;
+  if (hi - lo < 1) { $('pfNote').textContent = 'Move a handle away from the point to give the line some length.'; return; }
+  setAdjust(false);
+  setProfileLine(flowTrim(lo, hi), lo);
+};
+for (const id of ['pfLo', 'pfHi']) {
+  $(id).addEventListener('input', () => {  // keep the handles either side of the point; move the map line only
+    if (+$('pfLo').value > 0) $('pfLo').value = '0';
+    if (+$('pfHi').value < 0) $('pfHi').value = '0';
+    pfWant = [+$('pfLo').value * 1000, +$('pfHi').value * 1000];
+    if (!pfFlow) return;
+    flowSlider();
+    pfLineFeature()?.setGeometry(new ol.geom.LineString(flowTrim(...pfWant)));
+  });
+  $(id).addEventListener('change', () => {  // on release (once the line is in use), read the products along it
+    if (pfAdjust || !pfFlow) return;
+    const [lo, hi] = pfWant;
+    if (hi - lo < 1) { $('pfNote').textContent = 'Move a handle away from the point to give the line some length.'; return; }
+    setProfileLine(flowTrim(lo, hi), lo);
+  });
 }
 // Called whenever a product's asset is shown.
 function pfOnShown(key) {
@@ -2680,7 +2889,7 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
   const unit = pfCurves.find(c => c.unit)?.unit || '', label = `${pfKey}${unit ? ` (${unit})` : ''}`;
   const its = $('pfIts').checked && pfIts?.key === pfKey ? pfIts : null;
   ctx.font = '12px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = fg; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
-  ctx.fillText(`Profile A to B: ${label}` + (!its ? '' : its.annual ? `; ITS_LIVE (dashed grey): ${its.year} annual mosaic`
+  ctx.fillText(`${pfFlow ? 'Flow line' : 'Profile A to B'}: ${label}` + (!its ? '' : its.annual ? `; ITS_LIVE (dashed grey): ${its.year} annual mosaic`
     : `; ITS_LIVE (grey): pairs spanning ${fmtDate(new Date((+its.it.start + +its.it.end) / 2))}`), L, 14);
   // y range from the GrIMP curves (ITS_LIVE is clipped to it), or from ITS_LIVE alone
   let y0 = Infinity, y1 = -Infinity;
@@ -2698,16 +2907,21 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
     ctx.fillText(fmtVal(+v.toPrecision(6)), L - 6, Y(v));
   }
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  const xs = niceStep(km, 6);
-  for (let x = 0; x <= km + 1e-9; x += xs) {
-    ctx.beginPath(); ctx.moveTo(X(x * 1000), T); ctx.lineTo(X(x * 1000), T + ph); ctx.stroke();
-    ctx.fillText(fmtVal(+x.toPrecision(6)), X(x * 1000), T + ph + 6);
+  const xs = niceStep(km, 6), x0 = pfOff / 1000;  // ticks in plotted km (from the flow line's point, or from A)
+  for (let k = Math.ceil(x0 / xs - 1e-9); k * xs <= x0 + km + 1e-9; k++) {
+    const x = k * xs, px = X((x - x0) * 1000);
+    ctx.beginPath(); ctx.moveTo(px, T); ctx.lineTo(px, T + ph); ctx.stroke();
+    ctx.fillText(fmtVal(+x.toPrecision(6) || 0), px, T + ph + 6);
   }
   ctx.save(); ctx.fillStyle = fg; ctx.textBaseline = 'middle';
   ctx.translate(12, T + ph / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(label, 0, 0); ctx.restore();
-  ctx.save(); ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText('Distance from A (km)', L + pw / 2, H - 3); ctx.restore();
+  ctx.save(); ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(pfFlow ? 'Distance downstream of the point (km)' : 'Distance from A (km)', L + pw / 2, H - 3); ctx.restore();
   ctx.strokeStyle = muted; ctx.strokeRect(L, T, pw, ph);
   ctx.save(); ctx.beginPath(); ctx.rect(L, T, pw, ph); ctx.clip();
+  if (pfFlow) {  // the picked point
+    ctx.strokeStyle = '#ff3ea5'; ctx.lineWidth = 1.2; ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(X(-pfOff), T); ctx.lineTo(X(-pfOff), T + ph); ctx.stroke(); ctx.setLineDash([]);
+  }
   const path = (d, v) => {  // a polyline broken at missing values
     ctx.beginPath();
     let on = false;
@@ -2764,12 +2978,25 @@ $('pfDraw').onclick = () => {
   $('pfDraw').textContent = 'Cancel';
   $('pfNote').textContent = 'Click the start of the line (A), then the end (B).';
 };
-$('pfClear').onclick = () => { if (drawKind === 'profile') stopDraw(); clearProfile(); };
+$('pfFlow').onclick = () => {
+  if (draw) { const was = drawKind; stopDraw(); if (was === 'flow') return; refreshAnimInfo(); }
+  if (tsMode) setTsMode(false);
+  draw = new ol.interaction.Draw({ type: 'Point', style: outline('#ff3ea5') }); drawKind = 'flow';
+  draw.on('drawend', e => {
+    const p = e.feature.getGeometry().getCoordinates();
+    pfDrawnAt = performance.now();
+    setTimeout(() => { stopDraw(); newFlowProfile(p); });
+  });
+  map.addInteraction(draw);
+  $('pfFlow').textContent = 'Cancel';
+  $('pfNote').textContent = 'Click a point on the glacier; the line follows the flow up and down stream from it.';
+};
+$('pfClear').onclick = () => { if (drawKind === 'profile' || drawKind === 'flow') stopDraw(); clearProfile(); };
 $('pfShow').onclick = () => setPfPlot($('pfPlot').hidden);
 $('pfHide').onclick = () => setPfPlot(false);
 $('pfIts').onchange = () => refreshProfileIts();
 $('pfItsDt').onchange = () => refreshProfileIts();
-$('pfSec').addEventListener('toggle', () => { if (!$('pfSec').open && drawKind === 'profile') stopDraw(); });
+$('pfSec').addEventListener('toggle', () => { if (!$('pfSec').open && (drawKind === 'profile' || drawKind === 'flow')) stopDraw(); });
 floatingPlot($('pfPlot'), $('pfDrag'), $('pfSize'), () => drawProfile());
 window.addEventListener('resize', () => { if (!$('pfPlot').hidden) drawProfile(); });
 $('pfCsv').onclick = () => {
@@ -2777,7 +3004,7 @@ $('pfCsv').onclick = () => {
   const csvText = t => /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
   const pos = dm => {
     const [x, y] = pfAt(dm), [lon, lat] = ol.proj.toLonLat([x, y], viewCode);
-    return [(dm / 1000).toFixed(3), (x / 1000).toFixed(3), (y / 1000).toFixed(3), lat.toFixed(5), lon.toFixed(5)];
+    return [((dm + pfOff) / 1000).toFixed(3), (x / 1000).toFixed(3), (y / 1000).toFixed(3), lat.toFixed(5), lon.toFixed(5)];
   };
   for (const c of pfCurves) {
     if (!c.v) continue;
@@ -2873,6 +3100,10 @@ const tips = {
   treset: 'Show the full time range',
   tsShow: 'Hide or show the time-series plot',
   pfDraw: 'Click two points on the map (A, then B) to plot the shown product along the line; each product you show next adds its curve',
+  pfFlow: 'Click a point on a glacier: the line follows the ice flow up and down stream from it (traced on the newest annual velocity mosaic, or else the loaded catalog\'s longest-period velocity product)',
+  pfAccept: 'Read the products along the flow line as it is now (Adjust point lets you drag the point again)',
+  pfLo: 'Length of the flow line upstream of the point (km); the plot is read again when you let go',
+  pfHi: 'Length of the flow line downstream of the point (km); the plot is read again when you let go',
   pfShow: 'Hide or show the profile plot',
   pfClear: 'Remove the line and its plot',
   pfIts: 'Also plot ITS_LIVE image pairs whose time span includes the shown product\'s central date, sampled every 120 m, in grey; for an annual product, the ITS_LIVE annual mosaic of that calendar year instead (dashed)',
