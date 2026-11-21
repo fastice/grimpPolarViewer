@@ -33,7 +33,7 @@ const tips = {
   footOn: 'Outlines of the items in the time range; click one to show it',
   arrowsOn: 'Flow direction of the shown velocity product (its vx and vy), averaged over each arrow\'s cell; longer arrows are faster (log scale up to the fastest 5% in view); none below 5 m/yr',
   olAdd: 'Draw your own GeoJSON, KML or GPX outlines on the map (they stay in this browser tab, nothing is uploaded)',
-  boundsOn: 'Antarctic grounding line, ice shelves and IMBIE drainage basins (NSIDC-0709 v2, MEaSUREs Antarctic Boundaries); Antarctica only',
+  boundsOn: 'Antarctic grounding line, ice shelves and IMBIE drainage basins (NSIDC-0709 v2), with the dated InSAR grounding lines of the Amundsen Sea glaciers, 1992-2025 (NSIDC-0498 v2.1), colored by year; Antarctica only',
   frontsOn: 'Winter ice-front positions of Greenland outlet glaciers, 1972-73 to 2020-21 (NSIDC-0642 v2), colored by year; point at a front for its date',
   namesOn: 'Greenland glacier names (Bjørk et al. 2015): outlet glaciers at any zoom, local glaciers and ice caps when zoomed in; Greenland only',
   cmap: 'Color map for single-band images',
@@ -224,7 +224,8 @@ async function readoutValue(coord) {
   return `<b>${esc(key)}</b> ${fmtVal(v * (b.scale ?? 1) + (b.offset ?? 0))} ${esc(b.unit || '')}`;
 }
 function updateReadout(e) {
-  const ro = $('readout'), front = frontNote(e.pixel), coords = readoutCoords(e.coordinate) + (front ? `<br>${front}` : '');
+  const ro = $('readout'), lines = [frontNote(e.pixel), glNote(e.pixel)].filter(Boolean);
+  const coords = [readoutCoords(e.coordinate), ...lines].join('<br>');
   ro.hidden = false;
   ro.innerHTML = `${coords}<br><span class="note" style="color:inherit">reading value...</span>`;
   clearTimeout(readoutTimer);

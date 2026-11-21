@@ -62,7 +62,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 #legend[hidden] { display: none; }
 #bar { height: 10px; border-radius: 2px; background: linear-gradient(90deg, #000, #fff); border: 1px solid var(--line); }
 #frontsLegend .ends { white-space: nowrap; }
-#legend .ends, #saLegend .ends, #frontsLegend .ends { display: flex; justify-content: space-between; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+#legend .ends, #saLegend .ends, #frontsLegend .ends, #boundsLegend .ends { display: flex; justify-content: space-between; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 #legend .stretch { display: flex; gap: 8px; }
 #legend .stretch label { flex: 1; display: flex; align-items: center; gap: 4px; color: var(--muted); min-width: 0; }
 #legend .stretch input { flex: 1; width: 0; min-width: 0; font-family: var(--font-mono); font-size: 12px; }

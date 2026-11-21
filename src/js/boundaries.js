@@ -1,7 +1,9 @@
 // Antarctic boundaries (display only): the NSIDC-0709 v2 grounding line, ice shelf outlines and IMBIE drainage
 // basins, read from data/antarcticBoundaries.json the first time Boundaries is ticked. Antarctica (EPSG:3031)
 // only. Grounding line white, ice shelves cyan with their names once zoomed in (finer than boundsShelfRes m per
-// pixel), basins dashed yellow with their IMBIE labels; overlapping labels are dropped.
+// pixel), basins dashed yellow with their IMBIE labels; overlapping labels are dropped. Over them, the dated
+// NSIDC-0498 v2.1 InSAR grounding lines of the Amundsen Sea glaciers (data/aseGroundingLines.json, 1992-2025),
+// colored by year on the glacier-front ramp; the readout gives the dates of those under the pointer.
 const boundsUrl = 'data/antarcticBoundaries.json', boundsCode = 'EPSG:3031', boundsShelfRes = 1500;
 const boundsSource = new ol.source.Vector();
 let boundsLoading = null;
@@ -20,12 +22,22 @@ const boundsLayer = new ol.layer.Vector({ source: boundsSource, zIndex: 5, visib
   return boundsLabel(name, kind === 'basins' ? '#ffd23f' : '#4fd8ff', kind === 'basins');
 } });
 map.addLayer(boundsLayer);
+const glUrl = 'data/aseGroundingLines.json', glSource = new ol.source.Vector(), glStyles = new Map();
+let glLoading = null, glYears = [0, 1];
+const glLayer = new ol.layer.Vector({ source: glSource, zIndex: 5, visible: false, style: f => {
+  const y = f.get('year');
+  if (!glStyles.has(y)) glStyles.set(y, [new ol.style.Style({ stroke: casing(3) }),
+                                         new ol.style.Style({ stroke: new ol.style.Stroke({ color: rampColor(y, glYears), width: 1.5 }) })]);
+  return glStyles.get(y);
+} });
+map.addLayer(glLayer);
 
 async function refreshBounds() {
   const here = viewCode === boundsCode, on = $('boundsOn').checked && here;
   $('boundsOn').disabled = !here;
-  boundsLayer.setVisible(on);
+  boundsLayer.setVisible(on); glLayer.setVisible(on);
   $('boundsLegend').hidden = !on;
+  if (on && !glSource.getFeatures().length) loadGroundingLines();
   if (!on || boundsSource.getFeatures().length) return;
   boundsLoading ||= fetch(boundsUrl).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
   let d;
@@ -47,6 +59,28 @@ async function refreshBounds() {
     }
   }
   boundsSource.addFeatures(features);
+}
+async function loadGroundingLines() {
+  glLoading ||= fetch(glUrl).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
+  let d;
+  try { d = await glLoading; } catch (e) { glLoading = null; setStatus(`Could not read the Amundsen Sea grounding lines (${e.message})`); return; }
+  if (glSource.getFeatures().length) return;
+  glYears = [Math.min(...d.lines.map(l => l[0])), Math.max(...d.lines.map(l => l[0]))];
+  $('glBar').style.background = `linear-gradient(90deg, ${frontColors.join(', ')})`;
+  $('glMin').textContent = glYears[0]; $('glMax').textContent = glYears[1];
+  glSource.addFeatures(d.lines.map(([year, date, sensor, glacier, ...pieces]) => new ol.Feature({
+    geometry: new ol.geom.MultiLineString(pieces.map(xy => { const pts = []; for (let k = 0; k < xy.length; k += 2) pts.push([xy[k], xy[k + 1]]); return pts; })),
+    year, date: date || String(year), sensor, glacier })));
+}
+// Readout line for the dated grounding lines under a map pixel ('' when none or hidden).
+function glNote(pixel) {
+  if (!glLayer.getVisible()) return '';
+  const hits = [];
+  map.forEachFeatureAtPixel(pixel, f => { hits.push(f); }, { layerFilter: l => l === glLayer, hitTolerance: 3 });
+  if (!hits.length) return '';
+  const dates = [...new Set(hits.map(f => f.get('date')))].sort(), sensors = [...new Set(hits.map(f => f.get('sensor')).filter(Boolean))].join(', ');
+  const when = dates.length > 3 ? `${dates[0]} to ${dates[dates.length - 1]}` : dates.join(', ');
+  return `<b>${dates.length > 1 ? `${dates.length} grounding lines` : 'grounding line'}</b> ${when} (${esc(hits[0].get('glacier'))}${sensors ? `; ${esc(sensors)}` : ''})`;
 }
 map.on('change:view', refreshBounds);
 $('boundsOn').onchange = refreshBounds;

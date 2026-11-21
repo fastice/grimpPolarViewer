@@ -122,7 +122,9 @@ averaged over its patch of the screen, and longer arrows are faster. They are re
 zoom, and left out where ice moves slower than 5 m/yr (and on rock).
 
 In Antarctica, tick **Boundaries** for the grounding line (white), ice shelf outlines (cyan, named as you
-zoom in) and the IMBIE drainage basins (dashed yellow).
+zoom in) and the IMBIE drainage basins (dashed yellow). On the Amundsen Sea glaciers (Pine Island, Thwaites,
+Pope, Smith, Kohler, Getz, Abbot and others) it also draws the dated InSAR grounding lines from 1992 to 2025,
+colored from blue (oldest) to red (newest); point at one for its date and sensor.
 
 Reference layers from other sources (glacier names and fronts, boundaries, ITS_LIVE) are for display
 and comparison only; the downloads and saved files contain GrIMP data only.
@@ -342,6 +344,7 @@ Other data shown in the viewer:
   right, a new data set of all official Greenlandic glacier names, *The Cryosphere*, 9, 2215-2218,
   <https://doi.org/10.5194/tc-9-2215-2015>.
 - Antarctic grounding line, ice shelves and IMBIE basins: NSIDC-0709 v2, MEaSUREs Antarctic Boundaries for IPY 2007-2009 from Satellite Radar, <https://doi.org/10.5067/AXE4121732AD>.
+- Amundsen Sea grounding lines (dated): NSIDC-0498 v2.1, MEaSUREs Antarctic Grounding Line from Differential Satellite Radar Interferometry, <https://doi.org/10.5067/IKBWW4RYHF1Q>.
 - Antarctic place names: Secretariat SCAR (1992, updated 2025), Composite Gazetteer of Antarctica,
   Scientific Committee on Antarctic Research, <https://placenames.aq/>.
 - ITS_LIVE velocities (image-pair datacubes and annual mosaics, version 2) for comparison in the time

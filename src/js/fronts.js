@@ -6,11 +6,13 @@ const frontsUrl = 'data/greenlandTermini.json', frontsCode = 'EPSG:3413';
 const frontColors = ['#313695', '#4575b4', '#74add1', '#abd9e9', '#e0f3f8', '#fee090', '#fdae61', '#f46d43', '#d73027', '#a50026'];
 const frontsSource = new ol.source.Vector(), frontStyles = new Map();
 let frontsList = null, frontsLoading = null, frontsYears = [0, 1];
-function frontColor(year) {
-  const t = Math.min(1, Math.max(0, (year - frontsYears[0]) / Math.max(1, frontsYears[1] - frontsYears[0]))) * (frontColors.length - 1);
+// Color of a year on the frontColors ramp between years y0 and y1 (also used for the dated grounding lines).
+function rampColor(year, [y0, y1] = frontsYears) {
+  const t = Math.min(1, Math.max(0, (year - y0) / Math.max(1, y1 - y0))) * (frontColors.length - 1);
   const i = Math.min(Math.floor(t), frontColors.length - 2), a = hexRgba(frontColors[i]), b = hexRgba(frontColors[i + 1]);
   return `rgb(${[0, 1, 2].map(k => Math.round(a[k] + (t - i) * (b[k] - a[k]))).join(', ')})`;
 }
+const frontColor = year => rampColor(year);
 const frontsLayer = new ol.layer.Vector({ source: frontsSource, zIndex: 5, visible: false, style: f => {
   const y = f.get('year');
   if (!frontStyles.has(y)) frontStyles.set(y, [new ol.style.Style({ stroke: new ol.style.Stroke({ color: 'rgba(0, 0, 0, 0.55)', width: 3.5 }) }),

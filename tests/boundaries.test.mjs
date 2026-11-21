@@ -1,6 +1,6 @@
 // Antarctic boundaries (NSIDC-0709 v2): off by default, ticking draws the grounding line, ice shelves and IMBIE
 // basins with a legend; ice-shelf names only when zoomed in; disabled in Greenland.
-import { openViewer, catalogs, check, hidden, shot, sleep, finish } from './lib.mjs';
+import { openViewer, catalogs, check, toMap, toPixel, zoomTo, text, hidden, shot, sleep, finish } from './lib.mjs';
 
 let { browser, page: p } = await openViewer(catalogs.aseAnnual);
 const st = () => p.evaluate(() => {
@@ -19,6 +19,25 @@ const shelfLabel = res => p.evaluate(res => { const l = window.grimpViewer.map.g
   const f = l.getSource().getFeatures().find(f => f.get('label') && f.get('kind') === 'iceShelves'); return !!l.getStyleFunction()(f, res); }, res);
 check('ice-shelf names only when zoomed in', (await shelfLabel(500)) && !(await shelfLabel(3000)));
 await sleep(1500); await shot(p, 'boundariesAse');
+
+// dated Amundsen Sea grounding lines (NSIDC-0498 v2.1)
+await p.waitForFunction(() => window.grimpViewer.map.getLayers().getArray().some(l => l.getZIndex() === 5 && l.getSource()?.getFeatures?.().some(f => f.get('sensor') !== undefined)), { timeout: 60000 });
+const gl = await p.evaluate(() => { const f = window.grimpViewer.map.getLayers().getArray().filter(l => l.getZIndex() === 5 && l.getSource()?.getFeatures).flatMap(l => l.getSource().getFeatures()).filter(f => f.get('sensor') !== undefined);
+  return { n: f.length, years: [Math.min(...f.map(x => x.get('year'))), Math.max(...f.map(x => x.get('year')))], pig: f.filter(x => x.get('glacier') === 'Pine Island').length }; });
+check('466 dated grounding lines, 1992-2025, legend years', gl.n === 466 && gl.years.join() === '1992,2025' && (await text(p, 'glMin')) === '1992' && (await text(p, 'glMax')) === '2025', gl);
+const PIG = await toMap(p, -100.2, -75.1);
+await zoomTo(p, PIG, 30e3); await sleep(1500);
+const v = await p.evaluate(P => { const f = window.grimpViewer.map.getLayers().getArray().filter(l => l.getZIndex() === 5 && l.getSource()?.getFeatures).flatMap(l => l.getSource().getFeatures())
+  .filter(f => f.get('glacier') === 'Pine Island' && /^2024-/.test(f.get('date'))).map(f => ({ f, c: f.getGeometry().getClosestPoint(P) })).sort((a, b) => Math.hypot(a.c[0] - P[0], a.c[1] - P[1]) - Math.hypot(b.c[0] - P[0], b.c[1] - P[1]))[0];
+  return { c: f.c, date: f.f.get('date') }; }, PIG).catch(e => ({ err: e.message }));
+check('a dated 2024 Pine Island grounding line exists', !!v.c, v);
+if (v.c) {
+  const px = await toPixel(p, v.c);
+  await p.mouse.move(px[0], px[1]); await sleep(800);
+  const ro = await text(p, 'readout');
+  check('readout gives grounding-line dates under the pointer', /grounding line/.test(ro) && /2024-/.test(ro) && /Pine Island/.test(ro), ro);
+  await p.mouse.move(5, 5); await sleep(500); await shot(p, 'groundingLinesPig');
+}
 await p.click('#boundsOn'); await sleep(200);
 check('unticking hides them and the legend', await hidden(p, 'boundsLegend'));
 await browser.close();
