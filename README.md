@@ -112,6 +112,10 @@ in latitude and longitude:
 
 ![Value readout over Jakobshavn Isbræ showing a speed of 2127.4 m/yr](Documents/images/readout.jpg)
 
+Tick **Flow arrows** on a velocity product to see which way the ice moves: each arrow shows the flow
+averaged over its patch of the screen, and longer arrows are faster. They are redrawn as you pan and
+zoom, and left out where ice moves slower than 5 m/yr (and on rock).
+
 Tick **Glacier names** (Greenland only) to label the glaciers with their official names, followed by a
 different foreign name in parentheses, e.g. *Sermeq Kujalleq (Jakobshavn Isbræ)*. Zoomed all the way out
 only the major glaciers are named; zoom in for every outlet glacier, then local glaciers and ice caps.

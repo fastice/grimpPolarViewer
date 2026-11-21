@@ -31,6 +31,7 @@ const tips = {
   bgItem: 'Which image of the background collection to show',
   coastOn: 'Coastline overlay',
   footOn: 'Outlines of the items in the time range; click one to show it',
+  arrowsOn: 'Flow direction of the shown velocity product (its vx and vy), averaged over each arrow\'s cell; longer arrows are faster (log scale up to the fastest 5% in view); none below 5 m/yr',
   namesOn: 'Greenland glacier names (Bjørk et al. 2015): outlet glaciers at any zoom, local glaciers and ice caps when zoomed in; Greenland only',
   cmap: 'Color map for single-band images',
   clip: 'Percent of pixels saturated at each end of the color range (only the top for speeds; symmetric for vx/vy)',
