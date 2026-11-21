@@ -1841,10 +1841,12 @@ $('saAuto').onclick = () => { saTyped = false; $('saRange').value = ''; if (saSh
 const tsColors = ['#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#9a6324'];
 const tsSource = new ol.source.Vector();
 map.addLayer(new ol.layer.Vector({ source: tsSource, zIndex: 6, style: f => new ol.style.Style({
-  image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: f.get('color') }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }),
+  image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: f.get('color') + (f.get('off') ? '59' : '') }),  // faded while hidden
+    stroke: new ol.style.Stroke({ color: f.get('off') ? '#ffffff88' : '#ffffff', width: 2 }) }),
   text: new ol.style.Text({ text: String(f.get('n')), offsetY: -15, font: '700 12px sans-serif',
     fill: new ol.style.Fill({ color: '#ffffff' }), stroke: new ol.style.Stroke({ color: '#000000', width: 3 }) }) }) }));
 let tsPoints = [], tsMode = false, tsToken = 0, tsKey = '', tsNext = 1;
+const tsLayerOff = new Set();  // catalogs whose series are hidden on the plot (by name)
 const tsCache = new Map();  // `${x},${y}|${href}` -> value in physical units (NaN = no data)
 
 function tsSeries() { return timeSeries(!$('tsRange').checked); }
@@ -2053,7 +2055,7 @@ let tsYTyped = null, tsYSpan = null;
 function tsYSliders(a0, a1, itsOn) {
   let lo = a0, hi = a1;
   if (itsOn) {
-    const maxDt = +$('tsItsDt').value, v = tsPoints.flatMap(p => p.itsKey === tsPlotInfo.key && p.its ? p.its.filter(q => q.dt <= maxDt).map(q => q.v) : []).sort((x, y) => x - y);
+    const maxDt = +$('tsItsDt').value, v = tsVisible().flatMap(p => p.itsKey === tsPlotInfo.key && p.its ? p.its.filter(q => q.dt <= maxDt).map(q => q.v) : []).sort((x, y) => x - y);
     if (v.length) { lo = Math.min(lo, v[Math.floor(v.length * 0.01)]); hi = Math.max(hi, v[Math.floor(v.length * 0.99)]); }
   }
   const pad = (hi - lo) * 0.5;
@@ -2123,28 +2125,41 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   const css = getComputedStyle(document.documentElement), tok = n => css.getPropertyValue(n).trim();
   const fg = tok('--fg'), muted = tok('--muted'), line = tok('--line');
   ctx.fillStyle = tok('--panel'); ctx.fillRect(0, 0, W, H);
-  const ovs = tsOverlays(), ovNames = [...new Set(ovs.map(o => o.l.name))];
-  const L = 82, R = 14, T = ovs.length ? 46 : 30, B = 42, pw = W - L - R, ph = H - T - B;
-  const pts = tsPoints.flatMap(p => p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v, e: x.e })))
+  const ovAll = tsOverlays(), ovNames = [...new Set(ovAll.map(o => o.l.name))], vis = tsVisible();
+  const ovs = ovAll.filter(o => vis.includes(o.p) && !tsLayerOff.has(o.l.name)), curOff = tsLayerOff.has(tsPlotInfo.name), scr = canvas === $('tsCanvas');
+  if (scr) tsLegendHits = [];
+  const L = 82, R = 14, T = ovAll.length ? 46 : 30, B = 42, pw = W - L - R, ph = H - T - B;
+  const pts = (curOff ? [] : vis).flatMap(p => p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v, e: x.e })))
     .concat(ovs.flatMap(o => o.l.values));
   const finite = pts.filter(q => Number.isFinite(q.v));
   ctx.font = '12px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = fg; ctx.textBaseline = 'middle';
   const itsOn = $('tsIts').checked && tsPlotInfo.key in itsVars;
   ctx.fillText(`GrIMP (color): ${tsPlotInfo.key}${tsPlotInfo.unit ? ` (${tsPlotInfo.unit})` : ''}${tsPlotInfo.withErr ? ', error bars 1 sigma' : ''}`
     + (itsOn ? `; ITS_LIVE (grey): pairs${+$('tsItsDt').value < 1e5 ? ` up to ${$('tsItsDt').value} d` : ''}` : ''), L, 14);
-  if (ovs.length) {
+  if (ovAll.length) {
     // Which line style is which catalog: filled circles = the catalog shown now.
     ctx.save(); ctx.font = '11px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = muted; ctx.strokeStyle = muted;
+    // A click on an entry hides or shows that catalog's series at every point; the x of an earlier
+    // catalog (screen only) drops its series from all points.
     let lx = L;
-    const entry = (shape, fill, dash, text) => {
+    const entry = (shape, fill, dash, text, name, removable) => {
+      const x0 = lx;
+      ctx.globalAlpha = tsLayerOff.has(name) ? 0.35 : 1;
       if ($('tsStyle').value !== 'points') { ctx.setLineDash(dash); ctx.beginPath(); ctx.moveTo(lx, 32); ctx.lineTo(lx + 18, 32); ctx.stroke(); ctx.setLineDash([]); }
-      if ($('tsStyle').value !== 'lines') tsMarker(ctx, shape, lx + 9, 32, 3.2, fill); ctx.fillText(text, lx + 23, 32); lx += 23 + ctx.measureText(text).width + 14;
+      if ($('tsStyle').value !== 'lines') tsMarker(ctx, shape, lx + 9, 32, 3.2, fill); ctx.fillText(text, lx + 23, 32); lx += 23 + ctx.measureText(text).width;
+      ctx.globalAlpha = 1;
+      if (scr) {
+        tsLegendHits.push({ x: x0, y: 24, w: lx - x0, h: 16, name });
+        if (removable) { ctx.fillText('\u00d7', lx + 4, 32); tsLegendHits.push({ x: lx + 1, y: 24, w: 11, h: 16, name, remove: true }); lx += 12; }
+      }
+      lx += 14;
     };
-    entry('circle', true, [], `${tsPlotInfo.name} (shown)`);
-    ovNames.forEach((n, k) => entry(ovStyles[k % ovStyles.length].shape, false, ovStyles[k % ovStyles.length].dash, n));
+    entry('circle', true, [], `${tsPlotInfo.name} (shown)`, tsPlotInfo.name, false);
+    ovNames.forEach((n, k) => entry(ovStyles[k % ovStyles.length].shape, false, ovStyles[k % ovStyles.length].dash, n, n, true));
     ctx.restore();
   }
-  if (!finite.length) { ctx.fillStyle = muted; ctx.fillText($('tsProg').hidden ? 'No data at these points' : 'Reading values...', L + 10, T + ph / 2); return; }
+  if (!finite.length) { ctx.fillStyle = muted; ctx.fillText(!$('tsProg').hidden ? 'Reading values...' : curOff || tsLayerOff.size || tsPoints.some(p => p.off)
+    ? 'Every series is hidden: click the legend to show them' : 'No data at these points', L + 10, T + ph / 2); drawTsLegend(ctx, canvas, W, R, itsOn); return; }
   let y0 = Math.min(...finite.map(q => q.v - (Number.isFinite(q.e) ? q.e : 0)));
   let y1 = Math.max(...finite.map(q => q.v + (Number.isFinite(q.e) ? q.e : 0)));
   if (y0 === y1) { y0 -= 1; y1 += 1; }
@@ -2192,7 +2207,7 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   if ($('tsIts').checked && tsPlotInfo.key in itsVars) {
     const maxDt = +$('tsItsDt').value;
     ctx.save(); ctx.beginPath(); ctx.rect(L, T, pw, ph); ctx.clip();
-    for (const p of tsPoints) {
+    for (const p of vis) {
       if (p.itsKey !== tsPlotInfo.key || !p.its) continue;
       ctx.fillStyle = itsGrey(p, 0.55);
       for (const q of p.its) if (q.dt <= maxDt) ctx.fillRect(X(q.t) - 1.25, Y(q.v) - 1.25, 2.5, 2.5);
@@ -2229,7 +2244,7 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
     }
   }
   // series: line, error bars, markers
-  for (const p of tsPoints) {
+  for (const p of curOff ? [] : vis) {
     const q = p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v, e: x.e })).filter(x => Number.isFinite(x.v));
     ctx.strokeStyle = p.color; ctx.fillStyle = p.color; ctx.lineWidth = 1.6;
     if (lines) { ctx.beginPath(); q.forEach((x, i) => (i ? ctx.lineTo(X(x.t), Y(x.v)) : ctx.moveTo(X(x.t), Y(x.v)))); ctx.stroke(); }
@@ -2245,21 +2260,46 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   }
   if (onScreen) {
     ctx.strokeStyle = fg; ctx.lineWidth = 2;
-    for (const p of tsPoints) {
+    for (const p of curOff ? [] : vis) {
       const x = p.values.find(q => q.it === selected);
       if (x && Number.isFinite(x.v)) { ctx.beginPath(); ctx.arc(X(tSel), Y(x.v), 6.5, 0, 2 * Math.PI); ctx.stroke(); }
     }
   }
   ctx.restore();
-  // legend: point numbers in their colors
-  ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.font = '700 12px sans-serif';
-  let lx = W - R - 26;
+  drawTsLegend(ctx, canvas, W, R, itsOn);
+}
+// Points shown on the plot: all but those hidden in the legend (all of them when every one is hidden).
+function tsVisible() { const v = tsPoints.filter(p => !p.off); return v.length ? v : tsPoints; }
+// Legend: point numbers in their colors, each with an x (screen only). A click on a number hides or shows
+// that point's series (faded number and map marker), on its x removes the point from the map and plot.
+let tsLegendHits = [];
+function drawTsLegend(ctx, canvas, W, R, itsOn) {
+  const onScreen = canvas === $('tsCanvas'), muted = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim();
+  ctx.textBaseline = 'middle';
+  let lx = W - R - (onScreen ? 42 : 26);  // on screen, clear of the plot's own close x
   for (const p of [...tsPoints].reverse()) {
+    ctx.globalAlpha = p.off ? 0.35 : 1;
     ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(lx, 14, 6, 0, 2 * Math.PI); ctx.fill();
-    ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.fillText(String(p.n), lx, 14.5);
+    ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.font = '700 12px sans-serif'; ctx.fillText(String(p.n), lx, 14.5);
     if (itsOn && p.its) { ctx.fillStyle = itsGrey(p); ctx.fillRect(lx - 4, 22, 8, 5); }  // this point's ITS_LIVE grey
-    lx -= 18;
+    ctx.globalAlpha = 1;
+    if (onScreen) {
+      ctx.fillStyle = muted; ctx.font = '700 11px sans-serif'; ctx.fillText('\u00d7', lx + 12, 14);
+      tsLegendHits.push({ x: lx + 7, y: 6, w: 11, h: 16, p, remove: true }, { x: lx - 8, y: 5, w: 15, h: 20, p });
+    }
+    lx -= onScreen ? 30 : 18;
   }
+}
+function removeTsLayer(name) {  // drop an earlier catalog's series (for the asset plotted) from every point
+  for (const p of tsPoints) p.layers = (p.layers || []).filter(l => !(l.name === name && l.key === tsPlotInfo.key));
+  tsLayerOff.delete(name);
+  drawTsPlot();
+}
+function removeTsPoint(p) {
+  tsPoints.splice(tsPoints.indexOf(p), 1);
+  tsSource.removeFeature(p.feature);
+  if (!tsPoints.length) { setTsMode(false); clearTsPoints(); }
+  refreshTs();
 }
 
 // Series from earlier catalogs ("layers" on each point) are kept when the catalog changes and drawn
@@ -2270,13 +2310,14 @@ function snapshotTsPoints(name) {
     const layers = (p.layers || []).filter(l => !(tsPlotInfo && l.name === name && l.key === tsPlotInfo.key));
     if (tsPlotInfo && p.values.some(x => Number.isFinite(x.v))) layers.push({ name, key: tsPlotInfo.key, unit: tsPlotInfo.unit,
       values: p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, start: x.it.start, end: x.it.end, id: x.it.id, v: x.v, e: x.e })) });
-    return { n: p.n, coord: p.coord, label: p.label, its: p.its, itsKey: p.itsKey, layers };
+    return { n: p.n, coord: p.coord, label: p.label, its: p.its, itsKey: p.itsKey, layers, off: p.off };
   });
 }
 function restoreTsPoints(carry) {
   for (const q of carry) {
     tsNext = q.n; addTsPoint(q.coord, q.label, false);
-    Object.assign(tsPoints[tsPoints.length - 1], { layers: q.layers, its: q.its, itsKey: q.itsKey });
+    Object.assign(tsPoints[tsPoints.length - 1], { layers: q.layers, its: q.its, itsKey: q.itsKey, off: q.off });
+    tsPoints[tsPoints.length - 1].feature.set('off', !!q.off);
   }
   tsNext = Math.max(...carry.map(q => q.n)) + 1;
   $('tsLoadNote').textContent = `${carry.length} point${carry.length > 1 ? 's' : ''} kept from the previous collection; its series stay on the plot.`;
@@ -2379,7 +2420,7 @@ async function loadTsPoints(file) {
   }
 }
 function clearTsPoints() {
-  ++tsToken; tsPoints = []; tsNext = 1; tsKey = ''; tsPlotInfo = null; tsYTyped = null; $('tsYRow').hidden = true; $('tsLoadNote').textContent = ''; $('tsProg').hidden = true; $('tsItsNote').textContent = '';
+  ++tsToken; tsPoints = []; tsNext = 1; tsLayerOff.clear(); tsKey = ''; tsPlotInfo = null; tsYTyped = null; $('tsYRow').hidden = true; $('tsLoadNote').textContent = ''; $('tsProg').hidden = true; $('tsItsNote').textContent = '';
   tsSource.clear(); tsCache.clear();
   $('tsPlot').hidden = true; $('tsClear').hidden = true; $('tsShow').hidden = true;
   $('tsCsv').disabled = true; $('tsPng').disabled = true; $('tsNote').textContent = ''; $('tsCount').textContent = '';
@@ -2449,13 +2490,27 @@ $('tsShow').onclick = () => setTsPlot($('tsPlot').hidden);
 window.addEventListener('resize', () => { if (!$('tsPlot').hidden) drawTsPlot(); });
 $('tsXBar').onchange = () => drawTsPlot();
 $('tsYAuto').onclick = () => { tsYTyped = null; drawTsPlot(); };
+const tsLegendAt = e => { const r = $('tsCanvas').getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  return tsLegendHits.find(h => x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h); };
+$('tsCanvas').addEventListener('mousemove', e => { $('tsCanvas').style.cursor = tsLegendAt(e) ? 'pointer' : ''; });
 $('tsCanvas').onclick = e => {
+  const h = tsLegendAt(e);
+  if (h?.name) {
+    if (h.remove) removeTsLayer(h.name);
+    else { if (tsLayerOff.has(h.name)) tsLayerOff.delete(h.name); else tsLayerOff.add(h.name); drawTsPlot(); }
+    return;
+  }
+  if (h) {
+    if (h.remove) { removeTsPoint(h.p); return; }
+    h.p.off = !h.p.off; h.p.feature.set('off', h.p.off);
+    drawTsPlot(); return;
+  }
   // Show the image of the GrIMP point nearest the click (any point's series), as if its time-bar tick were clicked.
   const g = tsPlotInfo?.geom;
   if (!g) return;
   const r = $('tsCanvas').getBoundingClientRect(), cx = e.clientX - r.left, cy = e.clientY - r.top;
   let best = null, bd = Infinity;
-  for (const p of tsPoints) for (const x of p.values) {
+  for (const p of tsLayerOff.has(tsPlotInfo.name) ? [] : tsVisible()) for (const x of p.values) {
     if (!Number.isFinite(x.v)) continue;
     const d = Math.hypot(g.X((+x.it.start + +x.it.end) / 2) - cx, g.Y(x.v) - cy);
     if (d < bd) { bd = d; best = x.it; }
@@ -2465,15 +2520,15 @@ $('tsCanvas').onclick = e => {
 $('tsCsv').onclick = () => {
   const info = tsPlotInfo, rows = [['point', 'label', 'x_km', 'y_km', 'lat', 'lon', 'item', 'start', 'end', 'asset', 'value', 'unit', 'error', 'collection']];
   const csvText = t => /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
-  for (const p of tsPoints) {
+  for (const p of tsVisible()) {
     const [lon, lat] = ol.proj.toLonLat(p.coord, viewCode);
     const pos = [p.n, csvText(p.label || ''), (p.coord[0] / 1000).toFixed(3), (p.coord[1] / 1000).toFixed(3), lat.toFixed(5), lon.toFixed(5)];
-    for (const x of p.values) {
+    if (!tsLayerOff.has(info.name)) for (const x of p.values) {
       rows.push([...pos, x.it.id, fmtDate(x.it.start), fmtDate(x.it.end), info.key, Number.isNaN(x.v) ? '' : x.v, info.unit,
                  Number.isFinite(x.e) ? x.e : '', csvText(info.name)]);
     }
     for (const l of p.layers || []) {
-      if (l.name === info.name && l.key === info.key) continue;
+      if ((l.name === info.name && l.key === info.key) || tsLayerOff.has(l.name)) continue;
       for (const x of l.values) rows.push([...pos, x.id, fmtDate(x.start), fmtDate(x.end), l.key, Number.isNaN(x.v) ? '' : x.v, l.unit,
                                            Number.isFinite(x.e) ? x.e : '', csvText(l.name)]);
     }
@@ -3212,6 +3267,7 @@ const tips = {
   pfYLo: 'Bottom of the plot y axis: drag right to zoom in',
   pfYHi: 'Top of the plot y axis: drag left to zoom in',
   pfYBand: 'Drag to shift the plot y range up or down, keeping its height',
+  tsCanvas: 'Click a point\'s date to show it on the map; click a legend number to hide or show that point, or its x to remove it; click a catalog in the second legend row to hide or show its series, or an earlier catalog\'s x to drop them',
   pfCanvas: 'Drag the legend to move it; click an entry to hide or show its curve, or its x to remove it',
   pfPng: 'Save the profile plot as a PNG image',
   tsYHi: 'Top of the plot y axis: drag left to zoom in',

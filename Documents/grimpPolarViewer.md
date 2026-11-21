@@ -161,7 +161,15 @@ product's date range, one color per point.
   Jakobshavn trunk,69.1317,-48.7640
   Upstream,69.20,-48.60
   ```
-- **Clear points** removes them all.
+- **Clear points** removes them all. In the plot's legend (the numbered dots), a click on a number
+  hides or shows that point (its series, earlier-catalog series and ITS_LIVE cloud; the number and
+  map marker fade, the y range and CSV leave it out, and the state is kept when the catalog changes);
+  the x beside it (screen only) removes the point and its marker, and removing the last one clears
+  the plot as Clear points does. Point numbers are not reused. The catalog row of the legend (shown
+  when earlier catalogs are kept) works the same way per catalog: a click hides or shows that
+  catalog's series at every point (by catalog name, so it applies again if that catalog is loaded;
+  Clear points resets it), and the x of an earlier catalog drops its series for the plotted asset
+  from all points. Hidden catalogs are left out of the y range and the CSV.
 
 **The plot**
 

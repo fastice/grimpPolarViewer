@@ -138,8 +138,13 @@ more files per date.
 - Tick **ITS_LIVE in grey** to compare with the ITS_LIVE image-pair velocities at the same points.
 - Switch to another velocity collection and your points stay: its values are drawn on top, with the
   previous collection's series underneath for comparison.
+- The numbered dots at the plot's top right are its legend: click a number to hide or show that
+  point's series (the number and its map marker fade while hidden), or the **×** beside it to
+  remove the point from the map and the plot. When the plot also holds an earlier collection, its
+  second legend row names each collection: click one to hide or show its series at every point, or
+  the **×** beside an earlier collection to drop its series.
 - **Save CSV** writes the numbers (date, position, value, error, collection) for a spreadsheet or
-  script; **Save plot** writes the picture.
+  script, leaving out hidden points; **Save plot** writes the picture.
 
 ![Ice speed at three points near Jakobshavn Isbræ, 2015-2025](Documents/images/timeseries.jpg)
 
