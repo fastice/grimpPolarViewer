@@ -347,8 +347,14 @@ Other data shown in the viewer:
 - Amundsen Sea grounding lines (dated): NSIDC-0498 v2.1, MEaSUREs Antarctic Grounding Line from Differential Satellite Radar Interferometry, <https://doi.org/10.5067/IKBWW4RYHF1Q>.
 - Antarctic place names: Secretariat SCAR (1992, updated 2025), Composite Gazetteer of Antarctica,
   Scientific Committee on Antarctic Research, <https://placenames.aq/>.
-- ITS_LIVE velocities (image-pair datacubes and annual mosaics, version 2) for comparison in the time
-  series and profile plots: provided by the NASA MEaSUREs ITS_LIVE project, <https://its-live.jpl.nasa.gov/>.
+- ITS_LIVE velocities for comparison in the time series and profile plots: velocity data generated using
+  auto-RIFT (Gardner et al., 2018) and provided by the NASA MEaSUREs ITS_LIVE project,
+  <https://its-live.jpl.nasa.gov/> (image-pair datacubes, version 2). Annual mosaics: Gardner, A. S.,
+  Fahnestock, M., Greene, C. A., Kennedy, J. H., Liukis, M., López, L. A. & Scambos, T. (2025), MEaSUREs
+  ITS_LIVE Regional Glacier and Ice Sheet Surface Velocities, Version 2 (NSIDC-0776), NASA NSIDC DAAC,
+  <https://doi.org/10.5067/JQ6337239C96>. Gardner, A. S., et al. (2018), Increased West Antarctic and
+  unchanged East Antarctic ice discharge over the last 7 years, *The Cryosphere*, 12, 521-547,
+  <https://doi.org/10.5194/tc-12-521-2018>.
 - Basemap (Blue Marble shaded relief and bathymetry, coastlines): we acknowledge the use of imagery
   provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science
   Data and Information System (ESDIS).
