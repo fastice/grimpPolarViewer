@@ -40,6 +40,13 @@ check('handles pick the winters drawn, labels follow', Math.abs(lo - 2000) <= 1 
 await p.mouse.move(px[0], px[1]); await sleep(800);
 check('a hidden 2020-21 front is not in the readout', !(await text(p, 'readout')).includes(v.date), await text(p, 'readout'));
 await p.mouse.move(5, 5); await sleep(500); await shot(p, 'glacierFrontsRange');
+// the band between the handles shifts both, keeping the span
+const bandAt = await p.evaluate(() => { const r = document.getElementById('frontsBand').getBoundingClientRect(), t = document.getElementById('frontsBar').getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2, perYear: t.width / (document.getElementById('frontsLo').max - document.getElementById('frontsLo').min) }; });
+await p.mouse.move(bandAt.x, bandAt.y); await p.mouse.down(); await p.mouse.move(bandAt.x - 10 * bandAt.perYear, bandAt.y, { steps: 8 }); await p.mouse.up(); await sleep(300);
+const sh = { lo: +(await p.$eval('#frontsLo', e => e.value)), hi: +(await p.$eval('#frontsHi', e => e.value)) }, ys2 = await drawnYears();
+check('dragging the band shifts both handles 10 winters, span kept', sh.lo === lo - 10 && sh.hi === 2008 && ys2[0] === sh.lo && ys2[ys2.length - 1] === 2008
+  && (await text(p, 'frontsMax')) === '2007-08', { sh, ys: [ys2[0], ys2[ys2.length - 1]] });
 await dragRange(p, 'frontsHi', 1980); await sleep(200);
 check('a handle dragged past the other pushes it', +(await p.$eval('#frontsLo', e => e.value)) === +(await p.$eval('#frontsHi', e => e.value)));
 await p.click('#frontsOn'); await sleep(200);

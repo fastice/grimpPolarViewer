@@ -14,13 +14,16 @@ function rampColor(year, [y0, y1] = frontsYears) {
   return `rgb(${[0, 1, 2].map(k => Math.round(a[k] + (t - i) * (b[k] - a[k]))).join(', ')})`;
 }
 const frontColor = year => rampColor(year);
-// Two-handle year range over a color bar (key 'fronts' or 'gl': <key>Lo/Hi inputs, <key>ShadeL/R, <key>Min/Max
-// labels): spans years, starts at all of them, labels the chosen ends with label(year) and calls onChange(lo, hi).
+// Two-handle year range over a color bar (key 'fronts' or 'gl': <key>Lo/Hi inputs, <key>ShadeL/R, <key>Band,
+// <key>Min/Max labels): spans years, starts at all of them, labels the chosen ends with label(year) and calls
+// onChange(lo, hi). Dragging the band between the handles shifts both, keeping the number of years.
 function yearSlider(key, years, label, onChange) {
   const lo = $(key + 'Lo'), hi = $(key + 'Hi'), pos = v => (100 * (v - years[0])) / Math.max(1, years[1] - years[0]);
   for (const e of [lo, hi]) { e.min = years[0]; e.max = years[1]; e.step = 1; }
   lo.value = years[0]; hi.value = years[1];
+  const band = $(key + 'Band'), at = f => `calc(var(--inset) + ${f / 100} * (100% - 2 * var(--inset)))`;
   const show = () => {
+    band.style.left = at(pos(+lo.value)); band.style.width = `calc(${(pos(+hi.value) - pos(+lo.value)) / 100} * (100% - 2 * var(--inset)))`;
     $(key + 'ShadeL').style.cssText = `left: 0; width: ${pos(+lo.value)}%`;
     $(key + 'ShadeR').style.cssText = `right: 0; width: ${100 - pos(+hi.value)}%`;
     $(key + 'Min').textContent = label(+lo.value); $(key + 'Max').textContent = label(+hi.value);
@@ -28,6 +31,15 @@ function yearSlider(key, years, label, onChange) {
   lo.oninput = hi.oninput = e => {
     if (+lo.value > +hi.value) (e.target === lo ? hi : lo).value = e.target.value;  // a handle pushes the other
     show(); onChange(+lo.value, +hi.value);
+  };
+  band.onpointerdown = e => {
+    const w = $(key + 'Bar').getBoundingClientRect().width, a = +lo.value, b = +hi.value, x0 = e.clientX;
+    band.setPointerCapture(e.pointerId); e.preventDefault();
+    band.onpointermove = m => {
+      const d = Math.min(Math.max(Math.round(((m.clientX - x0) / w) * (years[1] - years[0])), years[0] - a), years[1] - b);
+      if (a + d !== +lo.value) { lo.value = a + d; hi.value = b + d; show(); onChange(a + d, b + d); }
+    };
+    band.onpointerup = band.onpointercancel = () => { band.onpointermove = null; };
   };
   show();
 }

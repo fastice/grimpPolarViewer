@@ -48,12 +48,12 @@
       <label><input id="arrowsOn" type="checkbox"> Flow arrows</label>
     </div>
     <div id="frontsLegend" hidden>
-      <div class="dual yr"><div class="track" id="frontsBar"><div class="shade" id="frontsShadeL"></div><div class="shade" id="frontsShadeR"></div></div>
+      <div class="dual yr"><div class="track" id="frontsBar"><div class="shade" id="frontsShadeL"></div><div class="shade" id="frontsShadeR"></div></div><div class="band" id="frontsBand"></div>
         <input id="frontsLo" type="range" aria-label="First winter of fronts shown"><input id="frontsHi" type="range" aria-label="Last winter of fronts shown"></div>
       <div class="ends"><span id="frontsMin"></span><span class="note">winter fronts</span><span id="frontsMax"></span></div>
     </div>
     <div id="boundsLegend" class="note" hidden><button type="button" class="bkey" data-kind="groundingLine" aria-pressed="true"><span class="swatch" style="border-color:#fff"></span>grounding line</button><button type="button" class="bkey" data-kind="iceFront" aria-pressed="true"><span class="swatch" style="border-color:#4fd8ff"></span>ice front (2026 mask)</button><button type="button" class="bkey" data-kind="basins" aria-pressed="true"><span class="swatch" style="border-color:#ffd23f;border-top-style:dashed"></span><span id="basinsKey">IMBIE basins</span></button>
-      <div id="glKey"><div class="dual yr"><div class="track" id="glBar"><div class="shade" id="glShadeL"></div><div class="shade" id="glShadeR"></div></div>
+      <div id="glKey"><div class="dual yr"><div class="track" id="glBar"><div class="shade" id="glShadeL"></div><div class="shade" id="glShadeR"></div></div><div class="band" id="glBand"></div>
         <input id="glLo" type="range" aria-label="First year of grounding lines shown"><input id="glHi" type="range" aria-label="Last year of grounding lines shown"></div>
       <div class="ends"><span id="glMin"></span><button type="button" class="bkey" data-kind="dated" aria-pressed="true">dated grounding lines, Amundsen Sea</button><span id="glMax"></span></div></div></div>
     <div class="row"><button id="olAdd" type="button" class="link">Add outlines (GeoJSON, KML, GPX)</button><span class="note">or drop files on the map</span><input id="olFile" type="file" accept=".geojson,.json,.kml,.gpx" multiple hidden></div>

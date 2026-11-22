@@ -126,7 +126,7 @@ In Antarctica, tick **Boundaries** for the grounding line (white), the ice front
 2026 ice mask (cyan, with ice shelf names as you zoom in) and the IMBIE drainage basins (dashed yellow). On the Amundsen Sea glaciers (Pine Island, Thwaites,
 Pope, Smith, Kohler, Getz, Abbot and others) it also draws the dated InSAR grounding lines from 1992 to 2025,
 colored from blue (oldest) to red (newest); point at one for its date and sensor, and drag the handles on its
-color bar to pick the years drawn. Click an entry in the
+color bar to pick the years drawn (the band between them slides the range). Click an entry in the
 legend under the checkboxes to hide or show that layer. In Greenland, **Boundaries** draws the glacier
 drainage basins of Mouginot and Rignot (2019) (dashed yellow); tick **Glacier names** to label them.
 
@@ -140,7 +140,8 @@ To see your own field sites, tracks or outlines on the map, drop GeoJSON, KML or
 Tick **Glacier fronts** (Greenland only) to draw the winter ice-front positions of up to 239 outlet
 glaciers from 1972-73 to 2020-21, colored from blue (oldest) to red (newest), so a retreat reads as a
 sweep of color up the fjord. Point at a front to see its date in the readout. Drag the two handles on the
-color bar to draw only the winters between them.
+color bar to draw only the winters between them, or drag the outlined band between the handles to slide
+that range along, keeping its length.
 
 Tick **Glacier names** to label the glaciers: in Greenland with their official names, followed by a
 different foreign name in parentheses, e.g. *Sermeq Kujalleq (Jakobshavn Isbræ)*; in Antarctica with

@@ -93,9 +93,13 @@ button:disabled { opacity: .45; cursor: default; }
   border-radius: 50%; background: #ff3ea5; border: 2px solid #ffffff; box-shadow: 0 0 0 1px #00000066; }
 .dual input::-moz-range-thumb { pointer-events: auto; cursor: pointer; width: 12px; height: 12px;
   border-radius: 50%; background: #ff3ea5; border: 2px solid #ffffff; box-shadow: 0 0 0 1px #00000066; }
-/* Year range over a color bar (glacier fronts, dated grounding lines): the bar is the track, shaded outside the range. */
+/* Year range over a color bar (glacier fronts, dated grounding lines): the bar is the track, shaded outside the range;
+   the outlined band between the handles drags both (--inset: half the thumb width). */
+.dual.yr { --inset: 8px; }
 .dual.yr .track { top: 6px; height: 10px; overflow: hidden; border: 1px solid var(--line); }
 .dual.yr .shade { position: absolute; top: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); }
+.dual.yr .band { position: absolute; top: 2px; bottom: 2px; box-sizing: border-box; border: 1.5px solid var(--fg); border-radius: 4px;
+  cursor: grab; touch-action: none; }
 .allbox { display: flex; align-items: center; gap: 4px; font-weight: 700; }
 .maint { margin: 0; font-size: 11px; line-height: 1.4; color: var(--muted); }
 .maint.now { font-size: 12px; font-weight: 700; color: var(--fg); background: var(--accent-soft);
@@ -193,7 +197,7 @@ body.nopanel #panel { display: none; }
   .tsdrag { left: 2px; top: 0; padding: 8px 10px; font-size: 18px; }
   .tssize { width: 34px; height: 34px; }
   .tsplot .tsclose { right: 0; top: 0; padding: 0 12px 8px; font-size: 24px; }
-  .dual.yr { height: 30px; }
+  .dual.yr { height: 30px; --inset: 12px; }
   .dual.yr .track { left: 12px; right: 12px; top: 9px; }
   .dual.yr input { height: 30px; }
   .dual.yr input::-webkit-slider-thumb { width: 24px; height: 24px; }
