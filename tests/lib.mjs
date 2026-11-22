@@ -18,12 +18,12 @@ export function check(name, ok, detail = '') {
 }
 
 // Open the viewer on a catalog and wait for its first product. Page errors count as failures.
-export async function openViewer(catalog, { width = 1400, height = 900 } = {}) {
+export async function openViewer(catalog, { width = 1400, height = 900, mobile = false } = {}) {
   const browser = await puppeteer.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: 'new',
     args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const page = await browser.newPage();
   page.on('pageerror', e => check('no page errors', false, e.message));
-  await page.setViewport({ width, height });
+  await page.setViewport({ width, height, isMobile: mobile, hasTouch: mobile, deviceScaleFactor: mobile ? 3 : 1 });
   await page.goto(`http://127.0.0.1:${process.env.PORT || 8767}/index.html?href=${catalog}`, { waitUntil: 'networkidle2', timeout: 120000 });
   await page.waitForFunction(() => /items/.test(document.getElementById('status').textContent) && document.getElementById('lname').textContent, { timeout: 120000 });
   return { browser, page };

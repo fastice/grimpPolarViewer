@@ -66,6 +66,13 @@ function niceStep(span, target) {
   const raw = span / target, mag = 10 ** Math.floor(Math.log10(raw)), f = raw / mag;
   return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * mag;
 }
+// Left margin that just fits the y tick labels (right-aligned at L - 6) beside the rotated axis title.
+function yAxisLeft(ctx, y0, y1) {
+  const ys = niceStep(y1 - y0, 5);
+  let w = 0;
+  for (let v = Math.ceil(y0 / ys) * ys; v <= y1; v += ys) w = Math.max(w, ctx.measureText(fmtVal(+v.toPrecision(6))).width);
+  return Math.ceil(w) + 30;
+}
 function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1) {
   if (!tsPlotInfo) return;
   const W = canvas.clientWidth || 600, H = canvas.clientHeight || 285;
@@ -82,21 +89,22 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   const itsOn = $('tsIts').checked && tsPlotInfo.key in itsVars;
   const head1 = `GrIMP (color): ${tsPlotInfo.key}${tsPlotInfo.unit ? ` (${tsPlotInfo.unit})` : ''}${tsPlotInfo.withErr ? ', error bars 1 sigma' : ''}`;
   const head2 = itsOn ? `ITS_LIVE (grey): pairs${+$('tsItsDt').value < 1e5 ? ` up to ${$('tsItsDt').value} d` : ''}` : '';
-  const R = 14, L = 82, titleMax = Math.max(60, W - R - L - (scr ? 30 * tsPoints.length + 22 : 18 * tsPoints.length + 16));
+  const R = 14, L0 = 44, titleMax = Math.max(60, W - R - L0 - (scr ? 30 * tsPoints.length + 22 : 18 * tsPoints.length + 16));
   ctx.font = '12px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = fg; ctx.textBaseline = 'middle';
   const split = head2 && ctx.measureText(`${head1}; ${head2}`).width > titleMax, hy = split ? 16 : 0;  // hy: height of the extra line
-  const T = (ovAll.length ? 46 : 30) + hy, B = 42, pw = W - L - R, ph = H - T - B;
+  const T = (ovAll.length ? 46 : 30) + hy, B = 42, ph = H - T - B;
+  let L = 82, pw = W - L - R;  // L narrows to fit the y labels once the y range is known
   const pts = (curOff ? [] : vis).flatMap(p => p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v, e: x.e })))
     .concat(ovs.flatMap(o => o.l.values));
   const finite = pts.filter(q => Number.isFinite(q.v));
-  ctx.fillText(split || !head2 ? head1 : `${head1}; ${head2}`, L, 14, titleMax);  // maxWidth squeezes what still does not fit
-  if (split) ctx.fillText(head2, L, 30, titleMax);
+  ctx.fillText(split || !head2 ? head1 : `${head1}; ${head2}`, L0, 14, titleMax);  // maxWidth squeezes what still does not fit
+  if (split) ctx.fillText(head2, L0, 30, titleMax);
   if (ovAll.length) {
     // Which line style is which catalog: filled circles = the catalog shown now.
     ctx.save(); ctx.font = '11px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = muted; ctx.strokeStyle = muted;
     // A click on an entry hides or shows that catalog's series at every point; the x of an earlier
     // catalog (screen only) drops its series from all points.
-    let lx = L;
+    let lx = L0;
     const entry = (shape, fill, dash, text, name, removable) => {
       const x0 = lx;
       ctx.globalAlpha = tsLayerOff.has(name) ? 0.35 : 1;
@@ -122,6 +130,7 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   const yp = (y1 - y0) * 0.06; y0 -= yp; y1 += yp;
   if (canvas === $('tsCanvas')) tsYSliders(y0, y1, itsOn);
   if (tsYTyped) [y0, y1] = tsYTyped;
+  L = yAxisLeft(ctx, y0, y1); pw = W - L - R;
   // x axis: the time-bar range, or every date plotted (both fixed while values arrive)
   const inR = $('tsXBar').checked ? inRange() : [];
   const ts = inR.length ? inR.flatMap(it => [+it.start, +it.end]) : tsPlotInfo.times.concat(ovs.flatMap(o => o.l.values.map(x => x.t)));
@@ -422,7 +431,7 @@ function floatingPlot(plot, grip, corner, redraw) {
     plot.style.top = `${Math.max(Math.min(e.clientY - w.top - d.dy, w.height - r.height), 0)}px`;
   });
   for (const t of ['pointerup', 'pointercancel']) grip.addEventListener(t, () => { d = null; });
-  // Drag the bottom-right corner to resize (at least 320 x 180 px, inside the map).
+  // Drag the bottom-right corner to resize (at least 320 x 180 px, or the size it had if smaller; inside the map).
   let z = null;
   corner.addEventListener('pointerdown', e => {
     const r = plot.getBoundingClientRect(), w = $('mapwrap').getBoundingClientRect();
@@ -432,8 +441,10 @@ function floatingPlot(plot, grip, corner, redraw) {
   });
   corner.addEventListener('pointermove', e => {
     if (!z) return;
-    plot.style.width = `${Math.max(320, Math.min(z.w0 + e.clientX - z.x, z.w.right - z.r.left))}px`;
-    plot.style.height = `${Math.max(180, Math.min(z.h0 + e.clientY - z.y, z.w.bottom - z.r.top))}px`;
+    // never below 320 x 180 unless it started smaller, never past the map edge (a phone may have less room)
+    const maxW = z.w.right - z.r.left, maxH = z.w.bottom - z.r.top;
+    plot.style.width = `${Math.max(Math.min(320, z.w0, maxW), Math.min(z.w0 + e.clientX - z.x, maxW))}px`;
+    plot.style.height = `${Math.max(Math.min(180, z.h0, maxH), Math.min(z.h0 + e.clientY - z.y, maxH))}px`;
   });
   for (const t of ['pointerup', 'pointercancel']) corner.addEventListener(t, () => { z = null; });
   grip.addEventListener('dblclick', () => { for (const k of ['left', 'top', 'width', 'height', 'right', 'bottom']) plot.style[k] = ''; redraw(); });

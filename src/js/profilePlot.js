@@ -8,12 +8,13 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
   const css = getComputedStyle(document.documentElement), tok = n => css.getPropertyValue(n).trim();
   const fg = tok('--fg'), muted = tok('--muted'), line = tok('--line');
   ctx.fillStyle = tok('--panel'); ctx.fillRect(0, 0, W, H);
-  const L = 82, R = 14, T = 30, B = 42, pw = W - L - R, ph = H - T - B, km = pfLen() / 1000;
+  const R = 14, T = 30, B = 42, ph = H - T - B, km = pfLen() / 1000;
+  let L = 82, pw = W - L - R;  // L narrows to fit the y labels once the y range is known
   const unit = pfCurves.find(c => c.unit)?.unit || '', label = `${pfKey}${unit ? ` (${unit})` : ''}`;
   const its = $('pfIts').checked && pfIts?.key === pfKey ? pfIts : null;
   ctx.font = '12px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = fg; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
   ctx.fillText(`${pfFlow ? 'Flow line' : 'Profile A to B'}: ${label}` + (!its ? '' : its.annual ? `; ITS_LIVE (dashed grey): ${its.year} annual mosaic`
-    : `; ITS_LIVE (grey): pairs spanning ${fmtDate(new Date((+its.it.start + +its.it.end) / 2))}`), L, 14, Math.max(60, W - L - 30));  // clear of the close x
+    : `; ITS_LIVE (grey): pairs spanning ${fmtDate(new Date((+its.it.start + +its.it.end) / 2))}`), 44, 14, Math.max(60, W - 74));  // right of the move grip, clear of the close x  // clear of the close x
   // x range: the whole line, or as set on its slider (plotted km: from the flow line's point, or from A)
   const xFull = [pfOff / 1000, pfOff / 1000 + km];
   if (canvas === $('pfCanvas')) pfAxSliders('x', xFull, xFull);
@@ -39,6 +40,7 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
     $('pfAxRow').hidden = false;
   }
   if (pfAx.y.typed) [y0, y1] = pfAx.y.typed;
+  L = yAxisLeft(ctx, y0, y1); pw = W - L - R;
   const X = dm => L + ((dm + pfOff) / 1000 - xa) / (xb - xa) * pw, Y = v => T + (1 - (v - y0) / (y1 - y0)) * ph;
   ctx.strokeStyle = line; ctx.lineWidth = 1; ctx.fillStyle = muted; ctx.textAlign = 'right';
   const ys = niceStep(y1 - y0, 5);
@@ -55,7 +57,10 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
   }
   ctx.save(); ctx.fillStyle = fg; ctx.textBaseline = 'middle';
   ctx.translate(12, T + ph / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(label, 0, 0); ctx.restore();
-  ctx.save(); ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(pfFlow ? 'Distance downstream of the point (km)' : 'Distance from A (km)', L + pw / 2, H - 3); ctx.restore();
+  // x title under the plot center, kept inside the canvas (squeezed when the plot is narrower than it)
+  const xTitle = pfFlow ? 'Distance downstream of the point (km)' : 'Distance from A (km)', xw = Math.min(ctx.measureText(xTitle).width, W - 44) / 2;
+  ctx.save(); ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText(xTitle, Math.min(Math.max(L + pw / 2, xw + 4), W - xw - 24), H - 3, W - 44);  // clear of the resize corner ctx.restore();
   ctx.strokeStyle = muted; ctx.strokeRect(L, T, pw, ph);
   ctx.save(); ctx.beginPath(); ctx.rect(L, T, pw, ph); ctx.clip();
   if (pfFlow) {  // the picked point

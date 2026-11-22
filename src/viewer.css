@@ -184,6 +184,10 @@ body.nopanel #panel { display: none; }
 @media (pointer: coarse) {
   .tick { height: 20px; margin-top: -10px; }
   .thumb { left: -3.5px; width: 22px; height: 22px; margin-top: -11px; }
+  /* plot move grip, resize corner and close: finger-sized */
+  .tsdrag { left: 2px; top: 0; padding: 8px 10px; font-size: 18px; }
+  .tssize { width: 34px; height: 34px; }
+  .tsplot .tsclose { right: 0; top: 0; padding: 0 12px 8px; font-size: 24px; }
 }
 #swipe { position: absolute; top: 0; bottom: 0; width: 0; pointer-events: none; z-index: 2; }
 #swipe .swline { position: absolute; top: 0; bottom: 0; left: -1px; width: 2px; background: #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55); }

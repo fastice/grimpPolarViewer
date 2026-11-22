@@ -572,6 +572,7 @@ on a Mac (default `/usr/bin/google-chrome`).
 | `placeSearch.test.mjs` | Place search: old/foreign names, accents, ranking, keys, zoom and marker, clear, no match; Antarctica: Pine Island, Thwaites zoom, McMurdo |
 | `glacierNames.test.mjs` | Glacier names: off by default, 733 loaded (732 GGN + 79N), Jakobshavn label, zoom tiers (20 major, 285 outlets), ocean side; Antarctica: 3820 SCAR names, 80 major zoomed out, more as you zoom in |
 | `browsePick.test.mjs` | Browse image as the pick map: time series and profile stay under the RGB browse image and read vv |
+| `phonePlot.test.mjs` | Flow-line plot on an emulated phone (`PHONE=WxH`, default 390x844): plot and page inside the screen width |
 | `timeSeries.test.mjs` | Points: read, legend hide/remove, y range slider and Auto, catalog switch with per-catalog hide/remove |
 
 **Scripting hook:** the page sets `window.grimpViewer = { map }` (the OpenLayers map), for the
