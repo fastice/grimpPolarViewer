@@ -50,6 +50,12 @@ export async function dragTo(page, id, f) {
   await page.mouse.move(h[0], h[1]); await page.mouse.down(); await page.mouse.move(t[0] + f * t[1], h[1], { steps: 5 }); await page.mouse.up(); await sleep(200);
 }
 
+// Drag a range input's handle (thumbW px wide) from its value to value v with the mouse.
+export async function dragRange(page, id, v, thumbW = 16) {
+  const [x0, x1, y] = await page.evaluate((id, v, w) => { const e = document.getElementById(id); e.scrollIntoView({ block: 'center' }); const r = e.getBoundingClientRect();
+    const at = u => r.left + w / 2 + ((u - e.min) / (e.max - e.min)) * (r.width - w); return [at(+e.value), at(v), r.top + r.height / 2]; }, id, v, thumbW);
+  await page.mouse.move(x0, y); await page.mouse.down(); await page.mouse.move(x1, y, { steps: 8 }); await page.mouse.up(); await sleep(200);
+}
 export const text = (page, id) => page.$eval('#' + id, e => e.textContent);
 export const hidden = (page, id) => page.$eval('#' + id, e => e.hidden);
 export const shot = (page, name) => page.screenshot({ path: out + name + '.jpg', type: 'jpeg', quality: 80 });

@@ -1,6 +1,7 @@
 // Glacier fronts (NSIDC-0642 v2): off by default, ticking loads every front with a year legend; at Jakobshavn
-// the readout names the date of the front under the pointer; disabled in Antarctica.
-import { openViewer, catalogs, check, toMap, toPixel, zoomTo, text, hidden, shot, sleep, finish } from './lib.mjs';
+// the readout names the date of the front under the pointer; the color bar's two handles pick the winters drawn;
+// disabled in Antarctica.
+import { openViewer, catalogs, check, toMap, toPixel, zoomTo, dragRange, text, hidden, shot, sleep, finish } from './lib.mjs';
 
 let { browser, page: p } = await openViewer(catalogs.glAnnual);
 const fronts = () => p.evaluate(() => {
@@ -27,6 +28,20 @@ const ro = await text(p, 'readout');
 check('readout gives the date of the front under the pointer', ro.includes('front') && ro.includes(v.date), ro);
 await p.mouse.move(5, 5);
 await shot(p, 'glacierFrontsJakobshavn');
+
+// year range: drag the first-winter handle to ~2000 with the mouse, step the last back 3 winters with the keyboard
+const drawnYears = () => p.evaluate(() => { const l = window.grimpViewer.map.getLayers().getArray().find(l => l.getZIndex() === 5 && l.getSource()?.getFeatures?.().some(f => f.get('year')));
+  const fn = l.getStyleFunction(), ys = new Set(); for (const f of l.getSource().getFeatures()) if (fn(f, 100)) ys.add(f.get('year')); return [...ys].sort((a, b) => a - b); });
+await dragRange(p, 'frontsLo', 2000);
+await p.focus('#frontsHi'); for (let k = 0; k < 3; k++) await p.keyboard.press('ArrowLeft'); await sleep(300);
+const lo = +(await p.$eval('#frontsLo', e => e.value)), hi = +(await p.$eval('#frontsHi', e => e.value)), ys = await drawnYears();
+check('handles pick the winters drawn, labels follow', Math.abs(lo - 2000) <= 1 && hi === 2018 && ys[0] === lo && ys[ys.length - 1] === 2018
+  && (await text(p, 'frontsMin')) === `${lo - 1}-${String(lo).slice(2)}` && (await text(p, 'frontsMax')) === '2017-18', { lo, hi, ys: [ys[0], ys[ys.length - 1]] });
+await p.mouse.move(px[0], px[1]); await sleep(800);
+check('a hidden 2020-21 front is not in the readout', !(await text(p, 'readout')).includes(v.date), await text(p, 'readout'));
+await p.mouse.move(5, 5); await sleep(500); await shot(p, 'glacierFrontsRange');
+await dragRange(p, 'frontsHi', 1980); await sleep(200);
+check('a handle dragged past the other pushes it', +(await p.$eval('#frontsLo', e => e.value)) === +(await p.$eval('#frontsHi', e => e.value)));
 await p.click('#frontsOn'); await sleep(200);
 check('unticking hides the fronts and legend', await hidden(p, 'frontsLegend'));
 await browser.close();

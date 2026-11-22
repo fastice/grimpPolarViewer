@@ -5,7 +5,8 @@
 // than boundsShelfRes m per pixel), basins dashed yellow with their IMBIE labels; overlapping labels are dropped.
 // (NSIDC-0709's own shelf outlines are not drawn: their fronts are 2008-09.) Over them, the dated
 // NSIDC-0498 v2.1 InSAR grounding lines of the Amundsen Sea glaciers (data/aseGroundingLines.json, 1992-2025),
-// colored by year on the glacier-front ramp; the readout gives the dates of those under the pointer.
+// colored by year on the glacier-front ramp, the years drawn picked on its color bar (glSel); the readout gives
+// the dates of those under the pointer.
 // In Greenland (EPSG:3413) Boundaries draws only the Mouginot and Rignot (2019) glacier basins
 // (data/greenlandBasins.json), unlabeled (Glacier names labels the glaciers).
 const boundsUrl = 'data/antarcticBoundaries.json', iceFrontUrl = 'data/antarcticIceFront.json', boundsShelfRes = 1500;
@@ -33,9 +34,10 @@ const boundsLayer = new ol.layer.Vector({ source: boundsSets['EPSG:3031'].source
 } });
 map.addLayer(boundsLayer);
 const glUrl = 'data/aseGroundingLines.json', glSource = new ol.source.Vector(), glStyles = new Map();
-let glLoading = null, glYears = [0, 1];
+let glLoading = null, glYears = [0, 1], glSel = [-Infinity, Infinity];
 const glLayer = new ol.layer.Vector({ source: glSource, zIndex: 5, visible: false, style: f => {
   const y = f.get('year');
+  if (y < glSel[0] || y > glSel[1]) return null;
   if (!glStyles.has(y)) glStyles.set(y, [new ol.style.Style({ stroke: casing(3) }),
                                          new ol.style.Style({ stroke: new ol.style.Stroke({ color: rampColor(y, glYears), width: 1.5 }) })]);
   return glStyles.get(y);
@@ -49,6 +51,7 @@ async function refreshBounds() {
   boundsLayer.setVisible(on); glLayer.setVisible(on && ant && !boundsOff.has('dated'));
   $('boundsLegend').hidden = !on;
   for (const b of document.querySelectorAll('#boundsLegend .bkey')) if (b.dataset.kind !== 'basins') b.hidden = !ant;
+  $('glKey').hidden = !ant;
   if (on && ant && !glSource.getFeatures().length) loadGroundingLines();
   if (!on || set.source.getFeatures().length) return;
   const getJson = u => fetch(u).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
@@ -82,7 +85,7 @@ async function loadGroundingLines() {
   if (glSource.getFeatures().length) return;
   glYears = [Math.min(...d.lines.map(l => l[0])), Math.max(...d.lines.map(l => l[0]))];
   $('glBar').style.background = `linear-gradient(90deg, ${frontColors.join(', ')})`;
-  $('glMin').textContent = glYears[0]; $('glMax').textContent = glYears[1];
+  yearSlider('gl', glYears, String, (a, b) => { glSel = [a, b]; glLayer.changed(); });
   glSource.addFeatures(d.lines.map(([year, date, sensor, glacier, ...pieces]) => new ol.Feature({
     geometry: new ol.geom.MultiLineString(pieces.map(xy => { const pts = []; for (let k = 0; k < xy.length; k += 2) pts.push([xy[k], xy[k + 1]]); return pts; })),
     year, date: date || String(year), sensor, glacier })));

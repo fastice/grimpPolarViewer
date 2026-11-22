@@ -88,6 +88,8 @@ const tips = {
   pfLo: 'Length of the flow line upstream of the point (km); the plot is read again when you let go',
   pfHi: 'Length of the flow line downstream of the point (km); the plot is read again when you let go',
   pfShow: 'Hide or show the profile plot',
+  frontsLo: 'First winter of glacier fronts drawn', frontsHi: 'Last winter of glacier fronts drawn',
+  glLo: 'First year of dated grounding lines drawn', glHi: 'Last year of dated grounding lines drawn',
   pfClear: 'Remove the line and its plot',
   pfIts: 'Also plot ITS_LIVE image pairs whose time span includes the shown product\'s central date, sampled every 120 m, in grey; for an annual product, the ITS_LIVE annual mosaic of that calendar year instead (dashed)',
   pfItsDt: 'Only ITS_LIVE pairs whose images are at most this many days apart (not used for annual products)',

@@ -1,7 +1,7 @@
 // Antarctic boundaries (NSIDC-0709 v2): off by default, ticking draws the grounding line, ice shelves and IMBIE
 // basins with a legend whose entries toggle each layer; ice-shelf names only when zoomed in. In Greenland, the
 // Mouginot and Rignot (2019) glacier basins only.
-import { openViewer, catalogs, check, toMap, toPixel, zoomTo, text, hidden, shot, sleep, finish } from './lib.mjs';
+import { openViewer, catalogs, check, toMap, toPixel, zoomTo, dragRange, text, hidden, shot, sleep, finish } from './lib.mjs';
 
 let { browser, page: p } = await openViewer(catalogs.aseAnnual);
 const st = () => p.evaluate(() => {
@@ -40,6 +40,12 @@ if (v.c) {
   check('readout gives grounding-line dates under the pointer', /grounding line/.test(ro) && /2024-/.test(ro) && /Pine Island/.test(ro), ro);
   await p.mouse.move(5, 5); await sleep(500); await shot(p, 'groundingLinesPig');
 }
+// the color bar's handles pick the years of the dated lines drawn
+await dragRange(p, 'glLo', 2010);
+const gr = await p.evaluate(() => { const l = window.grimpViewer.map.getLayers().getArray().find(l => l.getZIndex() === 5 && l.getSource()?.getFeatures?.().some(f => f.get('sensor') !== undefined));
+  const fn = l.getStyleFunction(), y = l.getSource().getFeatures().filter(f => fn(f)).map(f => f.get('year')); return { lo: +document.getElementById('glLo').value, n: y.length, min: Math.min(...y) }; });
+check('grounding-line handles pick the years drawn', Math.abs(gr.lo - 2010) <= 1 && gr.min >= gr.lo && gr.n < 466 && (await text(p, 'glMin')) === String(gr.lo), gr);
+await sleep(500); await shot(p, 'groundingLinesRange');
 // legend entries toggle their layer
 const drawn = kind => p.evaluate(kind => { const l = window.grimpViewer.map.getLayers().getArray().find(l => l.getZIndex() === 5 && l.getSource()?.getFeatures?.().some(f => f.get('kind')));
   const f = l.getSource().getFeatures().find(f => f.get('kind') === kind && !f.get('label')); return !!l.getStyleFunction()(f, 500); }, kind);

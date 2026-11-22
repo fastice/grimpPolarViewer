@@ -93,6 +93,9 @@ button:disabled { opacity: .45; cursor: default; }
   border-radius: 50%; background: #ff3ea5; border: 2px solid #ffffff; box-shadow: 0 0 0 1px #00000066; }
 .dual input::-moz-range-thumb { pointer-events: auto; cursor: pointer; width: 12px; height: 12px;
   border-radius: 50%; background: #ff3ea5; border: 2px solid #ffffff; box-shadow: 0 0 0 1px #00000066; }
+/* Year range over a color bar (glacier fronts, dated grounding lines): the bar is the track, shaded outside the range. */
+.dual.yr .track { top: 6px; height: 10px; overflow: hidden; border: 1px solid var(--line); }
+.dual.yr .shade { position: absolute; top: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); }
 .allbox { display: flex; align-items: center; gap: 4px; font-weight: 700; }
 .maint { margin: 0; font-size: 11px; line-height: 1.4; color: var(--muted); }
 .maint.now { font-size: 12px; font-weight: 700; color: var(--fg); background: var(--accent-soft);
@@ -190,6 +193,11 @@ body.nopanel #panel { display: none; }
   .tsdrag { left: 2px; top: 0; padding: 8px 10px; font-size: 18px; }
   .tssize { width: 34px; height: 34px; }
   .tsplot .tsclose { right: 0; top: 0; padding: 0 12px 8px; font-size: 24px; }
+  .dual.yr { height: 30px; }
+  .dual.yr .track { left: 12px; right: 12px; top: 9px; }
+  .dual.yr input { height: 30px; }
+  .dual.yr input::-webkit-slider-thumb { width: 24px; height: 24px; }
+  .dual.yr input::-moz-range-thumb { width: 20px; height: 20px; }
 }
 #swipe { position: absolute; top: 0; bottom: 0; width: 0; pointer-events: none; z-index: 2; }
 #swipe .swline { position: absolute; top: 0; bottom: 0; left: -1px; width: 2px; background: #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55); }
@@ -222,6 +230,5 @@ body.nopanel #panel { display: none; }
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); }
 /* Each legend entry is a button that shows or hides its layer. */
 #boundsLegend .bkey { background: none; border: 0; padding: 2px 0; margin: 0 8px 0 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
-#boundsLegend .bkeyBar { display: block; width: 100%; margin: 0; }
 #boundsLegend .bkey[hidden] { display: none; }
 #boundsLegend .bkey.off { opacity: 0.4; text-decoration: line-through; }
