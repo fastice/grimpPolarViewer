@@ -3,9 +3,9 @@
 import { openViewer, catalogs, kopah, check, toMap, zoomTo, shot, sleep, finish } from './lib.mjs';
 
 let { browser, page: p } = await openViewer(catalogs.glAnnual);
-const arrows = () => p.evaluate(() => { const l = window.grimpViewer.map.getLayers().getArray().find(l => l.getZIndex() === 4 && l.getSource()?.getFeatures);
+const arrows = () => p.evaluate(() => { const l = window.grimpViewer.map.getLayers().getArray().find(l => l.getZIndex() === 4 && l instanceof ol.layer.Vector && Array.isArray(l.getStyle()) && l.getSource()?.getFeatures);
   return { visible: l.getVisible(), n: l.getSource().getFeatures().length, on: document.getElementById('arrowsOn').checked, disabled: document.getElementById('arrowsOn').disabled }; });
-const drawn = () => p.waitForFunction(() => window.grimpViewer.map.getLayers().getArray().some(l => l.getZIndex() === 4 && l.getSource()?.getFeatures?.().length), { timeout: 60000 });
+const drawn = () => p.waitForFunction(() => window.grimpViewer.map.getLayers().getArray().some(l => l.getZIndex() === 4 && l instanceof ol.layer.Vector && Array.isArray(l.getStyle()) && l.getSource()?.getFeatures?.().length), { timeout: 60000 });
 let s = await arrows();
 check('Flow arrows off by default, enabled for velocity', !s.visible && !s.on && !s.disabled, s);
 await p.click('#arrowsOn'); await drawn();
@@ -16,7 +16,7 @@ await shot(p, 'flowArrowsGreenland');
 // Jakobshavn trunk: the arrow nearest the point points roughly west
 const J = await toMap(p, -49.5, 69.17);
 await zoomTo(p, J, 40e3); await sleep(1500); await drawn();
-const a = await p.evaluate(J => { const l = window.grimpViewer.map.getLayers().getArray().find(l => l.getZIndex() === 4 && l.getSource()?.getFeatures);
+const a = await p.evaluate(J => { const l = window.grimpViewer.map.getLayers().getArray().find(l => l.getZIndex() === 4 && l instanceof ol.layer.Vector && Array.isArray(l.getStyle()) && l.getSource()?.getFeatures);
   let best = null, bd = Infinity;
   for (const f of l.getSource().getFeatures()) { const sh = f.getGeometry().getLineString(0).getCoordinates(), m = [(sh[0][0] + sh[1][0]) / 2, (sh[0][1] + sh[1][1]) / 2], d = Math.hypot(m[0] - J[0], m[1] - J[1]);
     if (d < bd) { bd = d; best = sh; } }

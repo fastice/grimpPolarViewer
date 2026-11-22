@@ -1,16 +1,19 @@
-// Antarctic boundaries (display only): the NSIDC-0709 v2 grounding line and IMBIE drainage basins (with the
-// ice shelf names), read from data/antarcticBoundaries.json, and the ice front and coast of the September 2026
-// GrIMP Antarctic ice mask (data/antarcticIceFront.json), read the first time Boundaries is ticked.
-// Antarctica (EPSG:3031) only. Grounding line white, ice front cyan with the shelf names once zoomed in (finer
-// than boundsShelfRes m per pixel), basins dashed yellow with their IMBIE labels; overlapping labels are dropped.
-// (NSIDC-0709's own shelf outlines are not drawn: their fronts are 2008-09.) Over them, the dated
-// NSIDC-0498 v2.1 InSAR grounding lines of the Amundsen Sea glaciers (data/aseGroundingLines.json, 1992-2025),
-// colored by year on the glacier-front ramp, the years drawn picked on its color bar (glSel); the readout gives
-// the dates of those under the pointer.
-// In Greenland (EPSG:3413) Boundaries draws only the Mouginot and Rignot (2019) glacier basins
-// (data/greenlandBasins.json), unlabeled (Glacier names labels the glaciers).
+// Antarctic and Greenland reference lines (display only), each behind its own checkbox:
+// - Basins: the IMBIE drainage basins of NSIDC-0709 v2 (data/antarcticBoundaries.json) with their labels in
+//   Antarctica (EPSG:3031); the Mouginot and Rignot (2019) glacier basins (data/greenlandBasins.json), unlabeled
+//   (Glacier names labels the glaciers), in Greenland (EPSG:3413). Dashed yellow.
+// - Coastlines, in Antarctica only, in place of the GIBS coastline (which misplaces them): the NSIDC-0709
+//   grounding line (white, from the same file) and the ice front and coast of the September 2026 GrIMP ice mask
+//   (data/antarcticIceFront.json, cyan), with the NSIDC-0709 ice shelf names finer than boundsShelfRes m per
+//   pixel. (NSIDC-0709's own shelf outlines are not drawn: their fronts are 2008-09.) Its legend entries hide
+//   or show the grounding line and the ice front (with the shelf names) separately (coastOff).
+// - Dated grounding lines: the NSIDC-0498 v2.1 InSAR grounding lines of the Amundsen Sea glaciers
+//   (data/aseGroundingLines.json, 1992-2025), colored by year on the glacier-front ramp, the years drawn picked
+//   on its color bar (glSel); the readout gives the dates of those under the pointer.
+// The files are read the first time a layer needs them; overlapping labels are dropped.
 const boundsUrl = 'data/antarcticBoundaries.json', iceFrontUrl = 'data/antarcticIceFront.json', boundsShelfRes = 1500;
-// Per projection: the files read the first time Boundaries is ticked there, the basin legend text and the source.
+// Per projection: the files read the first time Basins (or Antarctic Coastlines) needs them, the basin legend text
+// and the source they fill.
 const boundsSets = {
   'EPSG:3031': { urls: [boundsUrl, iceFrontUrl], what: 'Antarctic boundaries', basins: 'IMBIE basins', source: new ol.source.Vector() },
   'EPSG:3413': { urls: ['data/greenlandBasins.json'], what: 'Greenland basins', basins: 'glacier basins (Mouginot 2019)', source: new ol.source.Vector() },
@@ -23,16 +26,20 @@ const boundsStyles = {
 };
 const boundsLabel = (text, color, bold) => new ol.style.Style({ text: new ol.style.Text({ text, font: `${bold ? 600 : 400} 12px system-ui, sans-serif`,
   fill: new ol.style.Fill({ color }), stroke: new ol.style.Stroke({ color: 'rgba(0, 0, 0, 0.85)', width: 3 }), overflow: true }) });
-// Layers turned off by a click on their legend entry (ice shelf names go with the ice front; 'dated' = glLayer).
-const boundsOff = new Set(), boundsKeyOf = { iceShelves: 'iceFront' };
-const boundsLayer = new ol.layer.Vector({ source: boundsSets['EPSG:3031'].source, zIndex: 5, visible: false, declutter: true, style: (f, res) => {
-  const kind = f.get('kind'), name = f.get('name');
-  if (boundsOff.has(boundsKeyOf[kind] || kind)) return null;
-  if (!f.get('label')) return boundsStyles[kind];
-  if (!name || (kind === 'iceShelves' && res > boundsShelfRes)) return null;
-  return boundsLabel(name, kind === 'basins' ? '#ffd23f' : '#4fd8ff', kind === 'basins');
+// Basins draws the basin features of the source, Antarctic Coastlines the rest (both share the Antarctic source).
+const boundsLayer = new ol.layer.Vector({ source: boundsSets['EPSG:3031'].source, zIndex: 5, visible: false, declutter: true, style: f => {
+  if (f.get('kind') !== 'basins') return null;
+  return !f.get('label') ? boundsStyles.basins : f.get('name') ? boundsLabel(f.get('name'), '#ffd23f', true) : null;
 } });
 map.addLayer(boundsLayer);
+const coastOff = new Set();
+const coastVecLayer = new ol.layer.Vector({ source: boundsSets['EPSG:3031'].source, zIndex: 4, visible: false, declutter: true, style: (f, res) => {
+  const kind = f.get('kind');
+  if (kind === 'basins' || coastOff.has(kind === 'iceShelves' ? 'iceFront' : kind)) return null;
+  if (!f.get('label')) return boundsStyles[kind];
+  return f.get('name') && res <= boundsShelfRes ? boundsLabel(f.get('name'), '#4fd8ff', false) : null;
+} });
+map.addLayer(coastVecLayer);
 const glUrl = 'data/aseGroundingLines.json', glSource = new ol.source.Vector(), glStyles = new Map();
 let glLoading = null, glYears = [0, 1], glSel = [-Infinity, Infinity];
 const glLayer = new ol.layer.Vector({ source: glSource, zIndex: 5, visible: false, style: f => {
@@ -45,15 +52,15 @@ const glLayer = new ol.layer.Vector({ source: glSource, zIndex: 5, visible: fals
 map.addLayer(glLayer);
 
 async function refreshBounds() {
-  const set = boundsSets[viewCode], ant = viewCode === 'EPSG:3031', on = $('boundsOn').checked && !!set;
+  const set = boundsSets[viewCode], ant = viewCode === 'EPSG:3031', on = $('boundsOn').checked && !!set, coast = ant && $('coastOn').checked;
   $('boundsOn').disabled = !set;
   if (set) { boundsLayer.setSource(set.source); $('basinsKey').textContent = set.basins; }
-  boundsLayer.setVisible(on); glLayer.setVisible(on && ant && !boundsOff.has('dated'));
+  boundsLayer.setVisible(on); coastVecLayer.setVisible(coast); $('coastLegend').hidden = !coast;
   $('boundsLegend').hidden = !on;
-  for (const b of document.querySelectorAll('#boundsLegend .bkey')) if (b.dataset.kind !== 'basins') b.hidden = !ant;
-  $('glKey').hidden = !ant;
-  if (on && ant && !glSource.getFeatures().length) loadGroundingLines();
-  if (!on || set.source.getFeatures().length) return;
+  const dated = ant && $('glOn').checked;
+  $('glOn').disabled = !ant; glLayer.setVisible(dated); $('glLegend').hidden = !dated;
+  if (dated && !glSource.getFeatures().length) loadGroundingLines();
+  if (!(on || coast) || set.source.getFeatures().length) return;
   const getJson = u => fetch(u).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
   set.loading ||= Promise.all(set.urls.map(getJson)).then(([b, f]) => (f ? { ...b, iceFront: f.rings } : b));
   let d;
@@ -102,10 +109,14 @@ function glNote(pixel) {
 }
 map.on('change:view', refreshBounds);
 $('boundsOn').onchange = refreshBounds;
-for (const b of document.querySelectorAll('#boundsLegend .bkey')) b.title = 'Click to hide or show this layer';
-for (const b of document.querySelectorAll('#boundsLegend .bkey')) b.onclick = () => {
-  const k = b.dataset.kind, off = !boundsOff.delete(k);
-  if (off) boundsOff.add(k);
-  b.classList.toggle('off', off); b.setAttribute('aria-pressed', String(!off));
-  boundsLayer.changed(); refreshBounds();
-};
+$('glOn').onchange = refreshBounds;
+$('coastOn').addEventListener('change', refreshBounds);
+for (const b of document.querySelectorAll('#coastLegend .bkey')) {
+  b.title = 'Click to hide or show this line';
+  b.onclick = () => {
+    const off = !coastOff.delete(b.dataset.kind);
+    if (off) coastOff.add(b.dataset.kind);
+    b.classList.toggle('off', off); b.setAttribute('aria-pressed', String(!off));
+    coastVecLayer.changed();
+  };
+}

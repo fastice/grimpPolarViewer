@@ -97,7 +97,9 @@ function setView(code) {
     enableRotation: false }));  // grid-up always: a phone pinch must not rotate the map (boxes are drawn on x/y)
   const polar = code in projDefs;
   baseLayer.setSource(polar ? gibs(code, 'BlueMarble_ShadedRelief_Bathymetry', 'image/jpeg') : new ol.source.OSM());
-  coastLayer.setSource(polar ? gibs(code, 'Coastlines', 'image/png') : null);
+  // No GIBS coastline in Antarctica: it misplaces the grounding lines and ice fronts; Coastlines draws the
+  // Boundaries grounding line and ice front there instead (coastVecLayer in boundaries.js).
+  coastLayer.setSource(polar && code !== 'EPSG:3031' ? gibs(code, 'Coastlines', 'image/png') : null);
 }
 
 // Background image. The choice (collection and product) is kept per hemisphere for the browser session,

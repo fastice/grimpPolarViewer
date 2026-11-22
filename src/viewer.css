@@ -62,7 +62,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 #legend[hidden] { display: none; }
 #bar { height: 10px; border-radius: 2px; background: linear-gradient(90deg, #000, #fff); border: 1px solid var(--line); }
 #frontsLegend .ends { white-space: nowrap; }
-#legend .ends, #saLegend .ends, #frontsLegend .ends, #boundsLegend .ends { display: flex; justify-content: space-between; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+#legend .ends, #saLegend .ends, #frontsLegend .ends, #glLegend .ends { display: flex; justify-content: space-between; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 #legend .stretch { display: flex; gap: 8px; }
 #legend .stretch label { flex: 1; display: flex; align-items: center; gap: 4px; color: var(--muted); min-width: 0; }
 #legend .stretch input { flex: 1; width: 0; min-width: 0; font-family: var(--font-mono); font-size: 12px; }
@@ -230,9 +230,8 @@ body.nopanel #panel { display: none; }
 #olList { list-style: none; margin: 0; padding: 0; font-size: 13px; }
 #olList li { display: flex; align-items: baseline; gap: 8px; padding: 2px 0; }
 #olList li > span:first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-#boundsLegend .swatch { display: inline-block; width: 18px; height: 0; border-top: 2px solid; vertical-align: middle; margin: 0 4px 0 0;
+#boundsLegend .swatch, #coastLegend .swatch { display: inline-block; width: 18px; height: 0; border-top: 2px solid; vertical-align: middle; margin: 0 4px 0 0;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); }
-/* Each legend entry is a button that shows or hides its layer. */
-#boundsLegend .bkey { background: none; border: 0; padding: 2px 0; margin: 0 8px 0 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
-#boundsLegend .bkey[hidden] { display: none; }
-#boundsLegend .bkey.off { opacity: 0.4; text-decoration: line-through; }
+/* Coastlines legend: each entry is a button that shows or hides its line. */
+#coastLegend .bkey { background: none; border: 0; padding: 2px 0; margin: 0 8px 0 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+#coastLegend .bkey.off { opacity: 0.4; text-decoration: line-through; }

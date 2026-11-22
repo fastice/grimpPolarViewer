@@ -122,13 +122,14 @@ Tick **Flow arrows** on a velocity product to see which way the ice moves: each 
 averaged over its patch of the screen, and longer arrows are faster. They are redrawn as you pan and
 zoom, and left out where ice moves slower than 5 m/yr (and on rock).
 
-In Antarctica, tick **Boundaries** for the grounding line (white), the ice front and coast of the GrIMP
-2026 ice mask (cyan, with ice shelf names as you zoom in) and the IMBIE drainage basins (dashed yellow). On the Amundsen Sea glaciers (Pine Island, Thwaites,
-Pope, Smith, Kohler, Getz, Abbot and others) it also draws the dated InSAR grounding lines from 1992 to 2025,
-colored from blue (oldest) to red (newest); point at one for its date and sensor, and drag the handles on its
-color bar to pick the years drawn (the band between them slides the range). Click an entry in the
-legend under the checkboxes to hide or show that layer. In Greenland, **Boundaries** draws the glacier
-drainage basins of Mouginot and Rignot (2019) (dashed yellow); tick **Glacier names** to label them.
+In Antarctica, **Coastlines** draws the grounding line (white) and the ice front and coast of the GrIMP
+2026 ice mask (cyan, with ice shelf names as you zoom in); click either entry in its legend to hide or show
+that line. Tick **Basins** for the drainage basins (dashed yellow): IMBIE in Antarctica, with their labels,
+and the glacier basins of Mouginot and Rignot (2019) in Greenland (tick **Glacier names** to label them).
+Tick **Dated grounding lines** for the InSAR grounding lines of the Amundsen Sea glaciers (Pine Island,
+Thwaites, Pope, Smith, Kohler, Getz, Abbot and others) from 1992 to 2025, colored from blue (oldest) to red
+(newest); point at one for its date and sensor, and drag the handles on its color bar to pick the years
+drawn (the band between them slides the range).
 
 Reference layers from other sources (glacier names and fronts, boundaries, ITS_LIVE) are for display
 and comparison only; the downloads and saved files contain GrIMP data only.
@@ -367,7 +368,8 @@ Other data shown in the viewer:
   <https://doi.org/10.5067/JQ6337239C96>. Gardner, A. S., et al. (2018), Increased West Antarctic and
   unchanged East Antarctic ice discharge over the last 7 years, *The Cryosphere*, 12, 521-547,
   <https://doi.org/10.5194/tc-12-521-2018>.
-- Basemap (Blue Marble shaded relief and bathymetry, coastlines): we acknowledge the use of imagery
+- Basemap (Blue Marble shaded relief and bathymetry, coastlines outside Antarctica; in Antarctica, Coastlines
+  draws the NSIDC-0709 grounding line and the GrIMP ice-mask front instead): we acknowledge the use of imagery
   provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science
   Data and Information System (ESDIS).
 
