@@ -87,7 +87,17 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   if (scr) tsLegendHits = [];
   // Title, left of the point legend (top right); the ITS_LIVE part goes on a second line when both do not fit.
   const itsOn = $('tsIts').checked && tsPlotInfo.key in itsVars;
-  const head1 = `GrIMP (color): ${tsPlotInfo.key}${tsPlotInfo.unit ? ` (${tsPlotInfo.unit})` : ''}${tsPlotInfo.withErr ? ', error bars 1 sigma' : ''}`;
+  // Seasonal: x is the time of year, each year's values joined by a line in its color on the year ramp
+  // (markers keep the point colors), with a thick line (black, or white in dark mode) through each point's
+  // mean of every calendar month; earlier catalogs are drawn as markers only. The year of the product on
+  // the map (clicking a value shows it) is drawn on top, thicker and labeled, and the other years fade.
+  const seasonal = $('tsXMode').value === 'season';
+  const midYear = it => new Date((+it.start + +it.end) / 2).getUTCFullYear();
+  const yearsShown = (curOff ? [] : vis).flatMap(p => p.values.filter(x => Number.isFinite(x.v)).map(x => new Date((+x.it.start + +x.it.end) / 2).getUTCFullYear()));
+  const yrs = yearsShown.length ? [Math.min(...yearsShown), Math.max(...yearsShown)] : [0, 1];
+  const head1 = `GrIMP (color): ${tsPlotInfo.key}${tsPlotInfo.unit ? ` (${tsPlotInfo.unit})` : ''}${tsPlotInfo.withErr ? ', error bars 1 sigma' : ''}`
+    + (seasonal && yearsShown.length ? `; lines by year, ${yrs[0]} blue to ${yrs[1]} red; thick: monthly mean`
+      + (selected && yearsShown.includes(midYear(selected)) ? `; ${midYear(selected)} on top (${fmtDate(selected.start)} shown)` : '') : '');
   const head2 = itsOn ? `ITS_LIVE (grey): pairs${+$('tsItsDt').value < 1e5 ? ` up to ${$('tsItsDt').value} d` : ''}` : '';
   const R = 14, L0 = 44, titleMax = Math.max(60, W - R - L0 - (scr ? 30 * tsPoints.length + 22 : 18 * tsPoints.length + 16));
   ctx.font = '12px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = fg; ctx.textBaseline = 'middle';
@@ -136,7 +146,8 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   const ts = inR.length ? inR.flatMap(it => [+it.start, +it.end]) : tsPlotInfo.times.concat(ovs.flatMap(o => o.l.values.map(x => x.t)));
   let t0 = Math.min(...ts), t1 = Math.max(...ts);
   const tp = Math.max((t1 - t0) * 0.04, 86400e3 * 5); t0 -= tp; t1 += tp;
-  const X = t => L + (t - t0) / (t1 - t0) * pw, Y = v => T + (1 - (v - y0) / (y1 - y0)) * ph;
+  const yearFrac = t => { const y = new Date(t).getUTCFullYear(), a = Date.UTC(y, 0, 1); return (t - a) / (Date.UTC(y + 1, 0, 1) - a); };
+  const X = seasonal ? t => L + yearFrac(t) * pw : t => L + (t - t0) / (t1 - t0) * pw, Y = v => T + (1 - (v - y0) / (y1 - y0)) * ph;
   // grid and y labels
   const ys = niceStep(y1 - y0, 5);
   ctx.strokeStyle = line; ctx.lineWidth = 1; ctx.fillStyle = muted; ctx.textAlign = 'right';
@@ -148,11 +159,18 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   ctx.save(); ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.translate(12, T + ph / 2); ctx.rotate(-Math.PI / 2);
   ctx.fillText(`${tsPlotInfo.key}${tsPlotInfo.unit ? ` (${tsPlotInfo.unit})` : ''}`, 0, 0); ctx.restore();
-  ctx.save(); ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText('Date', L + pw / 2, H - 3); ctx.restore();
+  ctx.save(); ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(seasonal ? 'Month' : 'Date', L + pw / 2, H - 3); ctx.restore();
   // x labels: years for long spans, months otherwise
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
   const d0 = new Date(t0), d1 = new Date(t1), years = (t1 - t0) / (365.25 * 86400e3);
-  if (years > 2) {
+  if (seasonal) {
+    const months = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ');
+    for (let m = 0; m < 12; m++) {
+      const x = L + yearFrac(Date.UTC(2001, m, 1)) * pw;
+      ctx.beginPath(); ctx.moveTo(x, T); ctx.lineTo(x, T + ph); ctx.stroke();
+      ctx.fillText(months[m], L + yearFrac(Date.UTC(2001, m, 15)) * pw, T + ph + 6);
+    }
+  } else if (years > 2) {
     const step = Math.max(1, Math.round(years / 8));
     for (let y = d0.getUTCFullYear() + 1; y <= d1.getUTCFullYear(); y += step) {
       const x = X(Date.UTC(y, 0, 1));
@@ -181,7 +199,7 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   }
   // The displayed date: a thin dashed line (on screen only; the saved PNG leaves it out).
   const onScreen = canvas === $('tsCanvas'), tSel = selected ? (+selected.start + +selected.end) / 2 : NaN;
-  if (onScreen && tSel >= t0 && tSel <= t1) {
+  if (onScreen && Number.isFinite(tSel) && (seasonal || (tSel >= t0 && tSel <= t1))) {
     ctx.save(); ctx.strokeStyle = fg; ctx.lineWidth = 1; ctx.setLineDash([4, 3]); ctx.globalAlpha = 0.7;
     ctx.beginPath(); ctx.moveTo(X(tSel), T); ctx.lineTo(X(tSel), T + ph); ctx.stroke(); ctx.restore();
   }
@@ -194,7 +212,7 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   for (const { p, l, k } of ovs) {
     const st = ovStyles[k % ovStyles.length], q = l.values.filter(x => Number.isFinite(x.v));
     const path = () => { ctx.beginPath(); q.forEach((x, i) => (i ? ctx.lineTo(X(x.t), Y(x.v)) : ctx.moveTo(X(x.t), Y(x.v)))); ctx.stroke(); };
-    if (lines) {
+    if (lines && !seasonal) {
       ctx.setLineDash(st.dash);
       ctx.strokeStyle = halo; ctx.lineWidth = 3.5; path();
       ctx.strokeStyle = p.color; ctx.lineWidth = 1.5; path();
@@ -212,7 +230,23 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   for (const p of curOff ? [] : vis) {
     const q = p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v, e: x.e })).filter(x => Number.isFinite(x.v));
     ctx.strokeStyle = p.color; ctx.fillStyle = p.color; ctx.lineWidth = 1.6;
-    if (lines) { ctx.beginPath(); q.forEach((x, i) => (i ? ctx.lineTo(X(x.t), Y(x.v)) : ctx.moveTo(X(x.t), Y(x.v)))); ctx.stroke(); }
+    const yOf = x => new Date(x.t).getUTCFullYear(), selY = seasonal && selected && q.some(x => yOf(x) === midYear(selected)) ? midYear(selected) : null;
+    const fade = x => (selY !== null && yOf(x) !== selY ? 0.3 : 1);
+    if (lines && seasonal) {
+      for (const y of [...new Set(q.map(yOf))].sort((a, b) => (a === selY) - (b === selY))) {  // the selected year last
+        const qy = q.filter(x => yOf(x) === y), top = y === selY;
+        ctx.globalAlpha = fade(qy[0]); ctx.lineWidth = top ? 3 : 1.6;
+        ctx.strokeStyle = rampColor(y, yrs); ctx.beginPath(); qy.forEach((x, i) => (i ? ctx.lineTo(X(x.t), Y(x.v)) : ctx.moveTo(X(x.t), Y(x.v)))); ctx.stroke();
+        if (top) {
+          const e = qy[qy.length - 1];
+          ctx.font = '700 12px "Atkinson Hyperlegible", sans-serif'; ctx.textBaseline = 'middle';
+          const right = X(e.t) + 7 + ctx.measureText(String(y)).width <= L + pw, lx = right ? X(e.t) + 7 : X(e.t) - 9, ly = Y(e.v) - (right ? 0 : 12);  // left of a point near the right edge
+          ctx.textAlign = right ? 'left' : 'right';
+          ctx.lineWidth = 3; ctx.strokeStyle = halo; ctx.strokeText(String(y), lx, ly); ctx.fillStyle = rampColor(y, yrs); ctx.fillText(String(y), lx, ly);
+        }
+      }
+      ctx.globalAlpha = 1; ctx.lineWidth = 1.6; ctx.strokeStyle = p.color; ctx.fillStyle = p.color;
+    } else if (lines) { ctx.beginPath(); q.forEach((x, i) => (i ? ctx.lineTo(X(x.t), Y(x.v)) : ctx.moveTo(X(x.t), Y(x.v)))); ctx.stroke(); }
     ctx.lineWidth = 1.2;
     if (marks) for (const x of q) {
       if (Number.isFinite(x.e) && x.e > 0) {
@@ -220,8 +254,20 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
         ctx.moveTo(X(x.t) - 3, Y(x.v - x.e)); ctx.lineTo(X(x.t) + 3, Y(x.v - x.e));
         ctx.moveTo(X(x.t) - 3, Y(x.v + x.e)); ctx.lineTo(X(x.t) + 3, Y(x.v + x.e)); ctx.stroke();
       }
-      ctx.beginPath(); ctx.arc(X(x.t), Y(x.v), 3.2, 0, 2 * Math.PI); ctx.fill();
+      ctx.globalAlpha = fade(x); ctx.beginPath(); ctx.arc(X(x.t), Y(x.v), 3.2, 0, 2 * Math.PI); ctx.fill(); ctx.globalAlpha = 1;
     }
+  }
+  if (seasonal) for (const p of curOff ? [] : vis) {  // monthly means, broken where a month has no data
+    const sum = new Array(12).fill(0), n = new Array(12).fill(0);
+    for (const x of p.values) if (Number.isFinite(x.v)) { const m = new Date((+x.it.start + +x.it.end) / 2).getUTCMonth(); sum[m] += x.v; n[m]++; }
+    const at = m => [L + yearFrac(Date.UTC(2001, m, 15)) * pw, Y(sum[m] / n[m])];
+    for (const [w, c] of [[5.5, halo], [2.8, fg]]) {
+      ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath();
+      for (let m = 0; m < 12; m++) if (n[m]) { const [x, y] = at(m); if (m && n[m - 1]) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
+      ctx.stroke();
+    }
+    if (vis.length > 1) { ctx.fillStyle = p.color; for (let m = 0; m < 12; m++) if (n[m]) { const [x, y] = at(m); ctx.fillRect(x - 3, y - 3, 6, 6); } }
+    p.monthMean = sum.map((v, m) => (n[m] ? v / n[m] : NaN));
   }
   if (onScreen) {
     ctx.strokeStyle = fg; ctx.lineWidth = 2;
@@ -456,6 +502,7 @@ floatingPlot($('tsPlot'), $('tsDrag'), $('tsSize'), () => drawTsPlot());
 $('tsShow').onclick = () => setTsPlot($('tsPlot').hidden);
 window.addEventListener('resize', () => { if (!$('tsPlot').hidden) drawTsPlot(); });
 $('tsXBar').onchange = () => drawTsPlot();
+$('tsXMode').onchange = () => { $('tsXBar').disabled = $('tsXMode').value === 'season'; drawTsPlot(); };
 $('tsYAuto').onclick = () => { tsYTyped = null; drawTsPlot(); };
 const tsLegendAt = e => { const r = $('tsCanvas').getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
   return tsLegendHits.find(h => x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h); };

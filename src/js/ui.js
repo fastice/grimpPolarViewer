@@ -33,7 +33,15 @@ const tips = {
   footOn: 'Outlines of the items in the time range; click one to show it',
   arrowsOn: 'Flow direction of the shown velocity product (its vx and vy), averaged over each arrow\'s cell; longer arrows are faster (log scale up to the fastest 5% in view); none below 5 m/yr',
   olAdd: 'Draw your own GeoJSON, KML or GPX outlines on the map (they stay in this browser tab, nothing is uploaded)',
-  boundsOn: 'Drainage basins: IMBIE (NSIDC-0709 v2) in Antarctica, Mouginot and Rignot (2019) glacier basins in Greenland',
+  boundsOn: 'Drainage basins: IMBIE (NSIDC-0709 v2) in Antarctica, Mouginot and Rignot (2019) glacier basins in Greenland; point at a basin for its true area (the polar stereographic map area corrected for the projection scale)',
+  particlesOn: 'Streaks drifting with the flow of the shown velocity product (its vx and vy); faster ice moves faster and leaves longer trails. Paused while the map moves',
+  contourOn: 'Lines of equal speed (isotachs) of the shown product\'s speed (vv), at the levels typed below, read at the map\'s resolution and lightly smoothed',
+  contourLevels: 'Speeds to contour, m/yr, separated by commas (at most 12)',
+  pfYrOn: 'Dots along the flow line where ice at the point was (upstream, -) or will be (downstream, +) after each interval, for steady flow at the speeds of the mosaic the line was traced on',
+  pfYrStep: 'Years between travel-time marks',
+  fpShow: 'Plot where the glacier fronts or dated grounding lines shown on the map cross the line, against date (their year sliders pick the years); the profile plot marks the same crossings along its top',
+  fpPng: 'Save the front-position plot as a PNG (these lines are not GrIMP data, so there is no CSV)',
+  tsXMode: 'Plot against date, or fold the series onto the months of the year with one line per year (colored by year) to compare seasonal cycles',
   glOn: 'Dated InSAR grounding lines of the Amundsen Sea glaciers, 1992-2025 (NSIDC-0498 v2.1), colored by year; point at one for its date. Antarctica only',
   frontsOn: 'Winter ice-front positions of Greenland outlet glaciers, 1972-73 to 2020-21 (NSIDC-0642 v2), colored by year; point at a front for its date',
   namesOn: 'Glacier and place names: Greenland from Bjørk et al. 2015, Antarctica from the SCAR Composite Gazetteer. Zoomed out only the major ones, more as you zoom in',
@@ -225,12 +233,23 @@ async function readoutValue(coord) {
   if (vals.length >= 3) return `<b>${esc(key)}</b> R ${vals[0]} G ${vals[1]} B ${vals[2]}`;
   const v = vals[0];
   if (v === b.nodata || !Number.isFinite(v)) return `<b>${esc(key)}</b> no data`;
-  return `<b>${esc(key)}</b> ${fmtVal(v * (b.scale ?? 1) + (b.offset ?? 0))} ${esc(b.unit || '')}`;
+  const sig = await readoutError(selected, key, coord).catch(() => NaN);
+  return `<b>${esc(key)}</b> ${fmtVal(v * (b.scale ?? 1) + (b.offset ?? 0))}${Number.isFinite(sig) ? ` &plusmn; ${fmtVal(sig)}` : ''} ${esc(b.unit || '')}`;
+}
+// One sigma of a velocity value at a point from the product's ex/ey (NaN without them), as for the
+// time-series error bars but read uncached, since every hover position is new.
+async function readoutError(it, key, coord) {
+  const need = { vx: ['ex'], vy: ['ey'], vv: ['vx', 'vy', 'ex', 'ey'] }[key];
+  if (!need || !need.every(k => it.assets[k])) return NaN;
+  const q = await Promise.all(need.map(k => pixelValue(it.assets[k], coord)));
+  if (key !== 'vv') return q[0];
+  const [vx, vy, ex, ey] = q, v = Math.hypot(vx, vy);
+  return v > 0 ? Math.hypot(vx * ex, vy * ey) / v : NaN;
 }
 function updateReadout(e) {
   // A tap's readout stays until the next tap, so it gets a close button (the "x 12.34 km" text is not one).
   $('roClose').hidden = e.originalEvent?.pointerType !== 'touch';
-  const ro = $('roText'), lines = [frontNote(e.pixel), glNote(e.pixel)].filter(Boolean);
+  const ro = $('roText'), lines = [frontNote(e.pixel), glNote(e.pixel), basinNote(e.coordinate)].filter(Boolean);
   const coords = [readoutCoords(e.coordinate), ...lines].join('<br>');
   $('readout').hidden = false;
   ro.innerHTML = `${coords}<br><span class="note" style="color:inherit">reading value...</span>`;

@@ -1,7 +1,8 @@
 // Antarctic and Greenland reference lines (display only), each behind its own checkbox:
 // - Basins: the IMBIE drainage basins of NSIDC-0709 v2 (data/antarcticBoundaries.json) with their labels in
 //   Antarctica (EPSG:3031); the Mouginot and Rignot (2019) glacier basins (data/greenlandBasins.json), unlabeled
-//   (Glacier names labels the glaciers), in Greenland (EPSG:3413). Dashed yellow.
+//   (Glacier names labels the glaciers), in Greenland (EPSG:3413). Dashed yellow. The readout gives the basin
+//   under the pointer and its true area (basinNote).
 // - Coastlines, in Antarctica only, in place of the GIBS coastline (which misplaces them): the NSIDC-0709
 //   grounding line (white, from the same file) and the ice front and coast of the September 2026 GrIMP ice mask
 //   (data/antarcticIceFront.json, cyan), with the NSIDC-0709 ice shelf names finer than boundsShelfRes m per
@@ -75,7 +76,7 @@ async function refreshBounds() {
   for (const kind of ['basins', 'iceShelves', 'groundingLine']) {
     for (const [name, ...rings] of d[kind] || []) {
       const lines = rings.map(toPts);
-      if (kind !== 'iceShelves') features.push(new ol.Feature({ geometry: new ol.geom.MultiLineString(lines), kind }));
+      if (kind !== 'iceShelves') features.push(new ol.Feature({ geometry: new ol.geom.MultiLineString(lines), kind, name: name.replace(/_/g, ' ') }));
       if (kind === 'groundingLine' || !name) continue;
       // Label at the middle of the largest ring's extent.
       const big = lines.reduce((a, b) => (b.length > a.length ? b : a));
@@ -106,6 +107,56 @@ function glNote(pixel) {
   const dates = [...new Set(hits.map(f => f.get('date')))].sort(), sensors = [...new Set(hits.map(f => f.get('sensor')).filter(Boolean))].join(', ');
   const when = dates.length > 3 ? `${dates[0]} to ${dates[dates.length - 1]}` : dates.join(', ');
   return `<b>${dates.length > 1 ? `${dates.length} grounding lines` : 'grounding line'}</b> ${when} (${esc(hits[0].get('glacier'))}${sensors ? `; ${esc(sensors)}` : ''})`;
+}
+// True (WGS84) area of a ring in km2, and its polar stereographic map area. The map area is divided by the
+// square of the projection's scale factor exactly, by Green's theorem about the pole: the true area is the
+// sum over the ring of the true area of the polar cap out to each vertex (from its authalic latitude) times
+// the angle the ring turns about the pole there. Steps through the pole are radial and add nothing.
+const wgsE2 = 0.00669437999014, wgsE = Math.sqrt(wgsE2);
+const authQ = s => (1 - wgsE2) * (s / (1 - wgsE2 * s * s) - Math.log((1 - wgsE * s) / (1 + wgsE * s)) / (2 * wgsE));
+const authQp = authQ(1), authR2 = 6378137 ** 2 * authQp / 2;
+function ringArea(pts) {
+  const n = pts.length, cap = pts.map(p => authR2 * (1 - authQ(Math.sin(Math.abs(ol.proj.toLonLat(p, viewCode)[1]) * Math.PI / 180)) / authQp));
+  let a = 0, m = 0;
+  for (let k = 0; k < n; k++) {
+    const p = pts[k], q = pts[(k + 1) % n];
+    m += p[0] * q[1] - q[0] * p[1];
+    if (Math.hypot(...p) < 1 || Math.hypot(...q) < 1) continue;
+    let turn = Math.atan2(q[1], q[0]) - Math.atan2(p[1], p[0]);
+    if (turn > Math.PI) turn -= 2 * Math.PI; else if (turn < -Math.PI) turn += 2 * Math.PI;
+    a += 0.5 * (cap[k] + cap[(k + 1) % n]) * turn;
+  }
+  return [Math.abs(a) / 1e6, Math.abs(m) / 2e6];
+}
+function inRing(ring, [x, y]) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if ((yi > y) !== (yj > y) && x < xj + ((y - yi) * (xi - xj)) / (yj - yi)) inside = !inside;
+  }
+  return inside;
+}
+// A basin is the area inside an odd number of its rings (a ring inside another is a hole).
+function basinArea(rings) {
+  const ext = rings.map(r => ol.extent.boundingExtent(r));
+  return rings.reduce((s, r, i) => {
+    const holes = rings.filter((o, j) => j !== i && ol.extent.containsCoordinate(ext[j], r[0]) && inRing(o, r[0])).length, sign = holes % 2 ? -1 : 1;
+    const [t, mp] = ringArea(r);
+    return [s[0] + sign * t, s[1] + sign * mp];
+  }, [0, 0]);
+}
+// Readout line for the basin under a map coordinate ('' when none or Basins is off): its name and true area.
+function basinNote(coord) {
+  if (!boundsLayer.getVisible()) return '';
+  for (const f of boundsLayer.getSource().getFeatures()) {
+    if (f.get('kind') !== 'basins' || f.get('label') || !ol.extent.containsCoordinate(f.getGeometry().getExtent(), coord)) continue;
+    const rings = f.getGeometry().getCoordinates();
+    if (rings.filter(r => inRing(r, coord)).length % 2 === 0) continue;
+    if (!f.get('area')) f.set('area', basinArea(rings), true);
+    const [t, m] = f.get('area'), km2 = v => Math.round(v).toLocaleString('en-US');
+    return `<b>basin${f.get('name') ? ` ${esc(f.get('name'))}` : ''}</b> ${km2(t)} km<sup>2</sup> (${km2(m)} on the polar stereographic map)`;
+  }
+  return '';
 }
 map.on('change:view', refreshBounds);
 $('boundsOn').onchange = refreshBounds;

@@ -32,7 +32,7 @@ function showAsset(key) {
   const projection = selected.epsg ? `EPSG:${selected.epsg}` : undefined;
   rgbMode = (a['raster:bands']?.length ?? 1) >= 3;
   pfOnShown(plotAsset());
-  refreshArrows();
+  refreshArrows(); refreshContours(); refreshParticles();
   $('stretchCtl').hidden = rgbMode; $('rgbNote').hidden = !rgbMode;
   $('lname').textContent = a.href.split('/').pop();
   $('legend').hidden = false;

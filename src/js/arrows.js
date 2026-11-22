@@ -48,3 +48,68 @@ async function refreshArrows() {
 }
 map.on('moveend', refreshArrows);
 $('arrowsOn').onchange = refreshArrows;
+
+// Flow particles: streaks drifting with the shown item's vx/vy, read like the arrows on a grid every
+// particleCell screen pixels. Each frame moves every particle in proportion to its speed (the 95th
+// percentile of the speeds in view moves particleStep px a frame) and fades the old trails, so a streak's
+// length shows its speed. A particle lives particleLife frames, or until it leaves the data, then starts
+// again at a random cell of moving ice (at least arrowMinSpeed). They are drawn on a canvas over the map,
+// cleared while the map moves and started again on the new view.
+const particleCell = 4, particleStep = 2, particleLife = 100, particleMax = 3000;
+const pCanvas = document.createElement('canvas');
+pCanvas.className = 'particles';
+map.getViewport().insertBefore(pCanvas, map.getViewport().querySelector('.ol-overlaycontainer'));
+let pField = null, pParts = [], pRaf = 0, pToken = 0;
+function stopParticles() {
+  ++pToken; cancelAnimationFrame(pRaf); pRaf = 0; pParts = []; pField = null;
+  pCanvas.getContext('2d').clearRect(0, 0, pCanvas.width, pCanvas.height);
+}
+async function refreshParticles() {
+  const ok = hasFlow(selected), on = $('particlesOn').checked && ok;
+  $('particlesOn').disabled = !ok;
+  stopParticles();
+  if (!on) return;
+  const token = pToken, view = map.getView(), size = map.getSize(), cell = view.getResolution() * particleCell, e = view.calculateExtent(size);
+  const W = Math.ceil(size[0] / particleCell), H = Math.ceil(size[1] / particleCell), ext = [e[0], e[3] - H * cell, e[0] + W * cell, e[3]];
+  const it = selected, bands = ['vx', 'vy'].map(k => it.assets[k]['raster:bands']?.[0] || {});
+  let vx, vy;
+  try {
+    [vx, vy] = (await Promise.all(['vx', 'vy'].map(k => readFrame(it, k, ext, cell, W, H)))).map((f, n) => f.values.map(v => v * (bands[n].scale ?? 1) + (bands[n].offset ?? 0)));
+  } catch (err) { if (token === pToken) setStatus(`Could not read the flow for particles (${err.message})`); return; }
+  if (token !== pToken) return;
+  const moving = [], speeds = [];
+  for (let k = 0; k < W * H; k++) { const s = Math.hypot(vx[k], vy[k]); if (s >= arrowMinSpeed) { moving.push(k); speeds.push(s); } }
+  if (!moving.length) return;
+  speeds.sort((a, b) => a - b);
+  const top = Math.max(speeds[Math.floor(0.95 * (speeds.length - 1))], 10 * arrowMinSpeed), dpr = window.devicePixelRatio || 1;
+  pField = { vx, vy, W, H, moving, scale: particleStep / top };
+  pCanvas.width = size[0] * dpr; pCanvas.height = size[1] * dpr;
+  pCanvas.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+  const n = Math.min(particleMax, Math.round(size[0] * size[1] / 300), moving.length * 4);
+  pParts = Array.from({ length: n }, () => ({ age: Math.floor(Math.random() * particleLife) }));
+  for (const q of pParts) spawnParticle(q);
+  pRaf = requestAnimationFrame(particleFrame);
+}
+function spawnParticle(q) {
+  const k = pField.moving[Math.floor(Math.random() * pField.moving.length)];
+  q.x = (k % pField.W + Math.random()) * particleCell; q.y = (Math.floor(k / pField.W) + Math.random()) * particleCell;
+}
+function particleFrame() {
+  const f = pField, ctx = pCanvas.getContext('2d'), w = pCanvas.width, h = pCanvas.height;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalCompositeOperation = 'destination-in'; ctx.fillStyle = 'rgba(0, 0, 0, 0.92)'; ctx.fillRect(0, 0, w, h);  // fade the trails
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'; ctx.lineWidth = 1.3; ctx.beginPath();
+  for (const q of pParts) {
+    const i = Math.floor(q.x / particleCell), j = Math.floor(q.y / particleCell), k = j * f.W + i;
+    const u = i >= 0 && j >= 0 && i < f.W && j < f.H ? f.vx[k] : NaN, v = u === u ? f.vy[k] : NaN;
+    if (!(q.age++ < particleLife) || !Number.isFinite(u + v)) { q.age = 0; spawnParticle(q); continue; }
+    const nx = q.x + u * f.scale, ny = q.y - v * f.scale;  // map y is up, screen y down
+    ctx.moveTo(q.x, q.y); ctx.lineTo(nx, ny); q.x = nx; q.y = ny;
+  }
+  ctx.stroke();
+  pRaf = requestAnimationFrame(particleFrame);
+}
+map.on('movestart', () => { if (pField || pRaf) stopParticles(); });
+map.on('moveend', refreshParticles);
+$('particlesOn').onchange = refreshParticles;

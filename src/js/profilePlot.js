@@ -85,6 +85,13 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
     ctx.strokeStyle = halo; ctx.lineWidth = shown(c) ? 4.5 : 3.5; path(c.d, c.v);
     ctx.strokeStyle = c.color; ctx.lineWidth = shown(c) ? 2.4 : 1.4; path(c.d, c.v);
   }
+  // where the fronts or grounding lines shown cross the line (ticks down from the top, in their year
+  // colors), and the travel-time marks (ticks up from the bottom)
+  const Xk = km => L + (km - xa) / (xb - xa) * pw;
+  ctx.lineWidth = 2.5;
+  for (const c of fpCross) { ctx.strokeStyle = c.color; ctx.beginPath(); ctx.moveTo(Xk(c.km), T); ctx.lineTo(Xk(c.km), T + 10); ctx.stroke(); }
+  ctx.strokeStyle = fg; ctx.lineWidth = 1.5;
+  for (const m of pfMarks) { ctx.beginPath(); ctx.moveTo(Xk(m.km), T + ph); ctx.lineTo(Xk(m.km), T + ph - (m.t % (5 * +$('pfYrStep').value) ? 5 : 10)); ctx.stroke(); }
   ctx.restore();
   // legend: each curve's dates (and catalog, when more than one), the shown product in bold; a click on
   // an entry hides or shows its curve (hidden entries are faded), a click on its x removes it
@@ -204,6 +211,7 @@ $('pfClear').onclick = () => { if (drawKind === 'profile' || drawKind === 'flow'
 $('pfShow').onclick = () => setPfPlot($('pfPlot').hidden);
 $('pfHide').onclick = () => setPfPlot(false);
 $('pfIts').onchange = () => refreshProfileIts();
+$('pfYrOn').onchange = $('pfYrStep').onchange = () => travelMarks();
 $('pfItsDt').onchange = () => refreshProfileIts();
 $('pfSec').addEventListener('toggle', () => { if (!$('pfSec').open && (drawKind === 'profile' || drawKind === 'flow')) stopDraw(); });
 floatingPlot($('pfPlot'), $('pfDrag'), $('pfSize'), () => drawProfile());

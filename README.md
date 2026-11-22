@@ -120,12 +120,20 @@ in latitude and longitude:
 
 Tick **Flow arrows** on a velocity product to see which way the ice moves: each arrow shows the flow
 averaged over its patch of the screen, and longer arrows are faster. They are redrawn as you pan and
-zoom, and left out where ice moves slower than 5 m/yr (and on rock).
+zoom, and left out where ice moves slower than 5 m/yr (and on rock). Tick **Flow particles** for streaks
+that drift with the flow instead: faster ice moves faster and leaves longer trails (they pause while the
+map moves). Tick **Speed contours** for lines of equal speed, labeled in m/yr; type the speeds you want
+in the box under the toggles.
+
+When you point at a velocity product that has error layers, the readout gives the value with its
+1-sigma error (for example *vv 5595.4 ± 12.1 m/yr*).
 
 In Antarctica, **Coastlines** draws the grounding line (white) and the ice front and coast of the GrIMP
 2026 ice mask (cyan, with ice shelf names as you zoom in); click either entry in its legend to hide or show
 that line. Tick **Basins** for the drainage basins (dashed yellow): IMBIE in Antarctica, with their labels,
 and the glacier basins of Mouginot and Rignot (2019) in Greenland (tick **Glacier names** to label them).
+Point at a basin for its true area in km², corrected for the polar stereographic map's scale distortion
+(the map area is shown beside it).
 Tick **Dated grounding lines** for the InSAR grounding lines of the Amundsen Sea glaciers (Pine Island,
 Thwaites, Pope, Smith, Kohler, Getz, Abbot and others) from 1992 to 2025, colored from blue (oldest) to red
 (newest); point at one for its date and sensor, and drag the handles on its color bar to pick the years
@@ -174,6 +182,10 @@ more files per date.
 - **Plot y range** sets the y axis: drag either handle, or drag the band between them to move the
   range up or down. The x axis follows the timeline's range. **Plot style** draws
   lines and points, points only, or lines only.
+- **Plot x axis: month of year** folds the series onto January to December, with one line per year
+  colored from blue (oldest) to red (newest), to compare the seasonal cycle from year to year. A thick
+  black line (white in dark mode) joins each point's mean for every calendar month. Click a value to show
+  that product: its year is then drawn on top, thicker and labeled, with the other years faded.
 - In the TerraSAR-X collection, each point reads the site boxes that contain it, so points can be at
   different glaciers; adding a point outside the orange box switches the map to that point's site.
 - Tick **ITS_LIVE in grey** to compare with the ITS_LIVE image-pair velocities at the same points.
@@ -202,6 +214,9 @@ upstream (left) and downstream (right) of the point, up to 150 km each way, and 
 distance downstream of the point (negative upstream). The flow comes from the newest annual
 velocity mosaic (Greenland, or the Amundsen Sea in Antarctica), whatever product is shown, or, where
 there is none, from the loaded catalog's velocity product with the longest averaging period.
+Tick **Travel-time marks** to dot the flow line every 1, 2, 5 ... 100 years: where ice at the point will
+be after that many years (+, downstream) and where it was that long ago (-, upstream), for steady flow at
+the mosaic's speeds. The plot marks them with ticks along its bottom.
 
 - Show another date (a timeline tick, a footprint on the map, or a point on the time-series plot) and
   its curve is added to the same plot, so you can see a front retreat or a speed-up along the flow
@@ -218,6 +233,11 @@ there is none, from the loaded catalog's velocity product with the longest avera
   how far apart the two images are. The ITS_LIVE datacubes currently end in May 2025. For an annual
   product, the ITS_LIVE annual mosaic of the calendar year holding its middle date is drawn instead,
   as one dashed grey line (ITS_LIVE annual mosaics currently end with 2022).
+- With **Glacier fronts** (Greenland) or **Dated grounding lines** (Amundsen Sea) on, **Fronts along the
+  line** plots where each front or grounding line drawn crosses the line, as distance along the line
+  against date, so a retreat reads as a falling trend; the year sliders on their color bars pick the
+  years. The profile plot ticks the same crossings along its top, in the year colors. A flow line ends at
+  the newest front (where the mosaic ends), so draw a line down the fjord for the older fronts.
 - The plot moves and resizes like the time-series plot. **Save CSV** writes the GrIMP curves shown,
   one row per sample (ITS_LIVE is drawn for comparison only and is not saved); **Save plot** writes the picture.
 

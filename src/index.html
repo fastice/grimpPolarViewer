@@ -47,7 +47,11 @@
       <label><input id="boundsOn" type="checkbox"> Basins</label>
       <label><input id="glOn" type="checkbox"> Dated grounding lines</label>
       <label><input id="arrowsOn" type="checkbox"> Flow arrows</label>
+      <label><input id="particlesOn" type="checkbox"> Flow particles</label>
+      <label><input id="contourOn" type="checkbox"> Speed contours</label>
     </div>
+    <div id="contourLegend" class="row" hidden><label class="lab" for="contourLevels" style="margin:0;flex:none">Contours</label>
+      <input id="contourLevels" type="text" value="100, 250, 500, 1000, 2500, 5000" inputmode="decimal" spellcheck="false"><span class="note">m/yr</span></div>
     <div id="frontsLegend" hidden>
       <div class="dual yr"><div class="track" id="frontsBar"><div class="shade" id="frontsShadeL"></div><div class="shade" id="frontsShadeR"></div></div><div class="band" id="frontsBand"></div>
         <input id="frontsLo" type="range" aria-label="First winter of fronts shown"><input id="frontsHi" type="range" aria-label="Last winter of fronts shown"></div>
@@ -175,6 +179,8 @@
         <option value="30">30 d</option><option value="12" selected>12 d</option></select></label></div>
       <div id="tsItsNote" class="note"></div>
       <div id="tsYRow" class="block-inner" hidden>
+        <label class="optrow"><span style="white-space:nowrap">Plot x axis</span> <select id="tsXMode"><option value="date" selected>date</option>
+          <option value="season">month of year (a line per year)</option></select></label>
         <label class="optrow"><input id="tsXBar" type="checkbox" checked> Plot x axis follows the time-bar range</label>
         <label class="optrow"><span style="white-space:nowrap">Plot style</span> <select id="tsStyle"><option value="both" selected>lines and points</option>
           <option value="points">points only</option><option value="lines">lines only</option></select></label>
@@ -206,6 +212,10 @@
           <input id="pfLo" type="range" aria-label="Length upstream of the point (km)">
           <input id="pfHi" type="range" aria-label="Length downstream of the point (km)"></div>
         <div id="pfFlowText" class="note"></div>
+        <div class="optrow"><label class="optrow"><input id="pfYrOn" type="checkbox"> Travel-time marks</label>
+          <label class="optrow">every <select id="pfYrStep"><option value="1" selected>1 year</option><option value="2">2 years</option><option value="5">5 years</option>
+          <option value="10">10 years</option><option value="25">25 years</option><option value="50">50 years</option><option value="100">100 years</option></select></label></div>
+        <div id="pfYrNote" class="note"></div>
       </div>
       <div class="optrow" id="pfItsRow"><label class="optrow"><input id="pfIts" type="checkbox"> ITS_LIVE in grey,</label>
         <label class="optrow">pairs up to <select id="pfItsDt"><option value="100000">any</option><option value="120">120 d</option>
@@ -221,6 +231,9 @@
             <div id="pfYLo" class="ythumb" tabindex="0" role="slider" aria-label="Bottom of the plot y axis"></div>
             <div id="pfYHi" class="ythumb" tabindex="0" role="slider" aria-label="Top of the plot y axis"></div></div></div>
       </div>
+      <div class="row" id="fpRow" hidden><button id="fpShow" type="button" class="link">Fronts along the line</button>
+        <button id="fpPng" type="button" class="link">Save plot (PNG)</button></div>
+      <div id="fpNote" class="note"></div>
       <div class="row">
         <button id="pfCsv" type="button" disabled>Save CSV</button>
         <button id="pfPng" type="button" disabled>Save plot (PNG)</button>
@@ -272,6 +285,12 @@
     <div id="pfSize" class="tssize" title="Drag to resize the plot; double-click the move grip to put it back"></div>
     <canvas id="pfCanvas"></canvas>
   </div>
+  <div id="fpPlot" class="tsplot" hidden>
+    <button id="fpHide" type="button" class="link tsclose" title="Hide the plot (Fronts along the line brings it back)">&times;</button>
+    <div id="fpDrag" class="tsdrag" title="Drag to move the plot (resize it by its bottom-right corner); double-click to put it back">&#x2725;</div>
+    <div id="fpSize" class="tssize" title="Drag to resize the plot; double-click the move grip to put it back"></div>
+    <canvas id="fpCanvas"></canvas>
+  </div>
   <div id="timebar" hidden>
     <div id="ttrack">
       <div id="trange"></div>
@@ -311,6 +330,8 @@
 <!-- @include js/boundaries.js -->
 <!-- @include js/outlines.js -->
 <!-- @include js/arrows.js -->
+<!-- @include js/contours.js -->
+<!-- @include js/frontPositions.js -->
 <!-- @include js/ui.js -->
 </script>
 </body>

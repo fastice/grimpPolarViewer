@@ -67,6 +67,11 @@ async function pointValue(it, key, coord) {
   if (!a) return NaN;
   const ck = `${coord[0]},${coord[1]}|${a.href}`;
   if (tsCache.has(ck)) return tsCache.get(ck);
+  const v = await pixelValue(a, coord);
+  tsCache.set(ck, v);
+  return v;
+}
+async function pixelValue(a, coord) {  // one full-resolution pixel of an asset, in physical units (NaN = no data)
   const b = a['raster:bands']?.[0] || {};
   const { levels: lv, origin: org } = await assetLevels(a.href);
   const img = lv[0].img, r = lv[0].res;
@@ -76,7 +81,6 @@ async function pointValue(it, key, coord) {
     const raw = (await img.readRasters({ window: [col, row, col + 1, row + 1], samples: [0] }))[0][0];
     if (raw !== b.nodata && Number.isFinite(raw)) v = raw * (b.scale ?? 1) + (b.offset ?? 0);
   }
-  tsCache.set(ck, v);
   return v;
 }
 async function pointError(it, key, coord) {

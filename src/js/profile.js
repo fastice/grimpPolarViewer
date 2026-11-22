@@ -7,8 +7,17 @@
 // product's central date are drawn in grey, sampled every 120 m (the datacube pixel); of each datacube
 // chunk the line crosses, only the time chunks holding such pairs are read. For an annual product the
 // ITS_LIVE annual mosaic of the calendar year holding its central date is drawn instead (dashed grey).
+// Travel-time marks (travelMarks) dot a flow line every so many years of ice travel from its point.
 const pfSource = new ol.source.Vector();
+const pfYrStyles = new Map();
+const pfYrStyle = label => {
+  if (!pfYrStyles.has(label)) pfYrStyles.set(label, new ol.style.Style({ image: new ol.style.Circle({ radius: 3.5, fill: new ol.style.Fill({ color: '#ffd23f' }),
+    stroke: new ol.style.Stroke({ color: '#000000', width: 1 }) }), text: label ? new ol.style.Text({ text: label, offsetY: -11, font: '600 11px sans-serif',
+    fill: new ol.style.Fill({ color: '#ffd23f' }), stroke: new ol.style.Stroke({ color: '#000000', width: 3 }) }) : undefined }));
+  return pfYrStyles.get(label);
+};
 map.addLayer(new ol.layer.Vector({ source: pfSource, zIndex: 6, style: f => {
+  if (f.get('yr') !== undefined) return pfYrStyle(f.get('label'));
   if (f.getGeometry().getType() === 'Point') return new ol.style.Style({ image: new ol.style.Circle({ radius: 6,
     fill: new ol.style.Fill({ color: '#ffffff' }), stroke: new ol.style.Stroke({ color: '#ff3ea5', width: 3 }) }) });
   const c = f.getGeometry().getCoordinates();
@@ -23,6 +32,7 @@ let pfLine = null, pfKey = null, pfCurves = [], pfIts = null, pfToken = 0, pfIts
 let pfCum = null, pfOff = 0, pfFlow = null;  // cumulative m along pfLine; plotted distance of its start; flow trace
 const pfAx = { x: { typed: null, span: null, pos: [0, 1] }, y: { typed: null, span: null, pos: [0, 1] } };  // plot ranges
 let pfPoint = null, pfAdjust = null, pfWant = [0, 0];  // flow point feature; its drag interaction; lengths asked for (m)
+let pfMarks = [];  // travel-time marks on the flow line: { t (years from the point), km (from the point) }
 const pfItsStep = 120;  // m between ITS_LIVE pair samples
 const itsAnnualRegion = { 3413: 'RGI05A', 3031: 'RGI19A' };  // ITS_LIVE annual mosaic region per projection
 const pfAnnual = it => { const days = (it.end - it.start) / 86400e3; return days > 350 && days < 380; };
@@ -41,10 +51,11 @@ function clearProfile() {
   pfLine = null; pfKey = null; pfCurves = []; pfIts = null; pfFlow = null; pfOff = 0; pfPoint = null;
   pfAx.x.typed = pfAx.y.typed = null; $('pfAxRow').hidden = true;
   if (pfAdjust) { map.removeInteraction(pfAdjust); pfAdjust = null; }
-  pfSource.clear(); itsPixCache.clear();
+  pfSource.clear(); itsPixCache.clear(); pfMarks = []; $('pfYrNote').textContent = '';
   $('pfPlot').hidden = true; $('pfShow').hidden = true; $('pfClear').hidden = true; $('pfProg').hidden = true; $('pfFlowRow').hidden = $('pfAccept').hidden = true;
   $('pfCsv').disabled = true; $('pfPng').disabled = true;
   $('pfNote').textContent = ''; $('pfItsNote').textContent = ''; $('pfCount').textContent = '';
+  refreshFrontPositions();
 }
 // (Re)start the plot on a line; the products already on the plot are read again along it.
 function setProfileLine(line, off) {
@@ -56,6 +67,7 @@ function setProfileLine(line, off) {
   $('pfClear').hidden = false;
   for (const [it, off] of shown) { addProfileCurve(it, pfKey); if (off) pfCurves.find(c => c.it === it).off = true; }
   if (selected && plotAsset()) pfOnShown(plotAsset());
+  travelMarks(); refreshFrontPositions();
 }
 function newProfile(line) {
   clearProfile();
@@ -97,7 +109,8 @@ async function traceFlow(p0) {
   return null;
 }
 async function traceOn(it, p0) {
-  // { path (upstream end first), cum, up, down (m traced each way), p0, it (the mosaic traced on) }
+  // { path (upstream end first), cum, years (of travel from p0 to each path point, negative upstream),
+  //   up, down (m traced each way), p0, it (the mosaic traced on) }
   const comps = await Promise.all(['vx', 'vy'].map(async k => ({ ...(await assetLevels(it.assets[k].href)), nodata: it.assets[k]['raster:bands']?.[0]?.nodata })));
   const org = comps[0].origin, r = comps[0].levels[0].res, W = comps[0].levels[0].img.getWidth(), H = comps[0].levels[0].img.getHeight(), T = 256;
   const tiles = new Map();  // full-resolution 256 x 256 tiles of vx and vy, read as the trace reaches them
@@ -122,23 +135,55 @@ async function traceOn(it, p0) {
   const walk = async sign => {
     // Midpoint steps of one pixel along the flow direction (sign -1: upstream); stops where the data end,
     // the ice is nearly still (< 1 m/yr) or the direction turns back.
-    const pts = [], dir = v => { const sp = v && Math.hypot(v[0], v[1]); return sp >= 1 ? [sign * v[0] / sp, sign * v[1] / sp] : null; };
+    const pts = [], dts = [], dir = v => { const sp = v && Math.hypot(v[0], v[1]); return sp >= 1 ? [sign * v[0] / sp, sign * v[1] / sp] : null; };
     let p = p0, prev = null;
     while (pts.length * r < pfFlowMax) {
       const d1 = dir(await vel(p));
       if (!d1) break;
-      const d2 = dir(await vel([p[0] + d1[0] * r / 2, p[1] + d1[1] * r / 2]));
+      const vm = await vel([p[0] + d1[0] * r / 2, p[1] + d1[1] * r / 2]), d2 = dir(vm);
       if (!d2 || (prev && d2[0] * prev[0] + d2[1] * prev[1] < 0)) break;
-      p = [p[0] + d2[0] * r, p[1] + d2[1] * r]; pts.push(p); prev = d2;
+      p = [p[0] + d2[0] * r, p[1] + d2[1] * r]; pts.push(p); dts.push(r / Math.hypot(vm[0], vm[1])); prev = d2;
     }
-    return pts;
+    return { pts, dts };
   };
-  const up = await walk(-1), down = await walk(1), path = [...up.reverse(), p0, ...down];
-  return { path, cum: cumDist(path), up: up.length * r, down: down.length * r, p0, it };
+  const up = await walk(-1), down = await walk(1), path = [...up.pts.reverse(), p0, ...down.pts];
+  const sum = dts => dts.reduce((c, t, i) => (c.push((i ? c[i - 1] : 0) + t), c), []);
+  const years = [...sum(up.dts).map(t => -t).reverse(), 0, ...sum(down.dts)];
+  return { path, cum: cumDist(path), years, up: up.pts.length * r, down: down.pts.length * r, p0, it };
 }
 function flowTrim(lo, hi) {  // the traced path from lo to hi m (lo <= 0 <= hi) about the point
   const { path, cum, up } = pfFlow, s0 = up + lo, s1 = up + hi;
   return [alongPath(path, cum, s0), ...path.filter((p, i) => cum[i] > s0 && cum[i] < s1), alongPath(path, cum, s1)];
+}
+// Travel-time marks: where ice at the flow line's point was (upstream) or will be (downstream) every
+// pfYrStep years, for steady flow at the speeds of the mosaic the line was traced on. Dots on the map line,
+// labeled each when there are at most 12, else every 5th, and ticks along the bottom of the plot; at most
+// pfYrMax each way.
+const pfYrMax = 200;
+function travelMarks() {
+  for (const f of pfSource.getFeatures()) if (f.get('yr') !== undefined) pfSource.removeFeature(f);
+  pfMarks = []; $('pfYrNote').textContent = '';
+  if (pfFlow && $('pfYrOn').checked) {
+    const { path, cum, years, up, down } = pfFlow, step = +$('pfYrStep').value, lo = up + Math.max(pfWant[0], -up), hi = up + Math.min(pfWant[1], down);
+    let cut = false;
+    for (const sign of [-1, 1]) for (let n = 1; ; n++) {
+      const t = sign * n * step;
+      if (t < years[0] || t > years[years.length - 1]) break;
+      let i = 0, j = years.length - 1;  // years[i] <= t <= years[j], j = i + 1
+      while (j - i > 1) { const m = (i + j) >> 1; if (years[m] <= t) i = m; else j = m; }
+      const s = cum[i] + ((t - years[i]) / ((years[j] - years[i]) || 1)) * (cum[j] - cum[i]);
+      if (s < lo || s > hi) break;
+      if (n > pfYrMax) { cut = true; break; }
+      pfMarks.push({ t, km: (s - up) / 1000, at: alongPath(path, cum, s) });
+    }
+    const few = pfMarks.length <= 12;
+    pfSource.addFeatures(pfMarks.map(m => new ol.Feature({ geometry: new ol.geom.Point(m.at), yr: m.t,
+      label: few || Math.abs(m.t / step) % 5 === 0 ? `${m.t > 0 ? '+' : ''}${m.t} yr` : '' })));
+    $('pfYrNote').textContent = !pfMarks.length ? 'No mark falls on the line; choose a shorter interval or a longer line.'
+      : `${pfMarks.length} marks, ${step} year${step > 1 ? 's' : ''} apart (+ downstream, - upstream), for steady flow at the ${pfFlow.it.id} speeds.`
+        + (cut ? ` Only the ${pfYrMax} nearest the point each way are shown; choose a longer interval.` : '');
+  }
+  drawProfile();
 }
 function flowSlider() {  // the slider's fill, zero mark and text from its two handles
   const lo = +$('pfLo').value, hi = +$('pfHi').value, a = +$('pfLo').min, b = +$('pfLo').max, pos = v => (b > a ? (v - a) / (b - a) : 0.5);
@@ -195,6 +240,7 @@ async function retrace() {
         Object.assign($(id), { min: String(-f.up / 1000), max: String(f.down / 1000), step: 'any', value: String(v / 1000) });
       flowSlider();
       pfLineFeature()?.setGeometry(new ol.geom.LineString(flowTrim(lo, hi)));
+      travelMarks();
       if (pfAdjust) $('pfNote').textContent = 'Drag the white point to nudge the flow line, then Use this line.';
     } while (pfTraceAgain);
   } finally {
@@ -218,6 +264,7 @@ for (const id of ['pfLo', 'pfHi']) {
     if (!pfFlow) return;
     flowSlider();
     pfLineFeature()?.setGeometry(new ol.geom.LineString(flowTrim(...pfWant)));
+    travelMarks();
   });
   $(id).addEventListener('change', () => {  // on release (once the line is in use), read the products along it
     if (pfAdjust || !pfFlow) return;
