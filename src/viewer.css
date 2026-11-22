@@ -105,6 +105,8 @@ details.block[open] > .block-inner { margin-top: 8px; }
            font: 12px/1.5 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--tb-text);
            background: var(--tb-label-bg); border-radius: 4px; padding: 4px 8px; }
 .readout b { color: var(--tb-hi); font-weight: 600; }
+#roClose { pointer-events: auto; float: right; margin: -4px -8px 0 6px; padding: 0 10px 6px; font-size: 22px; line-height: 1;
+  background: none; border: 0; color: var(--tb-text); cursor: pointer; }
 /* Placed from the top (30 px above the map bottom) so the resize corner grows it down and right. */
 .tsplot { position: absolute; left: 190px; top: calc(100% - 315px); width: min(600px, calc(100% - 220px)); height: 285px;
           overflow: hidden; z-index: 3;  /* above the time bar */

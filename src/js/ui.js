@@ -224,9 +224,11 @@ async function readoutValue(coord) {
   return `<b>${esc(key)}</b> ${fmtVal(v * (b.scale ?? 1) + (b.offset ?? 0))} ${esc(b.unit || '')}`;
 }
 function updateReadout(e) {
-  const ro = $('readout'), lines = [frontNote(e.pixel), glNote(e.pixel)].filter(Boolean);
+  // A tap's readout stays until the next tap, so it gets a close button (the "x 12.34 km" text is not one).
+  $('roClose').hidden = e.originalEvent?.pointerType !== 'touch';
+  const ro = $('roText'), lines = [frontNote(e.pixel), glNote(e.pixel)].filter(Boolean);
   const coords = [readoutCoords(e.coordinate), ...lines].join('<br>');
-  ro.hidden = false;
+  $('readout').hidden = false;
   ro.innerHTML = `${coords}<br><span class="note" style="color:inherit">reading value...</span>`;
   clearTimeout(readoutTimer);
   const token = ++readoutToken;
@@ -237,7 +239,10 @@ function updateReadout(e) {
   }, 150);
 }
 map.on('pointermove', e => { if (!e.dragging) updateReadout(e); });
-map.getViewport().addEventListener('pointerleave', () => { clearTimeout(readoutTimer); ++readoutToken; $('readout').hidden = true; });
+const hideReadout = () => { clearTimeout(readoutTimer); ++readoutToken; $('readout').hidden = true; };
+map.getViewport().addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') hideReadout(); });
+$('roClose').onclick = hideReadout;
+map.on('pointerdrag', e => { if (e.originalEvent.pointerType === 'touch') hideReadout(); });  // a pan leaves the tapped point
 
 map.on('pointermove', e => {
   const over = !draw && footLayer.getVisible() && footSource.getFeaturesAtCoordinate(e.coordinate).length > 0;
