@@ -21,6 +21,9 @@ function yearSlider(key, years, label, onChange) {
   const lo = $(key + 'Lo'), hi = $(key + 'Hi'), pos = v => (100 * (v - years[0])) / Math.max(1, years[1] - years[0]);
   for (const e of [lo, hi]) { e.min = years[0]; e.max = years[1]; e.step = 1; }
   lo.value = years[0]; hi.value = years[1];
+  const want = startYears[key];  // a shared link's range
+  startYears[key] = null;
+  if (want) { lo.value = Math.max(years[0], Math.min(want[0], want[1])); hi.value = Math.min(years[1], Math.max(want[0], want[1])); }
   const band = $(key + 'Band'), at = f => `calc(var(--inset) + ${f / 100} * (100% - 2 * var(--inset)))`;
   const show = () => {
     band.style.left = at(pos(+lo.value)); band.style.width = `calc(${(pos(+hi.value) - pos(+lo.value)) / 100} * (100% - 2 * var(--inset)))`;
@@ -42,6 +45,7 @@ function yearSlider(key, years, label, onChange) {
     band.onpointerup = band.onpointercancel = () => { band.onpointermove = null; };
   };
   show();
+  if (want) onChange(+lo.value, +hi.value);
 }
 const frontsLayer = new ol.layer.Vector({ source: frontsSource, zIndex: 5, visible: false, style: f => {
   const y = f.get('year');

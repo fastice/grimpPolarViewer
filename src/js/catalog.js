@@ -104,6 +104,9 @@ async function loadCatalog(href, push = true) {
   if (siteMode && items.length && !want) setStatus($('status').textContent + siteHint);
   if (carry) restoreTsPoints(carry);
   if (sv?.pts.length) { for (const c of sv.pts) addTsPoint(c, '', false); refreshTs(); }
+  if (sv?.pf.length === 2 || sv?.flow) $('pfSec').open = true;
+  if (sv?.pf.length === 2) newProfile(sv.pf);
+  else if (sv?.flow) newFlowProfile(sv.flow, sv.flen || undefined, true);
   if (sv?.area && !siteMode) { areaBox = sv.area; areaSource.addFeature(new ol.Feature(ol.geom.Polygon.fromExtent(areaBox))); areaChanged(); }
   if (sv?.anim) {
     $('animSec').open = true; $('animNote').textContent = 'Shared animation: click Load frames to build it.';

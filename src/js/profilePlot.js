@@ -207,6 +207,26 @@ $('pfFlow').onclick = () => {
   $('pfFlow').textContent = 'Cancel';
   $('pfNote').textContent = 'Click a point on the glacier; the line follows the flow up and down stream from it.';
 };
+// A typed flow-line point: lat, lon in degrees (negative or S/W for south and west, either order with
+// N/S/E/W) or, with km (or m) in the text, x, y in the map's projection (metres when over 20000).
+function parseFlowPoint(t) {
+  const xy = /\bk?m\b/i.test(t), toks = [...t.matchAll(/(-?\d+(?:\.\d+)?)\s*°?\s*([NSEW])?/gi)];
+  if (toks.length !== 2) return null;
+  let [a, b] = toks.map(m => +m[1] * (/[sw]/i.test(m[2] || '') ? -1 : 1));
+  if (xy) { const m = Math.max(Math.abs(a), Math.abs(b)) > 20000 ? 1 : 1000; return [a * m, b * m]; }
+  if (/[ew]/i.test(toks[0][2] || '')) [a, b] = [b, a];  // longitude first
+  return Math.abs(a) <= 90 && Math.abs(b) <= 360 ? ol.proj.fromLonLat([b, a], viewCode) : null;
+}
+$('pfAtGo').onclick = () => {
+  const c = parseFlowPoint($('pfAt').value);
+  if (!c) { $('pfNote').textContent = 'Type the point as lat, lon (69.17, -49.5) or x, y in km (-180, -2273 km).'; return; }
+  if (draw) stopDraw();
+  if (tsMode) setTsMode(false);
+  const v = map.getView();
+  if (!ol.extent.containsCoordinate(v.calculateExtent(map.getSize()), c)) v.setCenter(c);
+  newFlowProfile(c);
+};
+$('pfAt').onkeydown = e => { if (e.key === 'Enter') $('pfAtGo').click(); };
 $('pfClear').onclick = () => { if (drawKind === 'profile' || drawKind === 'flow') stopDraw(); clearProfile(); };
 $('pfShow').onclick = () => setPfPlot($('pfPlot').hidden);
 $('pfHide').onclick = () => setPfPlot(false);

@@ -196,13 +196,14 @@ function flowSlider() {  // the slider's fill, zero mark and text from its two h
 // A new flow point starts in adjust mode: the point can be dragged and the line is traced again as it
 // moves (map only, nothing read) until 'Use this line' reads the products along it.
 const pfLineFeature = () => pfSource.getFeatures().find(f => f.getGeometry().getType() === 'LineString');
-function newFlowProfile(p0) {
+// accept: use the line as soon as it is traced (a shared link's flow line), want: m up (negative) and down.
+function newFlowProfile(p0, want = [-pfFlowStart, pfFlowStart], accept = false) {
   clearProfile();
-  pfPoint = new ol.Feature(new ol.geom.Point(p0)); pfWant = [-pfFlowStart, pfFlowStart];
+  pfPoint = new ol.Feature(new ol.geom.Point(p0)); pfWant = want;
   pfSource.addFeature(new ol.Feature(new ol.geom.LineString([p0, p0]))); pfSource.addFeature(pfPoint);
   $('pfClear').hidden = false;
   setAdjust(true);
-  retrace();
+  retrace().then(() => { if (accept && pfFlow && pfAdjust) $('pfAccept').click(); });
 }
 function setAdjust(on) {
   if (on && !pfAdjust) {

@@ -54,7 +54,9 @@ the **Collections** menu at the top of the panel, and between Greenland and Anta
 
 To send someone what you are looking at, click **Share this view** under the catalog URL. It copies
 a link (and puts it in the address bar) that reopens the same collection, product, asset, map position
-and zoom, time range, color map and range, opacity, layers, background image and time-series points.
+and zoom, time range, color map and range, opacity, layers (glacier names, fronts and their years, basins,
+dated grounding lines and their years, flow arrows, particles, speed contours and their levels), background
+image, time-series points, and the profile or flow line with its travel-time marks.
 **Share this animation**, in the Animate section, does the same and adds the animation's area box and
 settings; whoever opens the link clicks **Load frames** to build it.
 The **QR code** link next to either button shows the same link as a QR code, to scan with a phone or
@@ -208,7 +210,9 @@ map. The product on the map is read along the line and plotted against distance 
 
 Or click **Flow line** and click a point on a glacier: a line is traced along the ice flow, upstream
 and downstream of the point. Drag the white point to nudge the line until it follows the glacier the
-way you want (it is traced again as you drag), then click **Use this line** to plot it; **Adjust
+way you want (it is traced again as you drag), then click **Use this line** to plot it. To place the
+point exactly, type it in the **Point** box instead and press Enter or **Trace**: lat, lon (*69.17, -49.5*
+or *69.17N 49.5W*) or x, y in km (*-180, -2273 km*). **Adjust
 point** lets you move it again later. The two handles on the slider set how far the line runs
 upstream (left) and downstream (right) of the point, up to 150 km each way, and the plot gives
 distance downstream of the point (negative upstream). The flow comes from the newest annual

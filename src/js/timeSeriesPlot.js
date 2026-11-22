@@ -231,12 +231,15 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
     const q = p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v, e: x.e })).filter(x => Number.isFinite(x.v));
     ctx.strokeStyle = p.color; ctx.fillStyle = p.color; ctx.lineWidth = 1.6;
     const yOf = x => new Date(x.t).getUTCFullYear(), selY = seasonal && selected && q.some(x => yOf(x) === midYear(selected)) ? midYear(selected) : null;
-    const fade = x => (selY !== null && yOf(x) !== selY ? 0.3 : 1);
+    const fade = x => (selY !== null && yOf(x) !== selY ? 0.45 : 1);
+    // Seasonal lines are wide and cased in grey, so the pale middle of the year ramp shows on a light panel.
     if (lines && seasonal) {
       for (const y of [...new Set(q.map(yOf))].sort((a, b) => (a === selY) - (b === selY))) {  // the selected year last
         const qy = q.filter(x => yOf(x) === y), top = y === selY;
-        ctx.globalAlpha = fade(qy[0]); ctx.lineWidth = top ? 3 : 1.6;
-        ctx.strokeStyle = rampColor(y, yrs); ctx.beginPath(); qy.forEach((x, i) => (i ? ctx.lineTo(X(x.t), Y(x.v)) : ctx.moveTo(X(x.t), Y(x.v)))); ctx.stroke();
+        ctx.globalAlpha = fade(qy[0]);
+        for (const [w, c] of [[top ? 6.5 : 4.5, 'rgba(90, 90, 90, 0.55)'], [top ? 4.5 : 2.8, rampColor(y, yrs)]]) {
+          ctx.lineWidth = w; ctx.strokeStyle = c; ctx.beginPath(); qy.forEach((x, i) => (i ? ctx.lineTo(X(x.t), Y(x.v)) : ctx.moveTo(X(x.t), Y(x.v)))); ctx.stroke();
+        }
         if (top) {
           const e = qy[qy.length - 1];
           ctx.font = '700 12px "Atkinson Hyperlegible", sans-serif'; ctx.textBaseline = 'middle';
@@ -254,14 +257,18 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
         ctx.moveTo(X(x.t) - 3, Y(x.v - x.e)); ctx.lineTo(X(x.t) + 3, Y(x.v - x.e));
         ctx.moveTo(X(x.t) - 3, Y(x.v + x.e)); ctx.lineTo(X(x.t) + 3, Y(x.v + x.e)); ctx.stroke();
       }
-      ctx.globalAlpha = fade(x); ctx.beginPath(); ctx.arc(X(x.t), Y(x.v), 3.2, 0, 2 * Math.PI); ctx.fill(); ctx.globalAlpha = 1;
+      // seasonal with one point: markers in their year's color, ringed in the point's
+      if (seasonal && vis.length === 1) { ctx.fillStyle = rampColor(yOf(x), yrs); ctx.strokeStyle = p.color; ctx.lineWidth = 1.5; }
+      ctx.globalAlpha = fade(x); ctx.beginPath(); ctx.arc(X(x.t), Y(x.v), seasonal ? 4 : 3.2, 0, 2 * Math.PI); ctx.fill();
+      if (seasonal && vis.length === 1) { ctx.stroke(); ctx.fillStyle = ctx.strokeStyle = p.color; ctx.lineWidth = 1.2; }
+      ctx.globalAlpha = 1;
     }
   }
   if (seasonal) for (const p of curOff ? [] : vis) {  // monthly means, broken where a month has no data
     const sum = new Array(12).fill(0), n = new Array(12).fill(0);
     for (const x of p.values) if (Number.isFinite(x.v)) { const m = new Date((+x.it.start + +x.it.end) / 2).getUTCMonth(); sum[m] += x.v; n[m]++; }
     const at = m => [L + yearFrac(Date.UTC(2001, m, 15)) * pw, Y(sum[m] / n[m])];
-    for (const [w, c] of [[5.5, halo], [2.8, fg]]) {
+    for (const [w, c] of [[7, halo], [3.8, fg]]) {
       ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath();
       for (let m = 0; m < 12; m++) if (n[m]) { const [x, y] = at(m); if (m && n[m - 1]) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
       ctx.stroke();

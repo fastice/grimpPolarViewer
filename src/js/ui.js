@@ -37,6 +37,7 @@ const tips = {
   particlesOn: 'Streaks drifting with the flow of the shown velocity product (its vx and vy); faster ice moves faster and leaves longer trails. Paused while the map moves',
   contourOn: 'Lines of equal speed (isotachs) of the shown product\'s speed (vv), at the levels typed below, read at the map\'s resolution and lightly smoothed',
   contourLevels: 'Speeds to contour, m/yr, separated by commas (at most 12)',
+  pfAt: 'Type a flow-line point instead of clicking one: lat, lon in degrees (69.17, -49.5 or 69.17N 49.5W), or x, y in km in the map projection (-180, -2273 km); Enter or Trace',
   pfYrOn: 'Dots along the flow line where ice at the point was (upstream, -) or will be (downstream, +) after each interval, for steady flow at the speeds of the mosaic the line was traced on',
   pfYrStep: 'Years between travel-time marks',
   fpShow: 'Plot where the glacier fronts or dated grounding lines shown on the map cross the line, against date (their year sliders pick the years); the profile plot marks the same crossings along its top',
@@ -272,8 +273,11 @@ map.on('pointermove', e => {
   map.getTargetElement().style.cursor = tsMode ? 'crosshair' : over ? 'pointer' : '';
 });
 // Share this view: the link reopens the same collection, item, asset, map view, time range, colors,
-// layers, background and time-series points. It goes in the address bar and, where allowed, the clipboard.
+// layers (with the contour levels, fronts and grounding-line years and coastline entries), background,
+// time-series points and plot x axis, and the profile or flow line (with its travel-time marks). It goes
+// in the address bar and, where allowed, the clipboard.
 // Share this animation adds the area box and animation settings; the frames are loaded on request.
+const shareToggles = ['names', 'fronts', 'bounds', 'gl', 'arrows', 'particles', 'contour'];  // optional layers: <key>On
 async function shareView(anim, note, qr = false) {
   const u = new URL(location.origin + location.pathname), q = u.searchParams, v = map.getView();
   q.set('href', $('href').value);
@@ -290,6 +294,17 @@ async function shareView(anim, note, qr = false) {
   q.set('bg', bgIt ? $('bgColl').value.split('/').pop() : 'none');
   if (bgIt) q.set('bgi', bgIt.id);
   if (tsPoints.length) q.set('pts', tsPoints.map(p => p.coord.map(Math.round).join(',')).join(';'));
+  const on = shareToggles.filter(k => $(`${k}On`).checked && !$(`${k}On`).disabled);
+  if (on.length) q.set('on', on.join(','));
+  if (on.includes('contour') && $('contourLevels').value !== $('contourLevels').defaultValue) q.set('clev', contourLevels().join(','));
+  const narrowed = (sel, years) => sel[0] > years[0] || sel[1] < years[1];
+  if (on.includes('fronts') && narrowed(frontsSel, frontsYears)) q.set('fy', frontsSel.join(','));
+  if (on.includes('gl') && narrowed(glSel, glYears)) q.set('gy', glSel.join(','));
+  if (coastOff.size) q.set('coff', [...coastOff].join(','));
+  if (pfFlow) { q.set('flow', pfFlow.p0.map(Math.round).join(',')); q.set('flen', pfWant.map(Math.round).join(',')); }
+  else if (pfLine) q.set('pf', pfLine.map(p => p.map(Math.round).join(',')).join(';'));
+  if (pfFlow && $('pfYrOn').checked) q.set('yr', $('pfYrStep').value);
+  if ($('tsXMode').value !== 'date') q.set('tsx', $('tsXMode').value);
   if (anim) {
     q.set('anim', 1);
     if (!siteMode && areaBox) q.set('area', areaBox.map(Math.round).join(','));
@@ -348,6 +363,12 @@ $('qrSave').onclick = () => $('qrCanvas').toBlob(b => saveBlob(b, 'grimp-viewer-
   for (const k of (startParams.get('off') || '').split(',')) {
     if (['base', 'coast', 'foot'].includes(k)) { $(`${k}On`).checked = false; $(`${k}On`).dispatchEvent(new Event('change')); }
   }
+  // Optional layers are drawn by their refresh once the catalog sets the view and shows an item.
+  for (const k of (startParams.get('on') || '').split(',')) if (shareToggles.includes(k)) $(`${k}On`).checked = true;
+  if (startParams.get('clev')) $('contourLevels').value = startParams.get('clev').split(',').join(', ');
+  for (const k of (startParams.get('coff') || '').split(',')) if (['groundingLine', 'iceFront'].includes(k)) $('coastLegend').querySelector(`[data-kind=${k}]`).click();
+  if (startParams.get('yr')) { $('pfYrOn').checked = true; $('pfYrStep').value = startParams.get('yr'); }
+  if (startParams.get('tsx') === 'season') { $('tsXMode').value = 'season'; $('tsXBar').disabled = true; }
 }
 window.addEventListener('popstate', () => loadCatalog(new URL(location.href).searchParams.get('href') || presets[0][1], false));
 

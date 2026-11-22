@@ -62,4 +62,20 @@ await p.click('#pfYrOn'); await sleep(200);
 check('unticking removes the marks', (await fx()).marks.length === 0);
 await p.click('#pfClear'); await sleep(200);
 check('Clear line hides Fronts along the line', await hidden(p, 'fpRow'));
+
+// typed flow-line points
+const typed = async t => {
+  await p.$eval('#pfAt', (e, t) => { e.value = t; }, t); await p.click('#pfAtGo');
+  await p.waitForFunction(() => window.grimpViewer.pf().pfFlow || /Type the point|No velocity|Could not/.test(document.getElementById('pfNote').textContent), { timeout: 120000 });
+  return p.evaluate(() => window.grimpViewer.pf().pfFlow?.p0.map(Math.round) || null);
+};
+const want = (await toMap(p, -49.5, 69.17)).map(Math.round);
+let got = await typed('69.17N 49.5W');
+check('lat/lon with letters traces from that point', got && Math.hypot(got[0] - want[0], got[1] - want[1]) < 2, { got, want });
+await p.click('#pfClear');
+got = await typed('-180, -2273 km');
+check('x, y in km traces from that point', got && got[0] === -180000 && got[1] === -2273000, got);
+await p.click('#pfClear');
+got = await typed('Jakobshavn');
+check('unreadable text says how to type it', !got && /Type the point/.test(await text(p, 'pfNote')), await text(p, 'pfNote'));
 await finish(browser);
