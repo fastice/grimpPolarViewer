@@ -22,11 +22,11 @@ layers = {'groundingLine': 'GroundingLine_Antarctica_v02.shp', 'basins': 'Basins
           'iceShelves': 'IceShelf_Antarctica_v02.shp'}
 
 
-def readLayer(path, tolerance):
+def readLayer(path, tolerance, epsg=3031):
     ds = ogr.Open(path)  # keep the dataset open while its layer is read
     layer = ds.GetLayer()
     target = osr.SpatialReference()
-    target.ImportFromEPSG(3031)
+    target.ImportFromEPSG(epsg)
     target.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
     out, vertices = [], 0
     for f in layer:

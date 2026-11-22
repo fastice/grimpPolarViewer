@@ -6,9 +6,14 @@
 // (NSIDC-0709's own shelf outlines are not drawn: their fronts are 2008-09.) Over them, the dated
 // NSIDC-0498 v2.1 InSAR grounding lines of the Amundsen Sea glaciers (data/aseGroundingLines.json, 1992-2025),
 // colored by year on the glacier-front ramp; the readout gives the dates of those under the pointer.
-const boundsUrl = 'data/antarcticBoundaries.json', iceFrontUrl = 'data/antarcticIceFront.json', boundsCode = 'EPSG:3031', boundsShelfRes = 1500;
-const boundsSource = new ol.source.Vector();
-let boundsLoading = null;
+// In Greenland (EPSG:3413) Boundaries draws only the Mouginot and Rignot (2019) glacier basins
+// (data/greenlandBasins.json), unlabeled (Glacier names labels the glaciers).
+const boundsUrl = 'data/antarcticBoundaries.json', iceFrontUrl = 'data/antarcticIceFront.json', boundsShelfRes = 1500;
+// Per projection: the files read the first time Boundaries is ticked there, the basin legend text and the source.
+const boundsSets = {
+  'EPSG:3031': { urls: [boundsUrl, iceFrontUrl], what: 'Antarctic boundaries', basins: 'IMBIE basins', source: new ol.source.Vector() },
+  'EPSG:3413': { urls: ['data/greenlandBasins.json'], what: 'Greenland basins', basins: 'glacier basins (Mouginot 2019)', source: new ol.source.Vector() },
+};
 const casing = w => new ol.style.Stroke({ color: 'rgba(0, 0, 0, 0.55)', width: w });
 const boundsStyles = {
   groundingLine: [new ol.style.Style({ stroke: casing(3.5) }), new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#ffffff', width: 1.75 }) })],
@@ -19,7 +24,7 @@ const boundsLabel = (text, color, bold) => new ol.style.Style({ text: new ol.sty
   fill: new ol.style.Fill({ color }), stroke: new ol.style.Stroke({ color: 'rgba(0, 0, 0, 0.85)', width: 3 }), overflow: true }) });
 // Layers turned off by a click on their legend entry (ice shelf names go with the ice front; 'dated' = glLayer).
 const boundsOff = new Set(), boundsKeyOf = { iceShelves: 'iceFront' };
-const boundsLayer = new ol.layer.Vector({ source: boundsSource, zIndex: 5, visible: false, declutter: true, style: (f, res) => {
+const boundsLayer = new ol.layer.Vector({ source: boundsSets['EPSG:3031'].source, zIndex: 5, visible: false, declutter: true, style: (f, res) => {
   const kind = f.get('kind'), name = f.get('name');
   if (boundsOff.has(boundsKeyOf[kind] || kind)) return null;
   if (!f.get('label')) return boundsStyles[kind];
@@ -38,25 +43,27 @@ const glLayer = new ol.layer.Vector({ source: glSource, zIndex: 5, visible: fals
 map.addLayer(glLayer);
 
 async function refreshBounds() {
-  const here = viewCode === boundsCode, on = $('boundsOn').checked && here;
-  $('boundsOn').disabled = !here;
-  boundsLayer.setVisible(on); glLayer.setVisible(on && !boundsOff.has('dated'));
+  const set = boundsSets[viewCode], ant = viewCode === 'EPSG:3031', on = $('boundsOn').checked && !!set;
+  $('boundsOn').disabled = !set;
+  if (set) { boundsLayer.setSource(set.source); $('basinsKey').textContent = set.basins; }
+  boundsLayer.setVisible(on); glLayer.setVisible(on && ant && !boundsOff.has('dated'));
   $('boundsLegend').hidden = !on;
-  if (on && !glSource.getFeatures().length) loadGroundingLines();
-  if (!on || boundsSource.getFeatures().length) return;
+  for (const b of document.querySelectorAll('#boundsLegend .bkey')) if (b.dataset.kind !== 'basins') b.hidden = !ant;
+  if (on && ant && !glSource.getFeatures().length) loadGroundingLines();
+  if (!on || set.source.getFeatures().length) return;
   const getJson = u => fetch(u).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
-  boundsLoading ||= Promise.all([getJson(boundsUrl), getJson(iceFrontUrl)]).then(([b, f]) => ({ ...b, iceFront: f.rings }));
+  set.loading ||= Promise.all(set.urls.map(getJson)).then(([b, f]) => (f ? { ...b, iceFront: f.rings } : b));
   let d;
-  try { d = await boundsLoading; } catch (e) {
-    boundsLoading = null; $('boundsOn').checked = false; boundsLayer.setVisible(false); $('boundsLegend').hidden = true;
-    setStatus(`Could not read the Antarctic boundaries (${e.message})`); return;
+  try { d = await set.loading; } catch (e) {
+    set.loading = null; $('boundsOn').checked = false; boundsLayer.setVisible(false); $('boundsLegend').hidden = true;
+    setStatus(`Could not read the ${set.what} (${e.message})`); return;
   }
-  if (boundsSource.getFeatures().length) return;
+  if (set.source.getFeatures().length) return;
   const features = [];
   const toPts = xy => { const pts = []; for (let k = 0; k < xy.length; k += 2) pts.push([xy[k], xy[k + 1]]); return pts; };
-  features.push(new ol.Feature({ geometry: new ol.geom.MultiLineString(d.iceFront.map(toPts)), kind: 'iceFront' }));
+  if (d.iceFront) features.push(new ol.Feature({ geometry: new ol.geom.MultiLineString(d.iceFront.map(toPts)), kind: 'iceFront' }));
   for (const kind of ['basins', 'iceShelves', 'groundingLine']) {
-    for (const [name, ...rings] of d[kind]) {
+    for (const [name, ...rings] of d[kind] || []) {
       const lines = rings.map(toPts);
       if (kind !== 'iceShelves') features.push(new ol.Feature({ geometry: new ol.geom.MultiLineString(lines), kind }));
       if (kind === 'groundingLine' || !name) continue;
@@ -66,7 +73,7 @@ async function refreshBounds() {
         name: name.replace(/_/g, ' ') }));
     }
   }
-  boundsSource.addFeatures(features);
+  set.source.addFeatures(features);
 }
 async function loadGroundingLines() {
   glLoading ||= fetch(glUrl).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });

@@ -223,4 +223,5 @@ body.nopanel #panel { display: none; }
 /* Each legend entry is a button that shows or hides its layer. */
 #boundsLegend .bkey { background: none; border: 0; padding: 2px 0; margin: 0 8px 0 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
 #boundsLegend .bkeyBar { display: block; width: 100%; margin: 0; }
+#boundsLegend .bkey[hidden] { display: none; }
 #boundsLegend .bkey.off { opacity: 0.4; text-decoration: line-through; }

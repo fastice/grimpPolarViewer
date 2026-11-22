@@ -126,7 +126,8 @@ In Antarctica, tick **Boundaries** for the grounding line (white), the ice front
 2026 ice mask (cyan, with ice shelf names as you zoom in) and the IMBIE drainage basins (dashed yellow). On the Amundsen Sea glaciers (Pine Island, Thwaites,
 Pope, Smith, Kohler, Getz, Abbot and others) it also draws the dated InSAR grounding lines from 1992 to 2025,
 colored from blue (oldest) to red (newest); point at one for its date and sensor. Click an entry in the
-legend under the checkboxes to hide or show that layer.
+legend under the checkboxes to hide or show that layer. In Greenland, **Boundaries** draws the glacier
+drainage basins of Mouginot and Rignot (2019) (dashed yellow); tick **Glacier names** to label them.
 
 Reference layers from other sources (glacier names and fronts, boundaries, ITS_LIVE) are for display
 and comparison only; the downloads and saved files contain GrIMP data only.
@@ -349,6 +350,9 @@ Other data shown in the viewer:
   right, a new data set of all official Greenlandic glacier names, *The Cryosphere*, 9, 2215-2218,
   <https://doi.org/10.5194/tc-9-2215-2015>.
 - Antarctic grounding line, ice shelves and IMBIE basins: NSIDC-0709 v2, MEaSUREs Antarctic Boundaries for IPY 2007-2009 from Satellite Radar, <https://doi.org/10.5067/AXE4121732AD>.
+- Greenland glacier basins: Mouginot, J. and Rignot, E. (2019), Glacier catchments/basins for the Greenland Ice
+  Sheet, Dryad, <https://doi.org/10.7280/D1WT11> (used in Mouginot et al. (2019), Forty-six years of Greenland
+  Ice Sheet mass balance from 1972 to 2018, *PNAS*, 116, 9239-9244, <https://doi.org/10.1073/pnas.1904242116>).
 - Amundsen Sea grounding lines (dated): NSIDC-0498 v2.1, MEaSUREs Antarctic Grounding Line from Differential Satellite Radar Interferometry, <https://doi.org/10.5067/IKBWW4RYHF1Q>.
 - Antarctic place names: Secretariat SCAR (1992, updated 2025), Composite Gazetteer of Antarctica,
   Scientific Committee on Antarctic Research, <https://placenames.aq/>.

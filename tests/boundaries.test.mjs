@@ -1,5 +1,6 @@
 // Antarctic boundaries (NSIDC-0709 v2): off by default, ticking draws the grounding line, ice shelves and IMBIE
-// basins with a legend whose entries toggle each layer; ice-shelf names only when zoomed in; disabled in Greenland.
+// basins with a legend whose entries toggle each layer; ice-shelf names only when zoomed in. In Greenland, the
+// Mouginot and Rignot (2019) glacier basins only.
 import { openViewer, catalogs, check, toMap, toPixel, zoomTo, text, hidden, shot, sleep, finish } from './lib.mjs';
 
 let { browser, page: p } = await openViewer(catalogs.aseAnnual);
@@ -55,5 +56,13 @@ check('unticking hides them and the legend', await hidden(p, 'boundsLegend'));
 await browser.close();
 
 ({ browser, page: p } = await openViewer(catalogs.glAnnual));
-check('disabled in Greenland', await p.$eval('#boundsOn', e => e.disabled));
+check('enabled in Greenland', !(await p.$eval('#boundsOn', e => e.disabled)));
+await p.click('#boundsOn');
+await p.waitForFunction(() => window.grimpViewer.map.getLayers().getArray().some(l => l.getZIndex() === 5 && l.getSource()?.getFeatures?.().some(f => f.get('kind'))), { timeout: 60000 });
+s = await st();
+const keys = await p.$$eval('#boundsLegend .bkey', b => b.filter(e => !e.hidden && e.offsetParent).map(e => e.textContent.trim()));
+check('251 Greenland basins (no ice caps, none under 10 km2), no grounding line or ice front, legend shows the basins entry only', s.basins === 251 && s.gl === 0 && s.front === 0 && s.legend
+  && keys.length === 1 && /Mouginot/.test(keys[0]), { ...s, labels: s.labels.length, keys });
+check('Greenland basins unlabeled', s.labels.length === 0, s.labels.slice(0, 5));
+await zoomTo(p, await toMap(p, -49.1, 69.2), 300e3); await sleep(2000); await shot(p, 'boundariesGreenland');
 await finish(browser);
