@@ -125,7 +125,8 @@ zoom, and left out where ice moves slower than 5 m/yr (and on rock).
 In Antarctica, tick **Boundaries** for the grounding line (white), the ice front and coast of the GrIMP
 2026 ice mask (cyan, with ice shelf names as you zoom in) and the IMBIE drainage basins (dashed yellow). On the Amundsen Sea glaciers (Pine Island, Thwaites,
 Pope, Smith, Kohler, Getz, Abbot and others) it also draws the dated InSAR grounding lines from 1992 to 2025,
-colored from blue (oldest) to red (newest); point at one for its date and sensor.
+colored from blue (oldest) to red (newest); point at one for its date and sensor. Click an entry in the
+legend under the checkboxes to hide or show that layer.
 
 Reference layers from other sources (glacier names and fronts, boundaries, ITS_LIVE) are for display
 and comparison only; the downloads and saved files contain GrIMP data only.

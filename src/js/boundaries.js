@@ -17,8 +17,11 @@ const boundsStyles = {
 };
 const boundsLabel = (text, color, bold) => new ol.style.Style({ text: new ol.style.Text({ text, font: `${bold ? 600 : 400} 12px system-ui, sans-serif`,
   fill: new ol.style.Fill({ color }), stroke: new ol.style.Stroke({ color: 'rgba(0, 0, 0, 0.85)', width: 3 }), overflow: true }) });
+// Layers turned off by a click on their legend entry (ice shelf names go with the ice front; 'dated' = glLayer).
+const boundsOff = new Set(), boundsKeyOf = { iceShelves: 'iceFront' };
 const boundsLayer = new ol.layer.Vector({ source: boundsSource, zIndex: 5, visible: false, declutter: true, style: (f, res) => {
   const kind = f.get('kind'), name = f.get('name');
+  if (boundsOff.has(boundsKeyOf[kind] || kind)) return null;
   if (!f.get('label')) return boundsStyles[kind];
   if (!name || (kind === 'iceShelves' && res > boundsShelfRes)) return null;
   return boundsLabel(name, kind === 'basins' ? '#ffd23f' : '#4fd8ff', kind === 'basins');
@@ -37,7 +40,7 @@ map.addLayer(glLayer);
 async function refreshBounds() {
   const here = viewCode === boundsCode, on = $('boundsOn').checked && here;
   $('boundsOn').disabled = !here;
-  boundsLayer.setVisible(on); glLayer.setVisible(on);
+  boundsLayer.setVisible(on); glLayer.setVisible(on && !boundsOff.has('dated'));
   $('boundsLegend').hidden = !on;
   if (on && !glSource.getFeatures().length) loadGroundingLines();
   if (!on || boundsSource.getFeatures().length) return;
@@ -89,3 +92,10 @@ function glNote(pixel) {
 }
 map.on('change:view', refreshBounds);
 $('boundsOn').onchange = refreshBounds;
+for (const b of document.querySelectorAll('#boundsLegend .bkey')) b.title = 'Click to hide or show this layer';
+for (const b of document.querySelectorAll('#boundsLegend .bkey')) b.onclick = () => {
+  const k = b.dataset.kind, off = !boundsOff.delete(k);
+  if (off) boundsOff.add(k);
+  b.classList.toggle('off', off); b.setAttribute('aria-pressed', String(!off));
+  boundsLayer.changed(); refreshBounds();
+};

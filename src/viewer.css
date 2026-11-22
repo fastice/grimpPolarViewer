@@ -216,6 +216,9 @@ body.nopanel #panel { display: none; }
 #olList { list-style: none; margin: 0; padding: 0; font-size: 13px; }
 #olList li { display: flex; align-items: baseline; gap: 8px; padding: 2px 0; }
 #olList li > span:first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-#boundsLegend .swatch { display: inline-block; width: 18px; height: 0; border-top: 2px solid; vertical-align: middle; margin: 0 4px 0 6px;
+#boundsLegend .swatch { display: inline-block; width: 18px; height: 0; border-top: 2px solid; vertical-align: middle; margin: 0 4px 0 0;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); }
-#boundsLegend .swatch:first-child { margin-left: 0; }
+/* Each legend entry is a button that shows or hides its layer. */
+#boundsLegend .bkey { background: none; border: 0; padding: 2px 0; margin: 0 8px 0 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+#boundsLegend .bkeyBar { display: block; width: 100%; margin: 0; }
+#boundsLegend .bkey.off { opacity: 0.4; text-decoration: line-through; }

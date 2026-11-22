@@ -1,5 +1,5 @@
 // Antarctic boundaries (NSIDC-0709 v2): off by default, ticking draws the grounding line, ice shelves and IMBIE
-// basins with a legend; ice-shelf names only when zoomed in; disabled in Greenland.
+// basins with a legend whose entries toggle each layer; ice-shelf names only when zoomed in; disabled in Greenland.
 import { openViewer, catalogs, check, toMap, toPixel, zoomTo, text, hidden, shot, sleep, finish } from './lib.mjs';
 
 let { browser, page: p } = await openViewer(catalogs.aseAnnual);
@@ -39,6 +39,17 @@ if (v.c) {
   check('readout gives grounding-line dates under the pointer', /grounding line/.test(ro) && /2024-/.test(ro) && /Pine Island/.test(ro), ro);
   await p.mouse.move(5, 5); await sleep(500); await shot(p, 'groundingLinesPig');
 }
+// legend entries toggle their layer
+const drawn = kind => p.evaluate(kind => { const l = window.grimpViewer.map.getLayers().getArray().find(l => l.getZIndex() === 5 && l.getSource()?.getFeatures?.().some(f => f.get('kind')));
+  const f = l.getSource().getFeatures().find(f => f.get('kind') === kind && !f.get('label')); return !!l.getStyleFunction()(f, 500); }, kind);
+const glShown = () => p.evaluate(() => window.grimpViewer.map.getLayers().getArray().find(l => l.getZIndex() === 5 && l.getSource()?.getFeatures?.().some(f => f.get('sensor') !== undefined)).getVisible());
+const key = k => p.$eval(`#boundsLegend .bkey[data-kind=${k}]`, e => e.click());
+await key('basins'); await key('dated');
+check('clicking basins and dated legend entries hides those layers only', !(await drawn('basins')) && !(await glShown()) && (await drawn('groundingLine')) && (await drawn('iceFront'))
+  && await p.$eval('#boundsLegend .bkey[data-kind=basins]', e => e.classList.contains('off') && e.getAttribute('aria-pressed') === 'false'));
+await sleep(800); await shot(p, 'boundariesToggled');
+await key('basins'); await key('dated');
+check('clicking again shows them', (await drawn('basins')) && (await glShown()));
 await p.click('#boundsOn'); await sleep(200);
 check('unticking hides them and the legend', await hidden(p, 'boundsLegend'));
 await browser.close();

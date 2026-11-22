@@ -20,8 +20,8 @@ const searchCache = new Map(), searchMax = 8;
 const searchFold = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/æ/g, 'ae').replace(/[øœ]/g, 'o').replace(/ß/g, 'ss');
 const searchSource = new ol.source.Vector();
 map.addLayer(new ol.layer.Vector({ source: searchSource, zIndex: 8, style: f => new ol.style.Style({
-  image: new ol.style.Circle({ radius: 9, stroke: new ol.style.Stroke({ color: '#ff3ea5', width: 3 }), fill: new ol.style.Fill({ color: 'rgba(255, 62, 165, 0.15)' }) }),
-  text: new ol.style.Text({ text: f.get('label'), font: '600 13px system-ui, sans-serif', textAlign: 'left', offsetX: 14,
+  image: new ol.style.Circle({ radius: 6.75, stroke: new ol.style.Stroke({ color: '#ff3ea5', width: 2.25 }), fill: new ol.style.Fill({ color: 'rgba(255, 62, 165, 0.15)' }) }),
+  text: new ol.style.Text({ text: f.get('label'), font: '600 13px system-ui, sans-serif', textAlign: 'left', offsetX: 11,
     fill: new ol.style.Fill({ color: '#fff' }), stroke: new ol.style.Stroke({ color: 'rgba(0, 0, 0, 0.85)', width: 3 }) }),
 }) }));
 let searchHits = [], searchSel = -1, searchToken = 0;
