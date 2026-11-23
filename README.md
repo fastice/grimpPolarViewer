@@ -6,6 +6,11 @@ scientists draw them: centered on the pole, in polar stereographic coordinates.
 
 Created by Ian Joughin and Scott Henderson ([@scottyhq](https://github.com/scottyhq)).
 
+> **Downloads are GrIMP products only.** The other data drawn in the viewer (glacier fronts and
+> names, basins, grounding lines, place names, ITS_LIVE velocities and the basemap) are for display
+> only. Download them from their own distributors, linked under
+> [Other data shown in the viewer](#other-data-shown-in-the-viewer) at the end of this page.
+
 ![Annual ice-flow speed over Greenland in the GrIMP Polar Viewer](Documents/images/overview.jpg)
 
 ## Open the viewer
@@ -286,6 +291,8 @@ faster again in 2020-21, and close to or a little below average since.
 
 <img src="Documents/images/panel-download.png" align="right" width="300" alt="Download panel with asset checkboxes, crop box and download buttons">
 
+Only GrIMP products download; for the other data drawn in the viewer, see
+[Other data shown in the viewer](#other-data-shown-in-the-viewer).
 Tick the files you want under **Assets** (for velocity: speed, components, errors and more), then:
 
 - **Download this product's assets** saves the ticked assets of the product on the map (one file each), from NSIDC when NSIDC
@@ -371,7 +378,9 @@ workflow, using one or more of the following:
 - TerraSAR-X/TanDEM-X data processed and archived by DLR
 - Landsat 8/9 data processed and archived by USGS
 
-Other data shown in the viewer:
+### Other data shown in the viewer
+
+These are display-only: the viewer does not download them. Get them from their distributors:
 
 - Glacier fronts: NSIDC-0642 v2, MEaSUREs Annual Greenland Outlet Glacier Terminus Positions from SAR
   Mosaics, <https://doi.org/10.5067/ESFWE11AVFKW>.
@@ -396,7 +405,9 @@ Other data shown in the viewer:
 - Basemap (Blue Marble shaded relief and bathymetry, coastlines outside Antarctica; in Antarctica, Coastlines
   draws the NSIDC-0709 grounding line and the GrIMP ice-mask front instead): we acknowledge the use of imagery
   provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science
-  Data and Information System (ESDIS).
+  Data and Information System (ESDIS), <https://www.earthdata.nasa.gov/gibs>.
+
+### Software
 
 The viewer is built with the open-source libraries OpenLayers, geotiff.js, proj4js, hyparquet,
 zarrita, mp4-muxer and qrcode-generator.
