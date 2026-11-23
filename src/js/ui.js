@@ -36,6 +36,7 @@ const tips = {
   boundsOn: 'Drainage basins: IMBIE (NSIDC-0709 v2) in Antarctica, Mouginot and Rignot (2019) glacier basins in Greenland; point at a basin for its true area (the polar stereographic map area corrected for the projection scale)',
   particlesOn: 'Streaks drifting with the flow of the shown velocity product (its vx and vy); faster ice moves faster and leaves longer trails. Paused while the map moves',
   contourOn: 'Lines of equal speed (isotachs) of the shown product\'s speed (vv), at the levels typed below, read at the map\'s resolution and lightly smoothed',
+  particleSave: 'Save 10 s of the moving particles over a still of the map as shown, as an MP4 at screen resolution that loops seamlessly when played on repeat. Moving the map stops it',
   contourLevels: 'Speeds to contour, m/yr, separated by commas (at most 12)',
   pfAt: 'Type a flow-line point instead of clicking one: lat, lon in degrees (69.17, -49.5 or 69.17N 49.5W), or x, y in km in the map projection (-180, -2273 km); Enter or Trace',
   pfYrOn: 'Dots along the flow line where ice at the point was (upstream, -) or will be (downstream, +) after each interval, for steady flow at the speeds of the mosaic the line was traced on',

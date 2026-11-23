@@ -124,7 +124,8 @@ Tick **Flow arrows** on a velocity product to see which way the ice moves: each 
 averaged over its patch of the screen, and longer arrows are faster. They are redrawn as you pan and
 zoom, and left out where ice moves slower than 5 m/yr (and on rock). Tick **Flow particles** for streaks
 that drift with the flow instead: faster ice moves faster and leaves longer trails (they pause while the
-map moves). Tick **Speed contours** for lines of equal speed, labeled in m/yr; type the speeds you want
+map moves). **Save particle movie** saves 10 seconds of them over a still of the map as shown, as an MP4
+at screen resolution that loops seamlessly when played on repeat. Tick **Speed contours** for lines of equal speed, labeled in m/yr; type the speeds you want
 in the box under the toggles.
 
 When you point at a velocity product that has error layers, the readout gives the value with its

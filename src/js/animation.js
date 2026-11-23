@@ -337,6 +337,13 @@ function resetAnimation(note = '') {
   refreshAnimInfo();
 }
 
+async function pickH264(W, H, bitrate, fps) {
+  // The first H.264 profile this browser can encode at W x H, or null.
+  for (const c of ['avc1.640034', 'avc1.4d0034', 'avc1.42003e', 'avc1.42001f']) {
+    try { if ((await VideoEncoder.isConfigSupported({ codec: c, width: W, height: H, bitrate, framerate: fps })).supported) return c; } catch (e) {}
+  }
+  return null;
+}
 async function exportMovie() {
   if (!('VideoEncoder' in window)) {
     $('animNote').textContent = 'This browser cannot encode video; use a recent Chrome, Edge, Safari (16.4+) or Firefox (130+).';
@@ -344,10 +351,7 @@ async function exportMovie() {
   }
   const fps = +$('animFps').value, W = frames[0].canvas.width + (frames[0].canvas.width % 2), H = frames[0].canvas.height + (frames[0].canvas.height % 2);
   const bitrate = Math.round(Math.min(20e6, Math.max(2e6, W * H * fps * 0.2)));
-  let codec = null;
-  for (const c of ['avc1.640034', 'avc1.4d0034', 'avc1.42003e', 'avc1.42001f']) {
-    try { if ((await VideoEncoder.isConfigSupported({ codec: c, width: W, height: H, bitrate, framerate: fps })).supported) { codec = c; break; } } catch (e) {}
-  }
+  const codec = await pickH264(W, H, bitrate, fps);
   if (!codec) { $('animNote').textContent = `This browser cannot encode H.264 at ${W} x ${H}; choose a coarser resolution.`; return; }
   $('animExport').disabled = true; pauseAnim();
   const muxer = new Mp4Muxer.Muxer({ target: new Mp4Muxer.ArrayBufferTarget(), video: { codec: 'avc', width: W, height: H, frameRate: fps }, fastStart: 'in-memory' });
