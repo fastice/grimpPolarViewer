@@ -221,6 +221,18 @@
           <option value="10">10 years</option><option value="25">25 years</option><option value="50">50 years</option><option value="100">100 years</option></select></label></div>
         <div id="pfYrNote" class="note"></div>
       </div>
+      <div id="pfSerRow" hidden>
+        <div class="optrow"><label class="optrow nowrap"><input id="pfSerOn" type="checkbox"> Dates every</label>
+          <select id="pfSerDt"><option value="6">6 days</option><option value="12">12 days</option><option value="30.4375">1 month</option>
+          <option value="91.3125">3 months</option><option value="182.625">6 months</option><option value="365.25" selected>1 year</option>
+          <option value="730.5">2 years</option><option value="1095.75">3 years</option><option value="1826.25">5 years</option></select></div>
+        <div class="optrow" id="pfSerWin" hidden><button id="pfSerEarlier" type="button" class="serbtn" aria-label="Earlier">&#9664;</button>
+          <div id="pfSerTrack" class="yslider"><div id="pfSerBand" class="yband" tabindex="0" role="group" aria-label="Dates in the series"></div>
+            <div id="pfSerLo" class="ythumb" tabindex="0" role="slider" aria-label="Earliest date in the series"></div>
+            <div id="pfSerHi" class="ythumb" tabindex="0" role="slider" aria-label="Latest date in the series"></div></div>
+          <button id="pfSerLater" type="button" class="serbtn" aria-label="Later">&#9654;</button></div>
+        <div id="pfSerNote" class="note"></div>
+      </div>
       <div class="optrow" id="pfItsRow"><label class="optrow"><input id="pfIts" type="checkbox"> ITS_LIVE in grey,</label>
         <label class="optrow">pairs up to <select id="pfItsDt"><option value="100000">any</option><option value="120">120 d</option>
         <option value="30">30 d</option><option value="12" selected>12 d</option></select></label></div>

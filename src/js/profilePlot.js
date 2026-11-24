@@ -141,6 +141,44 @@ for (const k of ['x', 'y']) {
   });
   $(`pf${P}Auto`).onclick = () => { a.typed = null; drawProfile(); };
 }
+// The date series controls: the step (only steps at least about the shown product's length are offered),
+// Earlier and Later (each adds a date at that end, or slides the window once it holds pfSerMax), and a
+// slider over the dates found whose handles set the window and whose band slides it.
+function serSteps() {  // offer the steps at least about the shown product's length; 1 year if the one chosen is too short
+  const len = selected ? (+selected.end - +selected.start) / 86400e3 : 0, dt = $('pfSerDt');
+  for (const o of dt.options) o.hidden = o.disabled = +o.value < 0.9 * len;
+  if (dt.selectedOptions[0]?.disabled) dt.value = [...dt.options].find(o => !o.disabled && +o.value >= 365)?.value || dt.value;
+}
+function serUi() {
+  const dt = $('pfSerDt'), n = pfSer?.cands.length || 0;
+  $('pfSerWin').hidden = n < 2;
+  $('pfSerEarlier').disabled = !pfSer || pfSer.i0 === 0 && pfSer.i1 - pfSer.i0 + 1 >= Math.min(n, pfSerMax);
+  $('pfSerLater').disabled = !pfSer || pfSer.i1 === n - 1 && pfSer.i1 - pfSer.i0 + 1 >= Math.min(n, pfSerMax);
+  if (!pfSer) { $('pfSerNote').textContent = ''; return; }
+  const f = i => `${(100 * (n > 1 ? i / (n - 1) : 0)).toFixed(2)}%`, { cands, i0, i1, anchor } = pfSer, first = cands[i0].it, last = cands[i1].it;
+  $('pfSerLo').style.left = f(i0); $('pfSerHi').style.left = f(i1); $('pfSerBand').style.left = f(i0);
+  $('pfSerBand').style.width = `${(100 * (n > 1 ? (i1 - i0) / (n - 1) : 0)).toFixed(2)}%`;
+  $('pfSerLo').setAttribute('aria-valuetext', fmtDate(first.start)); $('pfSerHi').setAttribute('aria-valuetext', fmtDate(last.start));
+  const gaps = cands[i1].k - cands[i0].k + 1 - (i1 - i0 + 1), step = dt.selectedOptions[0].textContent;
+  $('pfSerNote').textContent = n < 2 ? `No other product of the same length is a whole number of ${step} steps from ${fmtDate(anchor.start)}; choose another step.`
+    : `${i1 - i0 + 1} dates, ${fmtDate(first.start)} to ${fmtDate(last.start)}, every ${step} from ${fmtDate(anchor.start)}`
+      + (gaps ? ` (${gaps} step${gaps > 1 ? 's' : ''} with no product)` : '') + `; ${n} found, at most ${pfSerMax} at once.`;
+}
+function serWindow(i0, i1, wait) {  // a new window (kept to pfSerMax dates, moving the end that did not move)
+  if (!pfSer) return;
+  if (i1 - i0 + 1 > pfSerMax) { if (i0 !== pfSer.i0) i1 = i0 + pfSerMax - 1; else i0 = i1 - pfSerMax + 1; }
+  if (i0 === pfSer.i0 && i1 === pfSer.i1) return;
+  Object.assign(pfSer, { i0, i1 }); serUi();
+  clearTimeout(serWindow.timer);
+  if (wait) serWindow.timer = setTimeout(serApply, 400); else serApply();  // a slider drag reads once it pauses
+}
+rangeSlider($('pfSerTrack'), ['pfSerLo', 'pfSerHi', 'pfSerBand'], () => {
+  const n = pfSer?.cands.length;
+  return n > 1 && [pfSer.i0 / (n - 1), pfSer.i1 / (n - 1)];
+}, (f0, f1) => { const n = pfSer.cands.length - 1; serWindow(Math.round(f0 * n), Math.round(f1 * n), true); });
+$('pfSerEarlier').onclick = () => { const { i0, i1 } = pfSer; if (i0 > 0) serWindow(i0 - 1, i1 - i0 + 1 >= pfSerMax ? i1 - 1 : i1); };
+$('pfSerLater').onclick = () => { const { i0, i1 } = pfSer; if (i1 < pfSer.cands.length - 1) serWindow(i1 - i0 + 1 >= pfSerMax ? i0 + 1 : i0, i1 + 1); };
+$('pfSerOn').onchange = $('pfSerDt').onchange = () => serStart();
 let pfLegendHits = [];  // legend entries on the plot: { x, y, w, h, c } in CSS px
 let pfLegendPos = [1, 0], pfLegendBox = null, pfLegendDrag = null, pfLegendDropped = -Infinity;  // top right at first
 const pfXY = e => { const r = $('pfCanvas').getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };

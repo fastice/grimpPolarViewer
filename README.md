@@ -238,6 +238,15 @@ the mosaic's speeds. The plot marks them with ticks along its bottom.
   on the map is drawn thickest and in bold in the legend. Click an entry in the legend to hide its
   curve (the entry fades), and click it again to show it; click the **×** at the end of an entry to
   remove that curve (show its date again to bring it back). Drag the legend to move it off the data.
+- Tick **Dates every** to add curves at regular steps from the product on the map: choose the step
+  (6 days to 5 years; steps shorter than the product are not offered), and each step adds the
+  product of the same length nearest that date. For example, with the 2019 annual mosaic shown and
+  a 2-year step, it adds 2021, 2023 and 2025; a 1-year step on a monthly mosaic plots the same month of
+  each year. It starts with the shown date and up to three later ones. **◀** and **▶** add one
+  date at either end; once 8 are plotted (the limit) they slide the series instead. On the slider
+  under them, drag a handle to add or drop dates at that end, or drag the band to slide the whole
+  series through time. Changing the step, or ticking the box again, starts over from the product
+  on the map; curves you added by showing dates yourself stay.
 - **Plot x range** and **Plot y range** zoom the plot: drag either handle, or drag the band between
   them to pan; **Auto** goes back to the full line and the automatic y range. With x zoomed in, the
   automatic y range fits the part of the line shown.

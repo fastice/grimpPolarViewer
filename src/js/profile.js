@@ -55,17 +55,18 @@ function clearProfile() {
   $('pfPlot').hidden = true; $('pfShow').hidden = true; $('pfClear').hidden = true; $('pfProg').hidden = true; $('pfFlowRow').hidden = $('pfAccept').hidden = true;
   $('pfCsv').disabled = true; $('pfPng').disabled = true;
   $('pfNote').textContent = ''; $('pfItsNote').textContent = ''; $('pfCount').textContent = '';
+  pfSer = null; ++pfSerToken; $('pfSerOn').checked = false; $('pfSerRow').hidden = true; serUi();
   refreshFrontPositions();
 }
 // (Re)start the plot on a line; the products already on the plot are read again along it.
 function setProfileLine(line, off) {
   ++pfToken; ++pfItsToken;
-  const shown = pfCurves.map(c => [c.it, c.off]);
+  const shown = pfCurves.map(c => [c.it, c.off, c.ser]);
   pfLine = line; pfCum = cumDist(line); pfOff = off; pfCurves = []; pfIts = null; pfAx.x.typed = null;
   pfSource.clear(); pfSource.addFeature(new ol.Feature(new ol.geom.LineString(line)));
   if (pfPoint) pfSource.addFeature(pfPoint);
-  $('pfClear').hidden = false;
-  for (const [it, off] of shown) { addProfileCurve(it, pfKey); if (off) pfCurves.find(c => c.it === it).off = true; }
+  $('pfClear').hidden = false; $('pfSerRow').hidden = false;
+  for (const [it, off, ser] of shown) { addProfileCurve(it, pfKey, ser); if (off) pfCurves.find(c => c.it === it).off = true; }
   if (selected && plotAsset()) pfOnShown(plotAsset());
   travelMarks(); refreshFrontPositions();
 }
@@ -279,7 +280,7 @@ function pfOnShown(key) {
   $('pfSec').hidden = !key;
   $('pfItsRow').hidden = !(key in itsVars);
   if (!pfLine || !key) return;
-  if (key !== pfKey) { pfCurves = []; pfKey = key; pfIts = null; pfAx.y.typed = null; }
+  if (key !== pfKey) { pfCurves = []; pfKey = key; pfIts = null; pfAx.y.typed = null; pfSer = null; ++pfSerToken; $('pfSerOn').checked = false; serUi(); }
   addProfileCurve(selected, key);
   refreshProfileIts();
 }
@@ -314,11 +315,11 @@ async function profileValues(it, key) {
   await runPool(tasks, 4);
   return { d, v, res: r };
 }
-async function addProfileCurve(it, key) {
+async function addProfileCurve(it, key, ser = false) {  // ser: one of the date series' curves
   const href = it.assets[key].href;
   if (pfCurves.some(c => c.href === href)) { drawProfile(); return; }
   const token = pfToken, b = it.assets[key]['raster:bands']?.[0] || {};
-  const c = { it, href, key, unit: b.unit || '', name: tsCollectionName(),
+  const c = { it, href, key, ser, unit: b.unit || '', name: tsCollectionName(),
               color: tsColors.find(x => !pfCurves.some(q => q.color === x)) || tsColors[pfCurves.length % tsColors.length] };
   pfCurves.push(c);
   setPfPlot(true);
@@ -331,9 +332,51 @@ async function addProfileCurve(it, key) {
     $('pfCsv').disabled = false; $('pfPng').disabled = false;
   } catch (e) {
     if (token !== pfToken) return;
-    pfCurves.splice(pfCurves.indexOf(c), 1);
+    if (pfCurves.includes(c)) pfCurves.splice(pfCurves.indexOf(c), 1);
     $('pfNote').textContent = `Could not read the profile: ${e.message}`;
   }
+  drawProfile();
+}
+// Date series: the product shown when the series is turned on (its anchor) and, for whole steps of dt
+// before and after it, the catalog's product of the same length whose central date is nearest the
+// anchor's plus that many steps (within half a step, and within the product length or 15 days). A window
+// of at most pfSerMax of these is plotted; curves of products shown by hand are left alone.
+const pfSerMax = 8;
+let pfSer = null, pfSerToken = 0;  // { anchor, dt (days), cands: [{ k (steps from the anchor), it }], i0, i1 (window in cands) }
+const pfMid = it => (+it.start + +it.end) / 2;
+function serCands(anchor, dt) {
+  const len = +anchor.end - +anchor.start, c0 = pfMid(anchor), step = dt * 86400e3, ext = ol.extent.boundingExtent(pfLine);
+  const tol = Math.min(step / 2, Math.max(len, 15 * 86400e3)), best = new Map([[0, { k: 0, it: anchor, off: 0 }]]);
+  for (const it of items) {
+    if (!it.assets[pfKey] || Math.abs(+it.end - +it.start - len) > 0.25 * len + 86400e3) continue;
+    if ((it.epsg && `EPSG:${it.epsg}` !== viewCode) || (it.feature && !it.feature.getGeometry().intersectsExtent(ext))) continue;
+    const k = Math.round((pfMid(it) - c0) / step), off = Math.abs(pfMid(it) - c0 - k * step);
+    if (k && off <= tol && (!best.has(k) || off < best.get(k).off)) best.set(k, { k, it, off });
+  }
+  return [...best.values()].sort((a, b) => a.k - b.k);
+}
+function serStart() {  // (re)start the series on the shown product: it and up to 3 steps later (or earlier, near the end)
+  serSteps();
+  const it = selected, dt = +$('pfSerDt').value;
+  if (!$('pfSerOn').checked || !pfLine || !it?.assets[pfKey]) pfSer = null;
+  else {
+    const cands = serCands(it, dt), a = cands.findIndex(c => c.k === 0), i1 = Math.min(cands.length - 1, a + 3);
+    pfSer = { anchor: it, dt, cands, i0: Math.max(0, i1 - 3), i1 };
+  }
+  serUi(); serApply();
+}
+async function serApply() {
+  // The series curves become those in the window: the others go, then the new ones are read, oldest first.
+  const token = ++pfSerToken, want = pfSer ? pfSer.cands.slice(pfSer.i0, pfSer.i1 + 1).map(c => c.it) : [];
+  const hrefs = new Set(want.map(it => it.assets[pfKey].href));
+  pfCurves = pfCurves.filter(c => !c.ser || hrefs.has(c.href));
+  $('pfCsv').disabled = $('pfPng').disabled = !pfCurves.length;
+  drawProfile();
+  for (const it of want) {
+    await addProfileCurve(it, pfKey, true);
+    if (token !== pfSerToken) return;
+  }
+  pfCurves.sort((a, b) => a.it.start - b.it.start);
   drawProfile();
 }
 
