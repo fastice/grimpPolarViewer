@@ -1,5 +1,5 @@
 // Profile along a drawn line (Jakobshavn, Greenland annual): curves read, a second date adds a curve,
-// the legend hides/shows and removes curves, the plot x/y range sliders and Auto, ITS_LIVE annual mode.
+// the legend hides/shows and removes curves and minimizes, the plot x/y range sliders and Auto, ITS_LIVE annual mode.
 import { openViewer, catalogs, check, toMap, toPixel, zoomTo, hitCenter, dragTo, text, hidden, shot, sleep, finish } from './lib.mjs';
 
 const { browser, page: p } = await openViewer(catalogs.glAnnual);
@@ -29,7 +29,7 @@ check('curve count in the section title', /2 curves/.test(await text(p, 'pfCount
 
 // legend: click hides, click again shows, x removes
 await p.mouse.move(5, 5); await sleep(500);
-const legendHit = remove => p.evaluate(remove => { const h = window.grimpViewer.pf().pfLegendHits.find(h => !!h.remove === remove); return h && { x: h.x, y: h.y, w: h.w, h: h.h }; }, remove);
+const legendHit = remove => p.evaluate(remove => { const h = window.grimpViewer.pf().pfLegendHits.find(h => h.c && !!h.remove === remove); return h && { x: h.x, y: h.y, w: h.w, h: h.h }; }, remove);
 let xy = await hitCenter(p, 'pfCanvas', await legendHit(false));
 await p.mouse.click(xy[0], xy[1]); await sleep(300);
 check('legend click hides a curve', (await pf()).off.filter(Boolean).length === 1, (await pf()).off);
@@ -41,6 +41,18 @@ check('legend x removes a curve', (await pf()).n === 1);
 await p.evaluate(() => { const t = document.querySelectorAll('#tticks .tick'); t[t.length - 4].click(); t[t.length - 1].click(); });
 await sleep(1500); await curvesRead(2);
 check('a removed curve comes back when its product is shown', (await pf()).n === 2);
+
+// legend header minimizes it to a 'Legend +' box; a click on the box brings it back
+await p.mouse.move(5, 5); await sleep(300);
+const toggleHit = () => p.evaluate(() => { const h = window.grimpViewer.pf().pfLegendHits.find(h => h.toggle); return h && { x: h.x, y: h.y, w: h.w, h: h.h }; });
+const nHits = () => p.evaluate(() => window.grimpViewer.pf().pfLegendHits.length);
+xy = await hitCenter(p, 'pfCanvas', await toggleHit());
+await p.mouse.click(xy[0], xy[1]); await sleep(300);
+check('legend header minimizes the legend', (await nHits()) === 1 && (await pf()).off.every(o => !o), await nHits());
+await shot(p, 'profileLegendMin');
+xy = await hitCenter(p, 'pfCanvas', await toggleHit());
+await p.mouse.click(xy[0], xy[1]); await sleep(300);
+check('Legend + brings it back', (await nHits()) === 1 + 2 * 2, await nHits());
 
 // axis ranges
 await p.$eval('#pfAxRow', e => e.scrollIntoView());

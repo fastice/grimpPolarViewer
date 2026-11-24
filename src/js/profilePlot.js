@@ -94,30 +94,44 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
   for (const m of pfMarks) { ctx.beginPath(); ctx.moveTo(Xk(m.km), T + ph); ctx.lineTo(Xk(m.km), T + ph - (m.t % (5 * +$('pfYrStep').value) ? 5 : 10)); ctx.stroke(); }
   ctx.restore();
   // legend: each curve's dates (and catalog, when more than one), the shown product in bold; a click on
-  // an entry hides or shows its curve (hidden entries are faded), a click on its x removes it
-  const names = new Set(pfCurves.map(c => c.name)), rowsShown = pfCurves.slice(-8);
+  // an entry hides or shows its curve (hidden entries are faded), a click on its x removes it. On screen
+  // a header row minimizes it to a small 'Legend +' box, and a click on that box brings it back (a
+  // minimized legend is left out of the saved PNG).
+  const scr = canvas === $('pfCanvas'), names = new Set(pfCurves.map(c => c.name)), rowsShown = pfCurves.slice(-8);
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  if (scr) pfLegendHits = [];
+  if (pfLegendMin && !scr) return;
   const text = c => `${fmtDate(c.it.start)} to ${fmtDate(c.it.end)}${names.size > 1 ? `, ${c.name}` : ''}`;
   ctx.font = '700 11px "Atkinson Hyperlegible", sans-serif';
-  const lw = Math.max(...rowsShown.map(c => ctx.measureText(text(c)).width)) + 50, lh = 15;
-  const extra = pfCurves.length - rowsShown.length, lhgt = lh * (rowsShown.length + (extra ? 1 : 0)) + 6;
+  const lh = 15, head = scr ? lh : 0, lw = pfLegendMin ? ctx.measureText('Legend +').width + 16 : Math.max(...rowsShown.map(c => ctx.measureText(text(c)).width)) + 50;
+  const extra = pfCurves.length - rowsShown.length, lhgt = pfLegendMin ? lh + 6 : head + lh * (rowsShown.length + (extra ? 1 : 0)) + 6;
   // placed by pfLegendPos: fractions of the free room across and down the plot (dragged by the user)
   const lx = L + 6 + pfLegendPos[0] * Math.max(0, pw - lw - 12), ly = T + 6 + pfLegendPos[1] * Math.max(0, ph - lhgt - 12);
-  if (canvas === $('pfCanvas')) pfLegendBox = { x: lx, y: ly, w: lw, h: lhgt, roomX: Math.max(0, pw - lw - 12), roomY: Math.max(0, ph - lhgt - 12) };
+  if (scr) pfLegendBox = { x: lx, y: ly, w: lw, h: lhgt, roomX: Math.max(0, pw - lw - 12), roomY: Math.max(0, ph - lhgt - 12) };
   ctx.globalAlpha = 0.85; ctx.fillStyle = halo; ctx.fillRect(lx, ly, lw, lhgt); ctx.globalAlpha = 1;
-  if (canvas === $('pfCanvas')) pfLegendHits = [];
+  if (pfLegendMin) {
+    ctx.strokeStyle = muted; ctx.lineWidth = 1; ctx.strokeRect(lx + 0.5, ly + 0.5, lw - 1, lhgt - 1);
+    ctx.fillStyle = fg; ctx.fillText('Legend +', lx + 8, ly + lhgt / 2);
+    pfLegendHits.push({ x: lx, y: ly, w: lw, h: lhgt, toggle: true });
+    return;
+  }
+  if (scr) {  // the header: click to minimize
+    ctx.fillStyle = muted; ctx.font = '400 11px "Atkinson Hyperlegible", sans-serif'; ctx.fillText('Legend', lx + 6, ly + 3 + lh / 2);
+    ctx.textAlign = 'center'; ctx.font = '700 13px sans-serif'; ctx.fillText('\u2212', lx + lw - 9, ly + 3 + lh / 2); ctx.textAlign = 'left';
+    pfLegendHits.push({ x: lx, y: ly, w: lw, h: head + 3, toggle: true });
+  }
   rowsShown.forEach((c, k) => {
-    const y = ly + 3 + lh * k + lh / 2;
+    const y = ly + 3 + head + lh * k + lh / 2;
     ctx.globalAlpha = c.off ? 0.35 : 1;
     ctx.strokeStyle = c.color; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(lx + 6, y); ctx.lineTo(lx + 24, y); ctx.stroke();
     ctx.font = `${shown(c) ? 700 : 400} 11px "Atkinson Hyperlegible", sans-serif`; ctx.fillStyle = fg; ctx.fillText(text(c), lx + 28, y);
     ctx.globalAlpha = 1;
-    if (canvas === $('pfCanvas')) {  // the x (screen only, not in the saved PNG)
+    if (scr) {  // the x (screen only, not in the saved PNG)
       ctx.fillStyle = muted; ctx.textAlign = 'center'; ctx.font = '700 12px sans-serif'; ctx.fillText('\u00d7', lx + lw - 9, y); ctx.textAlign = 'left';
       pfLegendHits.push({ x: lx + lw - 18, y: y - lh / 2, w: 18, h: lh, c, remove: true }, { x: lx, y: y - lh / 2, w: lw - 18, h: lh, c });
     }
   });
-  if (extra) { ctx.fillStyle = muted; ctx.fillText(`and ${extra} earlier`, lx + 28, ly + 3 + lh * rowsShown.length + lh / 2); }
+  if (extra) { ctx.fillStyle = muted; ctx.fillText(`and ${extra} earlier`, lx + 28, ly + 3 + head + lh * rowsShown.length + lh / 2); }
 }
 // Plot x and y ranges (pfAx): automatic, or set with two-handle sliders like the time-series y range.
 function pfAxSliders(k, auto, span) {
@@ -180,6 +194,7 @@ $('pfSerEarlier').onclick = () => { const { i0, i1 } = pfSer; if (i0 > 0) serWin
 $('pfSerLater').onclick = () => { const { i0, i1 } = pfSer; if (i1 < pfSer.cands.length - 1) serWindow(i1 - i0 + 1 >= pfSerMax ? i0 + 1 : i0, i1 + 1); };
 $('pfSerOn').onchange = $('pfSerDt').onchange = () => serStart();
 let pfLegendHits = [];  // legend entries on the plot: { x, y, w, h, c } in CSS px
+let pfLegendMin = false;  // legend minimized to its 'Legend +' box
 let pfLegendPos = [1, 0], pfLegendBox = null, pfLegendDrag = null, pfLegendDropped = -Infinity;  // top right at first
 const pfXY = e => { const r = $('pfCanvas').getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
 const inBox = ([x, y], h) => h && x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h;
@@ -192,7 +207,7 @@ $('pfCanvas').addEventListener('pointerdown', e => {
 });
 $('pfCanvas').addEventListener('pointermove', e => {
   const xy = pfXY(e);
-  if (!pfLegendDrag) { $('pfCanvas').style.cursor = pfLegendAt(e)?.remove ? 'pointer' : inBox(xy, pfLegendBox) ? 'move' : ''; return; }
+  if (!pfLegendDrag) { $('pfCanvas').style.cursor = pfLegendAt(e)?.remove || pfLegendAt(e)?.toggle ? 'pointer' : inBox(xy, pfLegendBox) ? 'move' : ''; return; }
   const dx = xy[0] - pfLegendDrag.start[0], dy = xy[1] - pfLegendDrag.start[1];
   if (!pfLegendDrag.moved && Math.hypot(dx, dy) < 4) return;
   pfLegendDrag.moved = true;
@@ -206,7 +221,8 @@ $('pfCanvas').addEventListener('click', e => {
   if (e.timeStamp - pfLegendDropped < 300) return;  // the end of a drag, not a click
   const h = pfLegendAt(e);
   if (!h) return;
-  if (h.remove) pfCurves.splice(pfCurves.indexOf(h.c), 1); else h.c.off = !h.c.off;
+  if (h.toggle) pfLegendMin = !pfLegendMin;
+  else if (h.remove) pfCurves.splice(pfCurves.indexOf(h.c), 1); else h.c.off = !h.c.off;
   $('pfCsv').disabled = $('pfPng').disabled = !pfCurves.length;
   drawProfile();
 });

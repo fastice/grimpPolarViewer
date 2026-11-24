@@ -120,7 +120,7 @@ const tips = {
   pfYHi: 'Top of the plot y axis: drag left to zoom in',
   pfYBand: 'Drag to shift the plot y range up or down, keeping its height',
   tsCanvas: 'Click a point\'s date to show it on the map; click a legend number to hide or show that point, or its x to remove it; click a catalog in the second legend row to hide or show its series, or an earlier catalog\'s x to drop them',
-  pfCanvas: 'Drag the legend to move it; click an entry to hide or show its curve, or its x to remove it',
+  pfCanvas: 'Drag the legend to move it; click an entry to hide or show its curve, or its x to remove it; click the legend\'s top row to minimize it, and Legend + to bring it back',
   pfPng: 'Save the profile plot as a PNG image',
   tsYHi: 'Top of the plot y axis: drag left to zoom in',
   tsYLo: 'Bottom of the plot y axis: drag right to zoom in',

@@ -237,7 +237,9 @@ the mosaic's speeds. The plot marks them with ticks along its bottom.
   line. Switching to another collection keeps the line and adds that collection's curve. The product
   on the map is drawn thickest and in bold in the legend. Click an entry in the legend to hide its
   curve (the entry fades), and click it again to show it; click the **×** at the end of an entry to
-  remove that curve (show its date again to bring it back). Drag the legend to move it off the data.
+  remove that curve (show its date again to bring it back). Drag the legend to move it off the data,
+  or click its top row (**Legend −**) to shrink it to a small **Legend +** box, and click that to
+  bring it back. A shrunk legend is left out of the saved PNG.
 - Tick **Dates every** to add curves at regular steps from the product on the map: choose the step
   (6 days to 5 years; steps shorter than the product are not offered), and each step adds the
   product of the same length nearest that date. For example, with the 2019 annual mosaic shown and
