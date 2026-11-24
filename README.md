@@ -6,7 +6,7 @@ scientists draw them: centered on the pole, in polar stereographic coordinates.
 
 Created by Ian Joughin and Scott Henderson ([@scottyhq](https://github.com/scottyhq)).
 
-**▶ [Watch the video tutorial](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/tutorial/grimpPolarViewerTutorial.mp4)** (5½ minutes, narrated): collections, colors, time-series and
+**▶ [Watch the video tutorial](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/tutorial/index.html)** (5½ minutes, narrated, with captions): collections, colors, time-series and
 profile plots, flow lines, map layers, animation, swipe, sharing and download, in Greenland and at
 Pine Island Glacier.
 
