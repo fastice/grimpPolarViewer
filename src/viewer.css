@@ -23,6 +23,10 @@ body { background: var(--bg); color: var(--fg); font: 14px/1.45 var(--font-body)
                       background: var(--accent-soft); border-radius: 6px; }
 h1 { font-size: 17px; margin: 0; text-wrap: balance; }
 h1 small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 2px; }
+/* The video tutorial link sits under the title, where a first-time visitor looks. */
+.tutlink { justify-self: start; font-weight: 700; font-size: 13px; color: var(--accent); background: var(--accent-soft);
+           border: 1px solid var(--accent); border-radius: 6px; padding: 4px 10px; text-decoration: none; }
+.tutlink:hover { text-decoration: underline; }
 label.lab { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); display: block; margin-bottom: 4px; }
 select, input[type=text], input[type=number], button {
   font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; }

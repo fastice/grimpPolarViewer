@@ -6,6 +6,10 @@ scientists draw them: centered on the pole, in polar stereographic coordinates.
 
 Created by Ian Joughin and Scott Henderson ([@scottyhq](https://github.com/scottyhq)).
 
+**▶ [Watch the video tutorial](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/tutorial/grimpPolarViewerTutorial.mp4)** (5½ minutes, narrated): collections, colors, time-series and
+profile plots, flow lines, map layers, animation, swipe, sharing and download, in Greenland and at
+Pine Island Glacier.
+
 > **Downloads are GrIMP products only.** The other data drawn in the viewer (glacier fronts and
 > names, basins, grounding lines, place names, ITS_LIVE velocities and the basemap) are for display
 > only. Download them from their own distributors, linked under
