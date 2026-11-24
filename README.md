@@ -374,7 +374,7 @@ Publishing new data, deploying the viewer, the repository layout and the design 
 
 ## Acknowledgments
 
-The products in the viewer were made with the NASA MEaSUREs Greenland Ice Mapping Project (GrIMP)
+The products in the viewer were made with the NASA MEaSUREs Greenland Ice Sheet Mapping Project (GrIMP)
 workflow, using one or more of the following:
 
 - NISAR data processed by NASA/JPL-Caltech, archived at the ASF DAAC
