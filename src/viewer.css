@@ -167,7 +167,7 @@ body.nopanel #panel { display: none; }
 /* Vertical time range on the left edge of the map (next to the panel): newest at the top, one tick per
    acquisition window. Fixed amber-on-dark colors in both themes so it reads over Blue Marble's blues and whites. */
 :root { --tb-hi: #ffb000; --tb-strip: rgba(12, 16, 20, 0.62); --tb-label-bg: rgba(12, 16, 20, 0.86); --tb-text: #ffffff; }
-#timebar { position: absolute; left: 14px; top: 124px; bottom: 44px; width: 150px; display: flex; flex-direction: column;
+#timebar { position: absolute; left: 14px; top: 124px; bottom: 44px; width: 118px; display: flex; flex-direction: column;
            align-items: flex-start; gap: 14px; pointer-events: none; }
 /* Faint box over the time bar's footprint: the bar takes clicks there, so points cannot be placed under it. */
 #timebar::before { content: ""; position: absolute; inset: -12px -8px -8px -8px; border-radius: 8px; z-index: -1;
