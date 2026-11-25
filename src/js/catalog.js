@@ -152,7 +152,15 @@ function drawTimebar() {
     d.classList.toggle('on', k >= i0 && k <= i1);
     d.classList.toggle('cur', (animDate ?? (selected ? +selected.start : null)) === dates[k]);
   });
+  fitTimebar();
 }
+
+// Fit the bar, and the faint box behind it, to its date labels in whatever font they come out in.
+function fitTimebar() {
+  const w = Math.max(...['th0', 'th1'].map(id => { const s = $(id).querySelector('span'); return s.offsetLeft + s.offsetWidth; }));
+  if (w > 0) $('timebar').style.width = `${w + 2}px`;  // + the thumb border, for the box's 8 px margin both sides
+}
+document.fonts?.ready.then(fitTimebar);
 
 function nearestDate(clientY) {
   const r = $('ttrack').getBoundingClientRect();
