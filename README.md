@@ -194,6 +194,11 @@ more files per date.
 - **Plot y range** sets the y axis: drag either handle, or drag the band between them to move the
   range up or down. The x axis follows the timeline's range. **Plot style** draws
   lines and points, points only, or lines only.
+- Tick **Trend line** to fit a straight line (least squares) to each point's values on the plot's x
+  axis. It is drawn dashed in the point's color, and a box lists each point's rate per year with the
+  1-sigma error of that rate, r² and p (two-sided t test of a zero rate). Drag the box to move it;
+  click its header to shrink it to **Trend +** and click that to bring it back. It needs at least three dates,
+  fits only the collection shown, and is off in the month-of-year view.
 - **Plot x axis: month of year** folds the series onto January to December, with one line per year
   colored from blue (oldest) to red (newest), to compare the seasonal cycle from year to year. A thick
   black line (white in dark mode) joins each point's mean for every calendar month. Click a value to show

@@ -1,4 +1,5 @@
 let tsPlotInfo = null;
+let tsTrendMin = false, tsTrendPos = null, tsTrendBox = null, tsTrendDrag = null, tsTrendDropped = -Infinity;  // the trend box
 // Plot y range: automatic (the GrIMP values with their error bars), or set with the two sliders, which
 // span the GrIMP values and the 1st-99th percentile of the ITS_LIVE values shown (half a span beyond each).
 let tsYTyped = null, tsYSpan = null;
@@ -264,6 +265,48 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
       ctx.globalAlpha = 1;
     }
   }
+  // Trend: a least-squares line through each point's values on the x axis (dashed, haloed, in the point's
+  // color) over the dates it fits, and a box listing each rate per year with its 1-sigma error, r2 and p.
+  const trends = [];
+  if ($('tsTrend').checked && !seasonal) for (const p of curOff ? [] : vis) {
+    const f = linFit(p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v })).filter(x => Number.isFinite(x.v) && x.t >= t0 && x.t <= t1));
+    if (!f) continue;
+    const at = t => f.v0 + f.rate * (t - f.tm) / yearMs;
+    for (const [w, c] of [[4, halo], [2, p.color]]) {
+      ctx.strokeStyle = c; ctx.lineWidth = w; ctx.setLineDash([8, 4]);
+      ctx.beginPath(); ctx.moveTo(X(f.ta), Y(at(f.ta))); ctx.lineTo(X(f.tb), Y(at(f.tb))); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    const dec = f.se > 0 ? Math.max(0, 1 - Math.floor(Math.log10(f.se))) : 2;
+    trends.push({ p, f, text: `${p.n}: ${f.rate >= 0 ? '+' : '\u2212'}${Math.abs(f.rate).toFixed(dec)} \u00b1 ${f.se.toFixed(dec)} ${tsPlotInfo.unit ? `${tsPlotInfo.unit} ` : ''}per year, r\u00b2 ${f.r2.toFixed(2)}, p ${f.p < 0.001 ? '< 0.001' : f.p.toPrecision(2)}` });
+  }
+  if (onScreen) tsPlotInfo.trends = trends;
+  if (onScreen) tsTrendBox = null;
+  if (trends.length && !(tsTrendMin && !onScreen)) {
+    // On screen a header row minimizes the box to a small 'Trend +' box (left out of the saved PNG), and the
+    // box can be dragged anywhere on the plot; until it is, it sits in the left corner that hides fewer values.
+    ctx.font = '12px "Atkinson Hyperlegible", sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    const head = onScreen ? 16 : 0, bw = tsTrendMin ? ctx.measureText('Trend +').width + 16 : Math.max(...trends.map(r => ctx.measureText(r.text).width)) + 12;
+    const bh = tsTrendMin ? 22 : head + 16 * trends.length + 6, roomX = Math.max(0, pw - bw - 12), roomY = Math.max(0, ph - bh - 12);
+    const under = fy => { const y = T + 6 + fy * roomY; return finite.filter(q => X(q.t) <= L + 6 + bw && Y(q.v) >= y && Y(q.v) <= y + bh).length; };
+    const pos = tsTrendPos || [0, under(1) < under(0) ? 1 : 0];
+    const bx = L + 6 + pos[0] * roomX, by = T + 6 + pos[1] * roomY;
+    if (onScreen) tsTrendBox = { x: bx, y: by, w: bw, h: bh, roomX, roomY, pos };
+    ctx.globalAlpha = 0.85; ctx.fillStyle = halo; ctx.fillRect(bx, by, bw, bh); ctx.globalAlpha = 1;
+    ctx.strokeStyle = tsTrendMin ? muted : line; ctx.lineWidth = 1; ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+    if (tsTrendMin) {
+      ctx.fillStyle = fg; ctx.fillText('Trend +', bx + 8, by + bh / 2);
+      tsLegendHits.push({ x: bx, y: by, w: bw, h: bh, trendToggle: true });
+    } else {
+      if (onScreen) {  // the header: click to minimize
+        ctx.fillStyle = muted; ctx.font = '11px "Atkinson Hyperlegible", sans-serif'; ctx.fillText('Trend', bx + 6, by + 11);
+        ctx.textAlign = 'center'; ctx.font = '700 13px sans-serif'; ctx.fillText('\u2212', bx + bw - 9, by + 11); ctx.textAlign = 'left';
+        ctx.font = '12px "Atkinson Hyperlegible", sans-serif';
+        tsLegendHits.push({ x: bx, y: by, w: bw, h: head + 3, trendToggle: true });
+      }
+      trends.forEach((r, k) => { ctx.fillStyle = r.p.color; ctx.fillText(r.text, bx + 6, by + head + 11 + 16 * k); });
+    }
+  }
   if (seasonal) for (const p of curOff ? [] : vis) {  // monthly means, broken where a month has no data
     const sum = new Array(12).fill(0), n = new Array(12).fill(0);
     for (const x of p.values) if (Number.isFinite(x.v)) { const m = new Date((+x.it.start + +x.it.end) / 2).getUTCMonth(); sum[m] += x.v; n[m]++; }
@@ -285,6 +328,47 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   }
   ctx.restore();
   drawTsLegend(ctx, canvas, W, R, itsOn);
+}
+// Least-squares line through [{ t (ms), v }]: rate per year, its 1-sigma error from the scatter about the
+// line, r2, p (two-sided t test of a zero rate, n - 2 degrees of freedom), the value v0 at the mean time
+// tm, and the span fitted (ta to tb). Needs three dates.
+const yearMs = 365.25 * 86400e3;
+function linFit(q) {
+  if (q.length < 3) return null;
+  const n = q.length, tm = q.reduce((a, x) => a + x.t, 0) / n, v0 = q.reduce((a, x) => a + x.v, 0) / n;
+  const sxx = q.reduce((a, x) => a + ((x.t - tm) / yearMs) ** 2, 0);
+  if (!sxx) return null;
+  const rate = q.reduce((a, x) => a + (x.t - tm) / yearMs * (x.v - v0), 0) / sxx;
+  const ss = q.reduce((a, x) => a + (x.v - v0 - rate * (x.t - tm) / yearMs) ** 2, 0);
+  const sst = q.reduce((a, x) => a + (x.v - v0) ** 2, 0), se = Math.sqrt(ss / (n - 2) / sxx), df = n - 2;
+  const p = se > 0 ? betaInc(df / 2, 0.5, df / (df + (rate / se) ** 2)) : 0;
+  return { rate, se, r2: sst ? 1 - ss / sst : 1, p, v0, tm, ta: Math.min(...q.map(x => x.t)), tb: Math.max(...q.map(x => x.t)) };
+}
+// Regularized incomplete beta I_x(a, b), by its continued fraction (Numerical Recipes betai/betacf).
+function betaInc(a, b, x) {
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  const lnGamma = z => {  // Lanczos
+    const c = [76.18009172947146, -86.50532032941677, 24.01409824083091, -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5];
+    let y = z, s = 1.000000000190015;
+    for (const k of c) s += k / ++y;
+    return Math.log(2.5066282746310005 * s / z) - (z + 5.5) + (z + 0.5) * Math.log(z + 5.5);
+  };
+  const cf = (a, b, x) => {
+    let c = 1, d = 1 - (a + b) * x / (a + 1), h;
+    d = 1 / (Math.abs(d) < 1e-30 ? 1e-30 : d); h = d;
+    for (let m = 1; m <= 200; m++) {
+      for (const aa of [m * (b - m) * x / ((a + 2 * m - 1) * (a + 2 * m)), -(a + m) * (a + b + m) * x / ((a + 2 * m) * (a + 2 * m + 1))]) {
+        d = 1 + aa * d; d = 1 / (Math.abs(d) < 1e-30 ? 1e-30 : d);
+        c = 1 + aa / c; if (Math.abs(c) < 1e-30) c = 1e-30;
+        h *= d * c;
+      }
+      if (Math.abs(d * c - 1) < 1e-12) break;
+    }
+    return h;
+  };
+  const front = Math.exp(lnGamma(a + b) - lnGamma(a) - lnGamma(b) + a * Math.log(x) + b * Math.log(1 - x));
+  return x < (a + 1) / (a + b + 2) ? front * cf(a, b, x) / a : 1 - front * cf(b, a, 1 - x) / b;
 }
 // Points shown on the plot: all but those hidden in the legend (all of them when every one is hidden).
 function tsVisible() { const v = tsPoints.filter(p => !p.off); return v.length ? v : tsPoints; }
@@ -458,7 +542,7 @@ $('cropSec').addEventListener('toggle', () => { if (!$('cropSec').open && drawKi
 $('tsClear').onclick = () => { setTsMode(false); clearTsPoints(); refreshTs(); };
 $('tsRange').onchange = () => refreshTs();
 $('tsErr').onchange = () => refreshTs();
-$('tsStyle').onchange = () => drawTsPlot();
+$('tsStyle').onchange = $('tsTrend').onchange = () => drawTsPlot();
 $('tsIts').onchange = () => refreshIts();
 $('tsItsDt').onchange = () => refreshIts();
 // One button in the panel hides or shows the plot; the plot's own x also hides it.
@@ -509,13 +593,35 @@ floatingPlot($('tsPlot'), $('tsDrag'), $('tsSize'), () => drawTsPlot());
 $('tsShow').onclick = () => setTsPlot($('tsPlot').hidden);
 window.addEventListener('resize', () => { if (!$('tsPlot').hidden) drawTsPlot(); });
 $('tsXBar').onchange = () => drawTsPlot();
-$('tsXMode').onchange = () => { $('tsXBar').disabled = $('tsXMode').value === 'season'; drawTsPlot(); };
+$('tsXMode').onchange = () => { $('tsXBar').disabled = $('tsTrend').disabled = $('tsXMode').value === 'season'; drawTsPlot(); };
 $('tsYAuto').onclick = () => { tsYTyped = null; drawTsPlot(); };
+// The trend box: dragged by the user (a press that moves less than 4 px is a click), minimized by its header.
+const tsXY = e => { const r = $('tsCanvas').getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+const inTrendBox = ([x, y]) => tsTrendBox && x >= tsTrendBox.x && x <= tsTrendBox.x + tsTrendBox.w && y >= tsTrendBox.y && y <= tsTrendBox.y + tsTrendBox.h;
+$('tsCanvas').addEventListener('pointerdown', e => {
+  if (!inTrendBox(tsXY(e))) return;
+  tsTrendDrag = { start: tsXY(e), pos: [...tsTrendBox.pos], moved: false };
+  $('tsCanvas').setPointerCapture(e.pointerId);
+});
+$('tsCanvas').addEventListener('pointermove', e => {
+  if (!tsTrendDrag) return;
+  const xy = tsXY(e), dx = xy[0] - tsTrendDrag.start[0], dy = xy[1] - tsTrendDrag.start[1];
+  if (!tsTrendDrag.moved && Math.hypot(dx, dy) < 4) return;
+  tsTrendDrag.moved = true;
+  const f = (v, room) => Math.min(1, Math.max(0, room ? v : 0));
+  tsTrendPos = [f(tsTrendDrag.pos[0] + dx / tsTrendBox.roomX, tsTrendBox.roomX), f(tsTrendDrag.pos[1] + dy / tsTrendBox.roomY, tsTrendBox.roomY)];
+  drawTsPlot();
+});
+$('tsCanvas').addEventListener('pointerup', e => { if (tsTrendDrag?.moved) tsTrendDropped = e.timeStamp; tsTrendDrag = null; });
+$('tsCanvas').addEventListener('pointercancel', () => { tsTrendDrag = null; });
 const tsLegendAt = e => { const r = $('tsCanvas').getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
   return tsLegendHits.find(h => x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h); };
-$('tsCanvas').addEventListener('mousemove', e => { $('tsCanvas').style.cursor = tsLegendAt(e) ? 'pointer' : ''; });
+$('tsCanvas').addEventListener('mousemove', e => { if (!tsTrendDrag) $('tsCanvas').style.cursor = tsLegendAt(e) ? 'pointer' : inTrendBox(tsXY(e)) ? 'move' : ''; });
 $('tsCanvas').onclick = e => {
+  if (e.timeStamp - tsTrendDropped < 300) return;  // the end of a drag, not a click
   const h = tsLegendAt(e);
+  if (h?.trendToggle) { tsTrendMin = !tsTrendMin; drawTsPlot(); return; }
+  if (inTrendBox(tsXY(e))) return;
   if (h?.name) {
     if (h.remove) removeTsLayer(h.name);
     else { if (tsLayerOff.has(h.name)) tsLayerOff.delete(h.name); else tsLayerOff.add(h.name); drawTsPlot(); }

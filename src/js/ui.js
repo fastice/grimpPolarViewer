@@ -126,6 +126,7 @@ const tips = {
   tsYLo: 'Bottom of the plot y axis: drag right to zoom in',
   tsYBand: 'Drag to shift the plot y range up or down, keeping its height',
   tsYAuto: 'Fit the y axis to the GrIMP values again',
+  tsTrend: 'Fit a straight line to each point\'s values on the plot\'s x axis and list its rate per year with the 1-sigma error of that rate, r\u00b2, and p (two-sided t test of a zero rate); drag the box to move it, click its header to minimize it',
   tsXBar: 'Limit the plot x axis to the time-bar range; untick to show every date plotted',
   tsLoad: 'Load points from a CSV or text file: lat/lon or x/y (km or m) columns, optional label; a saved CSV loads back',
   tsIts: 'Also plot ITS_LIVE image-pair velocities (its-live.jpl.nasa.gov datacubes) at the same points, in grey',
@@ -376,7 +377,7 @@ $('qrSave').onclick = () => $('qrCanvas').toBlob(b => saveBlob(b, 'grimp-viewer-
   if (startParams.get('clev')) $('contourLevels').value = startParams.get('clev').split(',').join(', ');
   for (const k of (startParams.get('coff') || '').split(',')) if (['groundingLine', 'iceFront'].includes(k)) $('coastLegend').querySelector(`[data-kind=${k}]`).click();
   if (startParams.get('yr')) { $('pfYrOn').checked = true; $('pfYrStep').value = startParams.get('yr'); }
-  if (startParams.get('tsx') === 'season') { $('tsXMode').value = 'season'; $('tsXBar').disabled = true; }
+  if (startParams.get('tsx') === 'season') { $('tsXMode').value = 'season'; $('tsXBar').disabled = $('tsTrend').disabled = true; }
 }
 window.addEventListener('popstate', () => loadCatalog(new URL(location.href).searchParams.get('href') || presets[0][1], false));
 
