@@ -382,16 +382,19 @@ Switch to **Southern** for Antarctic products, drawn with the South Pole at the 
   move it, drag a side to add a point there, or double-click (or Alt-click) a point to delete it; the
   label updates as you go. **Clear** removes them.
 - **Digitize** (in the panel): draw **Point**s, **Line**s, **Polygon**s, **Rectangle**s and
-  **Circle**s (saved as 64-sided polygons); tick **Freehand** to draw lines and polygons by dragging
-  (or hold Shift while drawing). A tool stays on, so you can draw several shapes, until you click
-  **Stop**. Each shape is listed with a name you can change (by default its type and number: Point 1, Point 2,
-  Line 1, ...), its true length, or its area and
-  perimeter, and a × to delete it; once no tool is on, edit a shape as in Measure. **Save
-  GeoPackage** writes a `.gpkg` in the map's projection (EPSG:3413 or EPSG:3031, in meters), or in
-  longitude and latitude (EPSG:4326) if **Save in** is set to that, with layers
-  `points`, `lines` and `polygons`, each with its name, shape and true length or area on the WGS84
-  ellipsoid (points also get lat and lon); it opens in QGIS, ArcGIS or GDAL. The shapes are kept
-  separately for each hemisphere until the page is closed.
+  **Circle**s; tick **Freehand** to draw lines and polygons by dragging (or hold Shift while
+  drawing). A tool stays on, so you can draw several shapes, until you click **Stop**. Each shape is
+  listed with a name you can change (by default its type and number: Point 1, Point 2, Line 1, ...),
+  its true length, or its area and perimeter, and a × to delete it; a long list scrolls to the
+  newest shape. Once no tool is on, edit shapes as in Measure (drag a point to move it, drag a side
+  to add one, double-click or Alt-click a point to delete it), drag a circle's edge to resize it,
+  and move a whole shape by dragging inside it or Ctrl-dragging (⌘-dragging on a Mac) any shape,
+  lines included. **Save GeoPackage** writes a `.gpkg` in the map's projection (EPSG:3413 or
+  EPSG:3031, in meters), or in longitude and latitude (EPSG:4326) if **Save in** is set to that,
+  with layers `points`, `lines` and `polygons` (circles saved as 64-sided polygons), each with its
+  name, shape and true length or area on the WGS84 ellipsoid (points also get lat and lon); it opens
+  in QGIS, ArcGIS or GDAL. The shapes are kept separately for each hemisphere until the page is
+  closed.
 - **Phones and tablets:** the controls sit below the map; hide them for a full-screen map. Tap the
   map to read a value.
 - **Pixel size:** the label beside the scale bar gives the size of the pixels on the map: a coarser

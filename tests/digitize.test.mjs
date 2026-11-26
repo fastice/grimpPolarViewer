@@ -1,7 +1,7 @@
 // Digitize (Greenland annual): a point, a line, a polygon, a rectangle, a circle and a freehand polygon
 // drawn near Jakobshavn, renamed, edited and deleted from the list, then saved as a GeoPackage that GDAL
 // reads (and its validator passes): three layers in EPSG:3413 with the names, shapes, true lengths and
-// areas. The shapes stay with the Greenland map across a switch to Antarctica and back.
+// areas; a long list scrolls to the newest shape. The shapes stay with the Greenland map across a switch to Antarctica and back.
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { openViewer, catalogs, check, toMap, toPixel, zoomTo, text, hidden, shot, sleep, finish } from './lib.mjs';
@@ -44,7 +44,7 @@ await p.click('#dgPoly'); await p.click('#dgFree');
 let fs = await dg();
 const shapes = fs.map(f => f.shape);
 check('all the shapes are drawn', JSON.stringify(shapes) === JSON.stringify(['point', 'point', 'line', 'polygon', 'rectangle', 'circle', 'freehand polygon']), shapes);
-check('rectangle has 4 corners, circle 64 sides', fs[4].coords[0].length === 5 && fs[5].coords[0].length === 65, [fs[4].coords[0].length, fs[5].coords[0].length]);
+check('rectangle has 4 corners, circle saved with 64 sides', fs[4].coords[0].length === 5 && fs[5].coords[0].length === 65 && fs[5].circle, [fs[4].coords[0].length, fs[5].coords[0].length]);
 check('freehand polygon follows the drag', fs[6].coords[0].length > 20, fs[6].coords[0].length);
 check('listed with names and Save shown', (await p.$$eval('#dgList input', e => e.map(x => x.value))).join('|') === 'Point 1|Point 2|Line 1|Polygon 1|Rectangle 1|Circle 1|Polygon 2'
   && (await text(p, 'dgCount')) === '(7)' && !(await hidden(p, 'dgSave')), await p.$$eval('#dgList input', e => e.map(x => x.value)));
@@ -60,6 +60,27 @@ const m = await toPixel(p, fs[1].coords[1]);
 await p.mouse.move(m[0], m[1]); await p.mouse.down(); await p.mouse.move(m[0], m[1] + 60, { steps: 8 }); await p.mouse.up(); await sleep(500);
 const fs2 = await dg(), lenAfter = await p.$$eval('#dgList .note', e => e[1].textContent);
 check('dragging a point edits the shape and its length', Math.abs(fs2[1].coords[1][1] - fs[1].coords[1][1]) > 1000 && lenAfter !== lenBefore, { lenBefore, lenAfter });
+// a circle is resized by dragging its edge and moved by dragging its center
+const circ = () => p.evaluate(() => window.grimpViewer.dg().find(f => f.shape === 'circle'));
+const c0 = await circ(), edge = await toPixel(p, [c0.circle[0][0] + c0.circle[1], c0.circle[0][1]]), sz0 = await p.$$eval('#dgList .note', e => e[4].textContent);
+await p.mouse.move(edge[0], edge[1]); await p.mouse.down(); await p.mouse.move(edge[0] + 40, edge[1], { steps: 8 }); await p.mouse.up(); await sleep(500);
+const c1 = await circ(), sz1 = await p.$$eval('#dgList .note', e => e[4].textContent);
+check('dragging the edge resizes the circle (center fixed, area relabeled)', c1.circle[1] > c0.circle[1] * 1.2 && Math.hypot(c1.circle[0][0] - c0.circle[0][0], c1.circle[0][1] - c0.circle[0][1]) < 1 && sz1 !== sz0
+  && c1.coords[0].length === 65, { r0: c0.circle[1], r1: c1.circle[1], sz0, sz1 });
+const cen = await toPixel(p, c1.circle[0]);
+await p.mouse.move(cen[0], cen[1]); await p.mouse.down(); await p.mouse.move(cen[0] + 30, cen[1] + 30, { steps: 8 }); await p.mouse.up(); await sleep(500);
+const c2 = await circ();
+check('dragging the center moves it, same size', Math.hypot(c2.circle[0][0] - c1.circle[0][0], c2.circle[0][1] - c1.circle[0][1]) > 1000 && Math.abs(c2.circle[1] - c1.circle[1]) < 1, { c1: c1.circle, c2: c2.circle });
+// whole shapes move: drag inside the rectangle; Ctrl-drag the line (a plain drag on a side still edits)
+const shift = (a, b) => [b[0][0] - a[0][0], b[0][1] - a[0][1]];
+const rect0 = (await dg())[3].coords[0], rc = await toPixel(p, [(rect0[0][0] + rect0[2][0]) / 2, (rect0[0][1] + rect0[2][1]) / 2]);
+await p.mouse.move(rc[0], rc[1]); await p.mouse.down(); await p.mouse.move(rc[0] + 50, rc[1] + 20, { steps: 8 }); await p.mouse.up(); await sleep(500);
+const rect1 = (await dg())[3].coords[0], d1 = shift(rect0, rect1);
+check('dragging inside the rectangle moves it whole', rect1.length === 5 && Math.hypot(...d1) > 1000 && rect1.every((c, k) => Math.abs(c[0] - rect0[k][0] - d1[0]) < 1 && Math.abs(c[1] - rect0[k][1] - d1[1]) < 1), d1);
+const line0 = (await dg())[1].coords, lp = await toPixel(p, [(line0[0][0] + line0[1][0]) / 2, (line0[0][1] + line0[1][1]) / 2]), len0 = await p.$$eval('#dgList .note', e => e[1].textContent);
+await p.keyboard.down('Control'); await p.mouse.move(lp[0], lp[1]); await p.mouse.down(); await p.mouse.move(lp[0] - 40, lp[1] + 40, { steps: 8 }); await p.mouse.up(); await p.keyboard.up('Control'); await sleep(500);
+const line1 = (await dg())[1].coords, d2 = shift(line0, line1);
+check('Ctrl-dragging the line moves it whole', line1.length === 3 && Math.hypot(...d2) > 1000 && line1.every((c, k) => Math.abs(c[0] - line0[k][0] - d2[0]) < 1 && Math.abs(c[1] - line0[k][1] - d2[1]) < 1), { d2, len0 });
 await shot(p, 'digitize');
 
 // the GeoPackage, read back with GDAL
@@ -76,8 +97,8 @@ check('names and shapes saved', lines[0].properties.name === 'Jakobshavn trunk' 
   polys.map(f => f.properties));
 const pc = pts[0].properties;
 check('point lat/lon match its coordinates', Math.abs(pc.lat - 69.2) < 0.01 && Math.abs(pc.lon + 49.6) < 0.02, pc);
-const geomPts = lines[0].geometry.coordinates;
-check('line geometry matches the edited line', geomPts.length === 3 && geomPts.every((c, k) => Math.abs(c[0] - fs2[1].coords[k][0]) < 1e-6 && Math.abs(c[1] - fs2[1].coords[k][1]) < 1e-6));
+const geomPts = lines[0].geometry.coordinates, lineNow = (await dg())[1].coords;
+check('line geometry matches the edited, moved line', geomPts.length === 3 && geomPts.every((c, k) => Math.abs(c[0] - lineNow[k][0]) < 1e-6 && Math.abs(c[1] - lineNow[k][1]) < 1e-6));
 check('line length matches the list', Math.abs(lines[0].properties.length_km - parseFloat(lenAfter)) < 0.01, { gpkg: lines[0].properties.length_km, list: lenAfter });
 // true area against GDAL's geodesic (ellipsoidal) area of the same polygon, its sides cut into 50 m pieces
 // so they follow the straight map lines drawn
@@ -114,4 +135,10 @@ await p.click('#hemS'); await sleep(3000);
 check('none shown on the Antarctic map', (await dg()).length === 0 && await hidden(p, 'dgSave'));
 await p.click('#hemN'); await sleep(3000);
 check('back on Greenland they return', (await dg()).length === 6);
+// a long list scrolls, to the newest shape as each is added
+await p.click('#dgPoint');
+for (let k = 0; k < 8; k++) await clickAt([-49.7 + 0.1 * k, 69.3]);
+await p.click('#dgPoint');
+const sc = await p.$eval('#dgList', e => ({ h: e.scrollHeight, c: e.clientHeight, t: e.scrollTop, last: e.lastElementChild.querySelector('input').value }));
+check('a long list scrolls to the newest shape', sc.h > sc.c && sc.t + sc.c >= sc.h - 2 && sc.last === 'Point 10', sc);
 await finish(browser);

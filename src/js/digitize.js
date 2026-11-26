@@ -8,22 +8,27 @@
 // loaded from the CDN the first time one is saved.
 const dgSource = new ol.source.Vector();
 const dgColor = '#00e5ff';
-const dgLabelAt = g => g.getType() === 'Polygon' ? g.getInteriorPoint() : g.getType() === 'Point' ? g : new ol.geom.Point(g.getLastCoordinate());
-map.addLayer(new ol.layer.Vector({ source: dgSource, zIndex: 7, style: f => [
+const dgLabelAt = g => g.getType() === 'Circle' ? new ol.geom.Point(g.getCenter()) : g.getType() === 'Polygon' ? g.getInteriorPoint() : g.getType() === 'Point' ? g : new ol.geom.Point(g.getLastCoordinate());
+const dgLayer = new ol.layer.Vector({ source: dgSource, zIndex: 7, style: f => [
   new ol.style.Style({ stroke: new ol.style.Stroke({ color: 'rgba(0, 0, 0, 0.7)', width: 4.5 }),
     image: new ol.style.Circle({ radius: 6, fill: new ol.style.Fill({ color: dgColor }), stroke: new ol.style.Stroke({ color: 'rgba(0, 0, 0, 0.8)', width: 2 }) }) }),
   new ol.style.Style({ stroke: new ol.style.Stroke({ color: dgColor, width: 2.5 }), fill: new ol.style.Fill({ color: 'rgba(0, 229, 255, 0.12)' }) }),
   new ol.style.Style({ geometry: g => dgLabelAt(g.getGeometry()), text: new ol.style.Text({ text: f.get('name'), font: '600 13px system-ui, sans-serif',
     textAlign: 'left', offsetX: 9, offsetY: -10, fill: new ol.style.Fill({ color: '#fff' }), stroke: new ol.style.Stroke({ color: 'rgba(0, 0, 0, 0.85)', width: 3 }) }) }),
-] }));
+] });
+map.addLayer(dgLayer);
 // button id: [shape name, Draw type, geometryFunction, freehand-capable]
 const dgTools = { dgPoint: ['point', 'Point'], dgLine: ['line', 'LineString', null, true], dgPoly: ['polygon', 'Polygon', null, true],
-  dgRect: ['rectangle', 'Circle', ol.interaction.Draw.createBox()], dgCircle: ['circle', 'Circle', ol.interaction.Draw.createRegularPolygon(64)] };
+  dgRect: ['rectangle', 'Circle', ol.interaction.Draw.createBox()], dgCircle: ['circle', 'Circle'] };
 const dgStore = {};  // features by projection, for the projections not shown
 let dgCode = null, dgCount = 0;
 const dgNums = {};  // last number given to each type of shape, by projection (Point 1, Point 2, Line 1, ...)
+// A circle stays a circle on the map (so dragging its edge resizes it and dragging its center moves it);
+// it is measured and saved as a 64-sided polygon.
+const dgGeom = g => g.getType() === 'Circle' ? ol.geom.Polygon.fromCircle(g, 64) : g;
 // [true length or perimeter in km, true area in km2] of a geometry
 function dgSize(g) {
+  g = dgGeom(g);
   const t = g.getType();
   if (t === 'Point') return [null, null];
   const cs = t === 'Polygon' ? g.getCoordinates()[0] : g.getCoordinates();
@@ -36,8 +41,9 @@ function dgSizeText(g) {
 }
 // the shapes in the order drawn (the source's own order changes as they are edited)
 const dgFeatures = () => dgSource.getFeatures().sort((a, b) => a.get('n') - b.get('n'));
-function dgList() {
-  const fs = dgFeatures(), ul = $('dgList');
+// The list of shapes, rebuilt; it keeps its scroll position, or scrolls to the newest shape (toEnd).
+function dgList(toEnd = false) {
+  const fs = dgFeatures(), ul = $('dgList'), top = ul.scrollTop;
   ul.replaceChildren(...fs.map(f => {
     const li = document.createElement('li'), name = document.createElement('input'), size = document.createElement('span'), del = document.createElement('button');
     name.type = 'text'; name.spellcheck = false; name.value = f.get('name'); name.title = `Name of this ${f.get('shape')} (saved in the GeoPackage)`;
@@ -48,6 +54,7 @@ function dgList() {
     li.append(name, size, del);
     return li;
   }));
+  ul.scrollTop = toEnd ? ul.scrollHeight : top;
   $('dgSave').hidden = $('dgClear').hidden = !fs.length;
   $('dgCount').textContent = fs.length ? `(${fs.length})` : '';
 }
@@ -62,7 +69,7 @@ function dgStart(btn) {
     const key = `${viewCode} ${shape}`, num = dgNums[key] = (dgNums[key] || 0) + 1;
     e.feature.setProperties({ n: ++dgCount, shape: freehand ? `freehand ${shape}` : shape, name: `${shape[0].toUpperCase()}${shape.slice(1)} ${num}` });
     pfDrawnAt = performance.now();  // the click that ended it is not a map click
-    setTimeout(dgList);
+    setTimeout(() => dgList(true));
   });
   map.addInteraction(draw);
   $(btn).textContent = 'Stop';
@@ -72,11 +79,24 @@ function dgStart(btn) {
     polygon: freehand ? 'Press and drag around each shape.' : 'Click the corners; double-click or click the first corner to finish it.',
   }[shape] + ` Click Stop when done${free && !freehand ? ' (hold Shift to draw freehand)' : ''}. Each shape is added to the list below, where you can type a new name for it.`;
 }
-const dgEditNote = 'To rename a shape, type over its name in the list (× deletes it). On the map, drag a point to move it, drag a side to add a point, double-click (or Alt-click) a point to delete it.';
+const dgEditNote = 'To rename a shape, type over its name in the list (× deletes it). On the map, drag a point to move it, drag a side to add a point, double-click (or Alt-click) a point to delete it; drag a circle\'s edge to resize it. To move a whole shape, drag inside it, or Ctrl-drag (⌘-drag on a Mac) any shape.';
 const dgModify = new ol.interaction.Modify({ source: dgSource, pixelTolerance: 8,
   deleteCondition: e => ol.events.condition.doubleClick(e) || (ol.events.condition.altKeyOnly(e) && ol.events.condition.singleClick(e)) });
 map.addInteraction(dgModify);
-map.getInteractions().on(['add', 'remove'], () => dgModify.setActive(!msDrawing()));
+// Moving a whole shape: drag inside a polygon, rectangle or circle (away from its edge, where a drag edits
+// it instead), or Ctrl-drag (Cmd-drag on a Mac) any shape, lines and points included.
+let dgMoving = null;
+function dgShapeAt(e) {
+  const fs = map.getFeaturesAtPixel(e.pixel, { layerFilter: l => l === dgLayer, hitTolerance: 4 });
+  if (ol.events.condition.platformModifierKeyOnly(e)) return fs[0] || null;
+  return fs.find(f => {
+    const g = dgGeom(f.getGeometry()), q = g.getType() === 'Polygon' && map.getPixelFromCoordinate(g.getClosestPoint(e.coordinate));
+    return q && Math.hypot(q[0] - e.pixel[0], q[1] - e.pixel[1]) > 10;
+  }) || null;
+}
+const dgTranslate = new ol.interaction.Translate({ layers: [dgLayer], hitTolerance: 4, condition: e => !!(dgMoving = dgShapeAt(e)), filter: f => f === dgMoving });
+map.addInteraction(dgTranslate);
+map.getInteractions().on(['add', 'remove'], () => { const on = !msDrawing(); dgModify.setActive(on); dgTranslate.setActive(on); });
 dgSource.on('addfeature', e => e.feature.getGeometry().on('change', ev => {
   const el = e.feature.get('sizeEl');
   if (el) el.textContent = dgSizeText(ev.target);
@@ -150,9 +170,9 @@ async function gpkgBytes(features, code, latlon = false) {
     ...[...new Set([4326, srs])].map(s => [dgWkt[s][0], s, 'EPSG', s, dgWkt[s][1], null])]);
   const layers = { Point: ['points', 'POINT'], LineString: ['lines', 'LINESTRING'], Polygon: ['polygons', 'POLYGON'] };
   for (const [type, [table, gtype]] of Object.entries(layers)) {
-    const fs = features.filter(f => f.getGeometry().getType() === type);
+    const fs = features.filter(f => dgGeom(f.getGeometry()).getType() === type);
     if (!fs.length) continue;
-    const geoms = fs.map(f => { const c = f.getGeometry().getCoordinates(); return type === 'Point' ? tf(c) : type === 'LineString' ? c.map(tf) : c.map(r => r.map(tf)); });
+    const geoms = fs.map(f => { const c = dgGeom(f.getGeometry()).getCoordinates(); return type === 'Point' ? tf(c) : type === 'LineString' ? c.map(tf) : c.map(r => r.map(tf)); });
     const all = geoms.map(c => type === 'Point' ? [c] : type === 'LineString' ? c : c.flat()).flat();
     const ext = [Math.min(...all.map(p => p[0])), Math.min(...all.map(p => p[1])), Math.max(...all.map(p => p[0])), Math.max(...all.map(p => p[1]))];
     const cols = type === 'Point' ? 'lat REAL, lon REAL' : type === 'LineString' ? 'length_km REAL' : 'area_km2 REAL, perimeter_km REAL';
