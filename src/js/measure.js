@@ -1,7 +1,8 @@
 // Measure: distances along lines and areas inside polygons drawn on the map, as true lengths and areas on
 // the WGS84 ellipsoid, with the polar stereographic map's own values beside them. On the polar maps each
 // piece of a line (at most 2 km) is divided by the projection's scale factor there, and areas use the
-// basins' exact ring area (ringArea); other projections use OpenLayers' spherical geodesic measures.
+// basins' ring area (ringArea) with the sides cut into the same pieces; other projections use OpenLayers'
+// spherical geodesic measures.
 // Measurements stay on the map until cleared (or the map's projection changes). Once drawn they can be
 // edited: drag a point to move it, drag a side to add a point there, double-click or Alt-click a point to
 // delete it (a line keeps at least two points, an area three); labels follow as they change.
@@ -31,8 +32,18 @@ function msLength(cs) {
   }
   return [msPolar() ? t : ol.sphere.getLength(new ol.geom.LineString(cs), { projection: viewCode }), m];
 }
+// A ring with its sides cut into straight map pieces of at most 2 km: ringArea's steps about the pole are
+// exact only when short (a polygon with 20 km sides is otherwise 0.3% off).
+function msDense(cs) {
+  const out = [cs[0]];
+  for (let k = 1; k < cs.length; k++) {
+    const [a, b] = [cs[k - 1], cs[k]], n = Math.min(500, Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 2000)));
+    for (let j = 1; j <= n; j++) out.push([a[0] + j / n * (b[0] - a[0]), a[1] + j / n * (b[1] - a[1])]);
+  }
+  return out;
+}
 // [true area, map area] of a polygon in km2.
-const msArea = g => msPolar() ? ringArea(g.getCoordinates()[0]) : [ol.sphere.getArea(g, { projection: viewCode }) / 1e6, g.getArea() / 1e6];
+const msArea = g => msPolar() ? ringArea(msDense(g.getCoordinates()[0])) : [ol.sphere.getArea(g, { projection: viewCode }) / 1e6, g.getArea() / 1e6];
 const msKm = m => m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(m < 1e5 ? 2 : 0)} km`;
 const msKm2 = a => `${a < 100 ? +a.toPrecision(3) : Math.round(a).toLocaleString('en-US')} km²`;
 function msText(g) {

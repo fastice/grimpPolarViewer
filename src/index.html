@@ -271,6 +271,19 @@
       <div id="msNote" class="note"></div>
     </div>
   </details>
+  <details id="dgSec" class="block">
+    <summary>Digitize <span id="dgCount"></span></summary>
+    <div class="block-inner">
+      <div class="row wrap"><button id="dgPoint" type="button" data-label="Point">Point</button><button id="dgLine" type="button" data-label="Line">Line</button>
+        <button id="dgPoly" type="button" data-label="Polygon">Polygon</button><button id="dgRect" type="button" data-label="Rectangle">Rectangle</button>
+        <button id="dgCircle" type="button" data-label="Circle">Circle</button></div>
+      <label class="optrow"><input id="dgFree" type="checkbox"> Freehand lines and polygons</label>
+      <ul id="dgList"></ul>
+      <div class="ctl" id="dgCrsRow"><label for="dgCrs">Save in</label><select id="dgCrs"><option value="map">map grid</option><option value="4326">lon, lat (EPSG:4326)</option></select></div>
+      <div class="row"><button id="dgSave" type="button" hidden>Save GeoPackage</button><button id="dgClear" type="button" class="link" hidden>Clear</button></div>
+      <div id="dgNote" class="note"></div>
+    </div>
+  </details>
   <details id="cropSec" class="block" hidden>
     <summary id="dlTitle">Download</summary>
     <div class="block-inner">
@@ -360,6 +373,7 @@
 <!-- @include js/fronts.js -->
 <!-- @include js/boundaries.js -->
 <!-- @include js/measure.js -->
+<!-- @include js/digitize.js -->
 <!-- @include js/outlines.js -->
 <!-- @include js/arrows.js -->
 <!-- @include js/contours.js -->

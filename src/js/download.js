@@ -15,6 +15,7 @@ function stopDraw() {
   if (draw) map.removeInteraction(draw);
   draw = null; drawKind = null; $('drawBox').textContent = 'Draw box'; $('pfDraw').textContent = 'Draw line'; $('pfFlow').textContent = 'Flow line';
   $('msDist').textContent = 'Distance'; $('msArea').textContent = 'Area';
+  document.querySelectorAll('#dgSec [data-label]').forEach(b => { b.textContent = b.dataset.label; });
 }
 const boxDraw = (source, color) => new ol.interaction.Draw({ source, type: 'Circle', geometryFunction: ol.interaction.Draw.createBox(), style: outline(color) });
 $('drawBox').onclick = () => {
