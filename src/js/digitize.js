@@ -70,9 +70,9 @@ function dgStart(btn) {
     point: 'Click to add points.', rectangle: 'Click one corner, then the opposite corner.', circle: 'Click the center, then a point on the edge.',
     line: freehand ? 'Press and drag to draw each line.' : 'Click points along the line; double-click to finish it.',
     polygon: freehand ? 'Press and drag around each shape.' : 'Click the corners; double-click or click the first corner to finish it.',
-  }[shape] + ` Click Stop when done${free && !freehand ? ' (hold Shift to draw freehand)' : ''}.`;
+  }[shape] + ` Click Stop when done${free && !freehand ? ' (hold Shift to draw freehand)' : ''}. Each shape is added to the list below, where you can type a new name for it.`;
 }
-const dgEditNote = 'Drag a point to move it, drag a side to add a point, double-click (or Alt-click) a point to delete it.';
+const dgEditNote = 'To rename a shape, type over its name in the list (× deletes it). On the map, drag a point to move it, drag a side to add a point, double-click (or Alt-click) a point to delete it.';
 const dgModify = new ol.interaction.Modify({ source: dgSource, pixelTolerance: 8,
   deleteCondition: e => ol.events.condition.doubleClick(e) || (ol.events.condition.altKeyOnly(e) && ol.events.condition.singleClick(e)) });
 map.addInteraction(dgModify);

@@ -25,7 +25,7 @@ const tips = {
   dgRect: 'Digitize rectangles: click one corner, then the opposite one; click Stop when done',
   dgCircle: 'Digitize circles: click the center, then a point on the edge (saved as 64-sided polygons); click Stop when done',
   dgFree: 'Draw lines and polygons by dragging the mouse (or a finger) instead of clicking points',
-  dgSave: 'Save the shapes as a GeoPackage (.gpkg) in the map projection: layers points, lines and polygons, with each name and its true length or area; opens in QGIS, ArcGIS or GDAL',
+  dgSave: 'Save the shapes as a GeoPackage (.gpkg) in the map projection: layers points, lines and polygons, with each name (type over a name in the list to change it) and its true length or area; opens in QGIS, ArcGIS or GDAL',
   dgCrs: 'Coordinates of the saved GeoPackage: the map\'s polar stereographic grid in meters (as the GrIMP GeoTIFFs), or longitude and latitude in degrees (EPSG:4326)',
   dgClear: 'Remove all the digitized shapes (to edit one instead: drag a point to move it, drag a side to add a point, double-click or Alt-click a point to delete it)',
   msClear: 'Remove the measurements from the map (to edit one instead: drag a point to move it, drag a side to add a point, double-click or Alt-click a point to delete it)',
