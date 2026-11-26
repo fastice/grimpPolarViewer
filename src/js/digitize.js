@@ -40,7 +40,7 @@ function dgList() {
   const fs = dgFeatures(), ul = $('dgList');
   ul.replaceChildren(...fs.map(f => {
     const li = document.createElement('li'), name = document.createElement('input'), size = document.createElement('span'), del = document.createElement('button');
-    name.type = 'text'; name.value = f.get('name'); name.title = `Name of this ${f.get('shape')} (saved in the GeoPackage)`;
+    name.type = 'text'; name.spellcheck = false; name.value = f.get('name'); name.title = `Name of this ${f.get('shape')} (saved in the GeoPackage)`;
     name.oninput = () => f.set('name', name.value);
     size.className = 'note'; size.textContent = dgSizeText(f.getGeometry()); f.set('sizeEl', size);
     del.type = 'button'; del.className = 'link'; del.textContent = '×'; del.title = `Delete this ${f.get('shape')}`;
