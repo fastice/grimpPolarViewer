@@ -378,7 +378,9 @@ Switch to **Southern** for Antarctic products, drawn with the South Pole at the 
 - **Measure** (in the panel): **Distance** draws a line (click points, double-click to finish) and
   **Area** a polygon (click the corners, then the first one again or double-click). Each is labeled on
   the map with its true length or area on the WGS84 ellipsoid; the panel also gives the polar
-  stereographic map's own value, which differs by the projection's scale. **Clear** removes them.
+  stereographic map's own value, which differs by the projection's scale. To edit one, drag a point to
+  move it, drag a side to add a point there, or double-click (or Alt-click) a point to delete it; the
+  label updates as you go. **Clear** removes them.
 - **Phones and tablets:** the controls sit below the map; hide them for a full-screen map. Tap the
   map to read a value.
 - **Pixel size:** the label beside the scale bar gives the size of the pixels on the map: a coarser

@@ -19,7 +19,7 @@ const tips = {
   hemS: 'Antarctic collections (polar stereographic EPSG:3031)',
   msDist: 'Measure a distance: click points along a line, double-click to finish; gives the true length on the ellipsoid and the map length',
   msArea: 'Measure an area: click the corners, double-click to finish; gives the true area on the ellipsoid and the map area',
-  msClear: 'Remove the measurements from the map',
+  msClear: 'Remove the measurements from the map (to edit one instead: drag a point to move it, drag a side to add a point, double-click or Alt-click a point to delete it)',
   goTo: 'Zoom to a well-known glacier or region of this hemisphere',
   preset: 'Collections for the selected hemisphere; pick one to open its catalog',
   href: 'URL of any public stac-geoparquet catalog (.parquet); press Enter or Load',

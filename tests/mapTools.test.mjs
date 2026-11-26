@@ -1,6 +1,6 @@
 // Map tools (Greenland annual): Go to zooms to a glacier; Measure gives the true length of a drawn line
 // (checked against Vincenty's ellipsoidal distance) and the true area of a polygon (against OpenLayers'
-// spherical area); Share's Embed copies an iframe of the view, and ?embed=1 opens the map alone with a
+// spherical area), and both can be edited (move, add and delete points, relabeled as they change); Share's Embed copies an iframe of the view, and ?embed=1 opens the map alone with a
 // link to the full viewer.
 import { openViewer, catalogs, check, toMap, toPixel, zoomTo, text, hidden, shot, sleep, finish } from './lib.mjs';
 
@@ -53,6 +53,33 @@ const got = line && parseFloat(line.label) * 1000;
 check('distance: true length matches Vincenty within 0.05%', line && Math.abs(got - ref) / ref < 5e-4, { label: line?.label, vincentyKm: ref / 1000, vertices: line?.coords.length });
 check('distance note gives the map length too', /km \(.* km on the map\)/.test(await text(p, 'msNote')), await text(p, 'msNote'));
 
+// edit the line: drag its middle point, drag a side to add a point, double-click a point to delete it
+const msLine = () => p.evaluate(() => window.grimpViewer.ms().find(m => m.type === 'LineString'));
+const pix = c => p.evaluate(c => { const m = window.grimpViewer.map, r = m.getTargetElement().getBoundingClientRect(), x = m.getPixelFromCoordinate(c); return [r.x + x[0], r.y + x[1]]; }, c);
+const drag = async (a, b) => { await p.mouse.move(a[0], a[1]); await p.mouse.down(); await p.mouse.move(b[0], b[1], { steps: 8 }); await p.mouse.up(); await sleep(500); };
+let l0 = await msLine(), mid = await pix(l0.coords[1]);
+await drag(mid, [mid[0], mid[1] + 60]);
+let l1 = await msLine();
+const llOf = cs => p.evaluate(cs => cs.map(c => ol.proj.toLonLat(c, window.grimpViewer.viewCode())), cs), lenOf = ll => ll.slice(1).reduce((s, q, k) => s + vincenty(ll[k], q), 0);
+let v1 = lenOf(await llOf(l1.coords));
+check('dragging a point moves it and relabels the line', l1.coords.length === 3 && Math.abs(l1.coords[1][1] - l0.coords[1][1]) > 1000 && l1.label !== l0.label
+  && Math.abs(parseFloat(l1.label) * 1000 - v1) / v1 < 5e-4, { before: l0.label, after: l1.label, vincentyKm: v1 / 1000 });
+const s0 = await pix(l1.coords[0]), s1 = await pix(l1.coords[1]), half = [(s0[0] + s1[0]) / 2, (s0[1] + s1[1]) / 2];
+await drag(half, [half[0] - 40, half[1] + 40]);
+let l2 = await msLine();
+check('dragging a side adds a point there', l2.coords.length === 4 && l2.label !== l1.label, { n: l2.coords.length, label: l2.label });
+const z0 = await p.evaluate(() => window.grimpViewer.map.getView().getZoom());
+const del = await pix(l2.coords[1]);
+await p.mouse.click(del[0], del[1], { clickCount: 1 }); await p.mouse.click(del[0], del[1], { clickCount: 2 }); await sleep(700);
+let l3 = await msLine();
+check('double-clicking a point deletes it, without zooming', l3.coords.length === 3 && Math.abs(await p.evaluate(() => window.grimpViewer.map.getView().getZoom()) - z0) < 1e-6, { n: l3.coords.length, label: l3.label });
+const k0 = await pix(l3.coords[1]);
+await p.keyboard.down('Alt'); await p.mouse.click(k0[0], k0[1]); await p.keyboard.up('Alt'); await sleep(500);
+check('Alt-click deletes a point too', (await msLine()).coords.length === 2);
+const k1 = await pix((await msLine()).coords[1]);
+await p.keyboard.down('Alt'); await p.mouse.click(k1[0], k1[1]); await p.keyboard.up('Alt'); await sleep(500);
+check('a line keeps at least two points', (await msLine()).coords.length === 2);
+
 await p.click('#msArea');
 const box = [[-49.8, 69.0], [-49.0, 69.0], [-49.0, 69.3], [-49.8, 69.3]];
 for (const c of box) { const px = await toPixel(p, await toMap(p, ...c)); await p.mouse.click(px[0], px[1]); await sleep(250); }
@@ -62,6 +89,11 @@ const poly = ms.find(m => m.type === 'Polygon');
 const sph = poly && await p.evaluate(cs => ol.sphere.getArea(new ol.geom.Polygon(cs), { projection: window.grimpViewer.viewCode() }) / 1e6, poly.coords);
 const area = poly && parseFloat(poly.label.replace(/,/g, ''));
 check('area: true area within 1% of the spherical area', poly && Math.abs(area - sph) / sph < 0.01, { label: poly?.label, sphericalKm2: sph });
+// edit the area: drag a corner out, and it is relabeled
+const poly0 = poly, c0 = await pix(poly0.coords[0][2]);
+await drag(c0, [c0[0] + 50, c0[1] - 50]);
+const poly1 = (await p.evaluate(() => window.grimpViewer.ms())).find(m => m.type === 'Polygon');
+check('dragging a corner relabels the area', parseFloat(poly1.label.replace(/,/g, '')) > area, { before: poly0.label, after: poly1.label });
 check('two measurements listed and Clear shown', ms.length === 2 && (await text(p, 'msCount')) === '(2)' && !(await hidden(p, 'msClear')));
 await shot(p, 'measure');
 await p.click('#msClear'); await sleep(200);

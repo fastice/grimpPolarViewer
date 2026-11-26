@@ -2,7 +2,9 @@
 // the WGS84 ellipsoid, with the polar stereographic map's own values beside them. On the polar maps each
 // piece of a line (at most 2 km) is divided by the projection's scale factor there, and areas use the
 // basins' exact ring area (ringArea); other projections use OpenLayers' spherical geodesic measures.
-// Measurements stay on the map until cleared (or the map's projection changes).
+// Measurements stay on the map until cleared (or the map's projection changes). Once drawn they can be
+// edited: drag a point to move it, drag a side to add a point there, double-click or Alt-click a point to
+// delete it (a line keeps at least two points, an area three); labels follow as they change.
 const msSource = new ol.source.Vector();
 const msLabelAt = g => g.getType() === 'Polygon' ? g.getInteriorPoint() : new ol.geom.Point(g.getLastCoordinate());
 map.addLayer(new ol.layer.Vector({ source: msSource, zIndex: 7, style: f => [
@@ -40,7 +42,8 @@ function msText(g) {
 }
 function msNoteAll(live = '') {
   const done = msSource.getFeatures().map(f => f.get('full'));
-  $('msNote').textContent = live || (done.length ? `Last: ${done[done.length - 1]}. True lengths and areas on the WGS84 ellipsoid.` : '');
+  $('msNote').textContent = live || (done.length ? `Last: ${done[done.length - 1]}. True lengths and areas on the WGS84 ellipsoid. `
+    + 'Drag a point to move it, drag a side to add a point, double-click (or Alt-click) a point to delete it.' : '');
   $('msClear').hidden = !done.length;
   $('msCount').textContent = done.length ? `(${done.length})` : '';
 }
@@ -56,10 +59,25 @@ function msStart(kind) {
     pfDrawnAt = performance.now();  // the click that ended it is not a map click
     setTimeout(() => { stopDraw(); msNoteAll(); });
   });
+  draw.on('drawabort', () => msNoteAll());
   map.addInteraction(draw);
   $(btn).textContent = 'Cancel';
   $('msNote').textContent = kind === 'LineString' ? 'Click points along the line; double-click to finish.' : 'Click the corners; double-click or click the first corner to finish.';
 }
+// Editing: a Modify interaction on the measurements, off while any shape is being drawn (on the map, by
+// any tool); each edit relabels its measurement.
+const msModify = new ol.interaction.Modify({ source: msSource, pixelTolerance: 8,
+  deleteCondition: e => ol.events.condition.doubleClick(e) || (ol.events.condition.altKeyOnly(e) && ol.events.condition.singleClick(e)) });
+map.addInteraction(msModify);
+const msDrawing = () => map.getInteractions().getArray().some(i => i instanceof ol.interaction.Draw);
+map.getInteractions().on(['add', 'remove'], () => msModify.setActive(!msDrawing()));
+msSource.on('addfeature', e => e.feature.getGeometry().on('change', ev => {
+  if (!e.feature.get('label')) return;  // still being drawn
+  const [label, full] = msText(ev.target);
+  e.feature.setProperties({ label, full });
+  msNoteAll(full);
+}));
+msModify.on('modifyend', () => msNoteAll());
 $('msDist').onclick = () => msStart('LineString');
 $('msArea').onclick = () => msStart('Polygon');
 $('msClear').onclick = () => { if (drawKind === 'msDist' || drawKind === 'msArea') stopDraw(); msSource.clear(); msNoteAll(); };
