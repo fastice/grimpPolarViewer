@@ -14,6 +14,7 @@ let draw = null, drawKind = null, cropBox = null, areaBox = null;
 function stopDraw() {
   if (draw) map.removeInteraction(draw);
   draw = null; drawKind = null; $('drawBox').textContent = 'Draw box'; $('pfDraw').textContent = 'Draw line'; $('pfFlow').textContent = 'Flow line';
+  $('msDist').textContent = 'Distance'; $('msArea').textContent = 'Area';
 }
 const boxDraw = (source, color) => new ol.interaction.Draw({ source, type: 'Circle', geometryFunction: ol.interaction.Draw.createBox(), style: outline(color) });
 $('drawBox').onclick = () => {

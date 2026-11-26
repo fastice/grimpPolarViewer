@@ -1,5 +1,6 @@
-// Two-date difference and swipe (Jakobshavn, Greenland annual): the anomaly minus one chosen date, and the
-// swipe line showing a chosen date on the left of the displayed one, hidden while an anomaly is drawn.
+// Two-date difference and swipe (Jakobshavn, Greenland annual): the anomaly minus one chosen date (as a
+// difference and as a percent change), and the swipe line showing a chosen date on the left of the
+// displayed one, hidden while an anomaly is drawn.
 import { openViewer, catalogs, check, toMap, zoomTo, text, hidden, shot, sleep, finish } from './lib.mjs';
 
 const { browser, page: p } = await openViewer(catalogs.glAnnual);
@@ -21,6 +22,21 @@ const chk = await p.evaluate(id => { const { saShown: s, saCache: c } = window.g
   let n = 0, bad = 0; for (let j = 0; j < v.length; j += 97) { if (Number.isNaN(v[j] - r[j])) continue; n++; if (Math.abs(s.d[j] - (v[j] - r[j])) > 1e-3) bad++; }
   return { n, bad, L: s.L }; }, first[0]);
 check('difference = displayed date minus the chosen date at every sampled pixel', chk.n > 100 && chk.bad === 0, chk);
+// as a percent change of the chosen date (blank where it is near zero)
+await p.select('#saMode', 'pct'); await sleep(500);
+const pc = await p.evaluate(id => { const { saShown: s, saCache: c } = window.grimpViewer.sa(), items = [...c.values.keys()];
+  const v = c.values.get(items[items.length - 1]), r = c.values.get(items.find(it => it.id === id));
+  let n = 0, bad = 0, blank = 0;
+  for (let j = 0; j < v.length; j += 97) {
+    if (Number.isNaN(v[j] - r[j])) continue;
+    if (Number.isNaN(s.d[j])) { blank++; continue; }
+    n++; if (Math.abs(s.d[j] - 100 * (v[j] - r[j]) * c.scale / (r[j] * c.scale + c.offset)) > 1e-3 * Math.max(1, Math.abs(s.d[j]))) bad++;
+  }
+  return { n, bad, blank }; }, first[0]);
+check('percent change = 100 (date - chosen date) / chosen date at every sampled pixel', pc.n > 100 && pc.bad === 0, pc);
+check('percent change: legend in % and note says so', (await text(p, 'saMax')).endsWith('%') && /^Percent change of/.test(await text(p, 'saNote')), [await text(p, 'saMax'), await text(p, 'saNote')]);
+await p.select('#saMode', 'diff'); await sleep(500);
+check('back to the difference', (await text(p, 'saNote')).includes(`minus ${first[1].slice(0, 10)}`));
 await shot(p, 'compareDifference');
 
 // swipe: hidden while the anomaly is drawn, shown once it is off

@@ -90,6 +90,15 @@ function goToPlace(p) {
   setSearchOpen(false);
 }
 
+// Go to: fit the view to the chosen glacier or region (in the map's projection), then reset the menu.
+$('goTo').onchange = () => {
+  const p = goToPlaces[hemi]?.[+$('goTo').value];
+  $('goTo').value = '';
+  if (!p) return;
+  const c = ol.proj.fromLonLat([p[1], p[2]], viewCode), h = p[3] * 1000;
+  map.getView().fit([c[0] - h, c[1] - h, c[0] + h, c[1] + h], { duration: 400 });
+};
+
 $('searchBox').oninput = () => { $('searchClear').hidden = !$('searchBox').value; runSearch(); };
 $('searchBox').onfocus = () => { if ($('searchBox').value) runSearch(); };
 $('searchBox').onblur = () => { searchHits = []; delete $('searchResults').dataset.note; showSearchHits(); };

@@ -17,12 +17,17 @@ function applyClip() {
 const tips = {
   hemN: 'Greenland and other Arctic collections (polar stereographic EPSG:3413)',
   hemS: 'Antarctic collections (polar stereographic EPSG:3031)',
+  msDist: 'Measure a distance: click points along a line, double-click to finish; gives the true length on the ellipsoid and the map length',
+  msArea: 'Measure an area: click the corners, double-click to finish; gives the true area on the ellipsoid and the map area',
+  msClear: 'Remove the measurements from the map',
+  goTo: 'Zoom to a well-known glacier or region of this hemisphere',
   preset: 'Collections for the selected hemisphere; pick one to open its catalog',
   href: 'URL of any public stac-geoparquet catalog (.parquet); press Enter or Load',
   load: 'Open the catalog URL',
   share: 'Copy a link that reopens this view: collection, product, asset, map position, time range, colors, layers, background and points',
   animShare: 'Copy a link that reopens this view with the same animation area and settings, ready to load the frames',
   shareQr: 'Show the Share this view link as a QR code',
+  shareEmbed: 'Copy HTML for an iframe that shows this view, map only, in a web page or slide',
   animShareQr: 'Show the Share this animation link as a QR code',
   asset: 'Which file of the item to show (e.g. vv speed, vx/vy components, browse image)',
   opacity: 'Transparency of the image over the basemap',
@@ -126,7 +131,10 @@ const tips = {
   tsYLo: 'Bottom of the plot y axis: drag right to zoom in',
   tsYBand: 'Drag to shift the plot y range up or down, keeping its height',
   tsYAuto: 'Fit the y axis to the GrIMP values again',
-  tsTrend: 'Fit a straight line to each point\'s values on the plot\'s x axis and list its rate per year with the 1-sigma error of that rate, r\u00b2, and p (two-sided t test of a zero rate); drag the box to move it, click its header to minimize it',
+  tsTrend: 'Fit each point\'s values on the plot\'s x axis by least squares (weighted by the errors when error bars are on) and list its rate per year with the 1-sigma error of that rate, r\u00b2, and p (two-sided t test of a zero rate); drag the box to move it, click its header to minimize it',
+  tsTrendFit: 'A straight line, or a line plus an annual cycle (for monthly and shorter products; gives the cycle\'s amplitude and peak date)',
+  pfRef: 'Plot the values, or each curve minus the curve of one date (the change since then along the line)',
+  saMode: 'Show the anomaly as a difference, or as a percent change of the date (or mean) it is taken from',
   tsXBar: 'Limit the plot x axis to the time-bar range; untick to show every date plotted',
   tsLoad: 'Load points from a CSV or text file: lat/lon or x/y (km or m) columns, optional label; a saved CSV loads back',
   tsIts: 'Also plot ITS_LIVE image-pair velocities (its-live.jpl.nasa.gov datacubes) at the same points, in grey',
@@ -179,6 +187,13 @@ function setPanel(show) {
   map.updateSize();
 }
 $('panelToggle').onclick = () => setPanel(document.body.classList.contains('nopanel'));
+// Embed mode (?embed=1, from Share's Embed): the map alone, for an iframe in a web page or slide, with a link
+// that opens the same view in the full viewer.
+if (startParams.get('embed') === '1') {
+  document.body.classList.add('embed'); setPanel(false);
+  const u = new URL(location.href); u.searchParams.delete('embed');
+  $('embedOpen').href = u.href; $('embedOpen').hidden = false;
+}
 
 map.on('singleclick', e => {
   // singleclick arrives at least 250 ms late, so skip the click that ended a line (it happened by then)
@@ -283,11 +298,11 @@ map.on('pointermove', e => {
 });
 // Share this view: the link reopens the same collection, item, asset, map view, time range, colors,
 // layers (with the contour levels, fronts and grounding-line years and coastline entries), background,
-// time-series points and plot x axis, and the profile or flow line (with its travel-time marks). It goes
-// in the address bar and, where allowed, the clipboard.
+// time-series points, plot x axis and trend, and the profile or flow line (with its travel-time marks and
+// date series and reference curve). It goes in the address bar and, where allowed, the clipboard.
 // Share this animation adds the area box and animation settings; the frames are loaded on request.
 const shareToggles = ['names', 'fronts', 'bounds', 'gl', 'arrows', 'particles', 'contour'];  // optional layers: <key>On
-async function shareView(anim, note, qr = false) {
+async function shareView(anim, note, qr = false, embed = false) {
   const u = new URL(location.origin + location.pathname), q = u.searchParams, v = map.getView();
   q.set('href', $('href').value);
   if (selected) { q.set('item', selected.id); q.set('asset', $('asset').value); }
@@ -313,6 +328,9 @@ async function shareView(anim, note, qr = false) {
   if (pfFlow) { q.set('flow', pfFlow.p0.map(Math.round).join(',')); q.set('flen', pfWant.map(Math.round).join(',')); }
   else if (pfLine) q.set('pf', pfLine.map(p => p.map(Math.round).join(',')).join(';'));
   if (pfFlow && $('pfYrOn').checked) q.set('yr', $('pfYrStep').value);
+  if (pfRef && pfLine) { const c = pfCurves.find(c => c.href === pfRef); if (c) q.set('pref', c.it.id); }
+  if (pfSer && pfLine) q.set('pser', [pfSer.dt, pfSer.cands[pfSer.i0].k, pfSer.cands[pfSer.i1].k].join(','));
+  if ($('tsTrend').checked && tsPoints.length) q.set('trend', $('tsTrendFit').value);
   if ($('tsXMode').value !== 'date') q.set('tsx', $('tsXMode').value);
   if (anim) {
     q.set('anim', 1);
@@ -327,6 +345,14 @@ async function shareView(anim, note, qr = false) {
   }
   history.replaceState(null, '', u);
   if (qr) { showQr(u.href, anim); return; }
+  if (embed) {  // an iframe of the same view in embed mode
+    q.set('embed', 1);
+    const code = `<iframe src="${u.href.replace(/&/g, '&amp;')}" width="900" height="600" style="border:0" allowfullscreen title="GrIMP Polar Viewer"></iframe>`;
+    let ok = false;
+    try { await navigator.clipboard.writeText(code); ok = true; } catch (e) { /* not allowed here */ }
+    $(note).textContent = ok ? 'Embed code (an iframe of this view, map only) copied to the clipboard.' : `Embed code: ${code}`;
+    return;
+  }
   let copied = false;
   try { await navigator.clipboard.writeText(u.href); copied = true; } catch (e) { /* not allowed here */ }
   $(note).textContent = copied ? 'Link copied to the clipboard (also in the address bar).' : 'Copy the link from the address bar.';
@@ -334,6 +360,7 @@ async function shareView(anim, note, qr = false) {
 $('share').onclick = () => shareView(false, 'shareNote');
 $('animShare').onclick = () => shareView(true, 'animNote');
 $('shareQr').onclick = () => shareView(false, 'shareNote', true);
+$('shareEmbed').onclick = () => shareView(false, 'shareNote', false, true);
 $('animShareQr').onclick = () => shareView(true, 'animNote', true);
 // The same link as a QR code (white margin of 4 modules, as the standard asks), to scan with a phone or
 // put on a slide or poster. Very long links (many points) do not fit in a QR code.
@@ -377,7 +404,8 @@ $('qrSave').onclick = () => $('qrCanvas').toBlob(b => saveBlob(b, 'grimp-viewer-
   if (startParams.get('clev')) $('contourLevels').value = startParams.get('clev').split(',').join(', ');
   for (const k of (startParams.get('coff') || '').split(',')) if (['groundingLine', 'iceFront'].includes(k)) $('coastLegend').querySelector(`[data-kind=${k}]`).click();
   if (startParams.get('yr')) { $('pfYrOn').checked = true; $('pfYrStep').value = startParams.get('yr'); }
-  if (startParams.get('tsx') === 'season') { $('tsXMode').value = 'season'; $('tsXBar').disabled = $('tsTrend').disabled = true; }
+  if (['line', 'cycle'].includes(startParams.get('trend'))) { $('tsTrend').checked = true; $('tsTrendFit').value = startParams.get('trend'); }
+  if (startParams.get('tsx') === 'season') { $('tsXMode').value = 'season'; $('tsXBar').disabled = $('tsTrend').disabled = $('tsTrendFit').disabled = true; }
 }
 window.addEventListener('popstate', () => loadCatalog(new URL(location.href).searchParams.get('href') || presets[0][1], false));
 

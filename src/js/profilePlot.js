@@ -1,3 +1,33 @@
+// Change from a reference: the reference curve's values interpolated (linearly; NaN where either side has
+// none, unless c's distance is one of the reference's own) to curve c's distances and subtracted from c's. The curves can be read at different resolutions.
+let pfRef = null;  // href of the reference curve, or null for plain values
+function pfChange(c, ref) {
+  if (c === ref) return c.v.map(v => (Number.isFinite(v) ? 0 : NaN));
+  const out = new Float64Array(c.v.length).fill(NaN), d = ref.d, n = d.length;
+  let j = 0;
+  for (let k = 0; k < c.v.length; k++) {
+    const x = c.d[k];
+    if (!Number.isFinite(c.v[k]) || x < d[0] || x > d[n - 1]) continue;
+    while (j < n - 2 && d[j + 1] < x) j++;
+    const r = x === d[j] ? ref.v[j] : x === d[j + 1] ? ref.v[j + 1] : ref.v[j] + (x - d[j]) / (d[j + 1] - d[j]) * (ref.v[j + 1] - ref.v[j]);  // a sample hit exactly needs no neighbor
+    if (Number.isFinite(r)) out[k] = c.v[k] - r;
+  }
+  return out;
+}
+// The Plot menu: values, or the change from any curve read (by date); a reference that is removed reverts to values.
+function pfRefOptions() {
+  const sc = startRef && pfCurves.find(c => c.it.id === startRef && c.v);
+  if (sc) { pfRef = sc.href; startRef = null; }
+  if (pfRef && !pfCurves.some(c => c.href === pfRef)) pfRef = null;
+  const curves = [...pfCurves].sort((a, b) => a.it.start - b.it.start), names = new Set(curves.map(c => c.name));
+  const opts = [['', 'values'], ...curves.map(c => [c.href, `change from ${fmtDate(c.it.start)} to ${fmtDate(c.it.end)}${names.size > 1 ? `, ${c.name}` : ''}`])];
+  const sel = $('pfRef');
+  if (sel.options.length !== opts.length || opts.some(([v], k) => sel.options[k].value !== v))
+    sel.replaceChildren(...opts.map(([v, t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; return o; }));
+  sel.value = pfRef || '';
+  $('pfRefRow').hidden = pfCurves.length < 2 && !pfRef;
+}
+$('pfRef').onchange = () => { pfRef = $('pfRef').value || null; pfAx.y.typed = null; drawProfile(); };
 function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 1) {
   $('pfCount').textContent = pfCurves.length ? `(${pfCurves.length} curve${pfCurves.length > 1 ? 's' : ''})` : '';
   if (!pfLine || (canvas === $('pfCanvas') && $('pfPlot').hidden)) return;
@@ -10,8 +40,12 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
   ctx.fillStyle = tok('--panel'); ctx.fillRect(0, 0, W, H);
   const R = 14, T = 30, B = 42, ph = H - T - B, km = pfLen() / 1000;
   let L = 82, pw = W - L - R;  // L narrows to fit the y labels once the y range is known
-  const unit = pfCurves.find(c => c.unit)?.unit || '', label = `${pfKey}${unit ? ` (${unit})` : ''}`;
-  const its = $('pfIts').checked && pfIts?.key === pfKey ? pfIts : null;
+  // Change from a reference curve (picked under Plot): every curve minus it, ITS_LIVE left out.
+  if (canvas === $('pfCanvas')) pfRefOptions();
+  const ref = pfRef ? pfCurves.find(c => c.href === pfRef && c.v) : null, dv = c => (ref ? pfChange(c, ref) : c.v);
+  const unit = pfCurves.find(c => c.unit)?.unit || '';
+  const label = `${ref ? `Change in ${pfKey} from ${fmtDate(ref.it.start)}` : pfKey}${unit ? ` (${unit})` : ''}`;
+  const its = !ref && $('pfIts').checked && pfIts?.key === pfKey ? pfIts : null;
   ctx.font = '12px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = fg; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
   ctx.fillText(`${pfFlow ? 'Flow line' : 'Profile A to B'}: ${label}` + (!its ? '' : its.annual ? `; ITS_LIVE (dashed grey): ${its.year} annual mosaic`
     : `; ITS_LIVE (grey): pairs spanning ${fmtDate(new Date((+its.it.start + +its.it.end) / 2))}`), 44, 14, Math.max(60, W - 74));  // right of the move grip, clear of the close x  // clear of the close x
@@ -22,8 +56,8 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
   // y range from the GrIMP curves in that x range (ITS_LIVE is clipped to it), or from ITS_LIVE alone
   let y0 = Infinity, y1 = -Infinity;
   const span = (d, vs) => { for (let k = 0; k < vs.length; k++) { const v = vs[k]; if (Number.isFinite(v) && inX(d[k])) { if (v < y0) y0 = v; if (v > y1) y1 = v; } } };
-  for (const c of pfCurves) if (c.v && !c.off) span(c.d, c.v);
-  if (y0 > y1) for (const c of pfCurves) if (c.v) span(c.d, c.v);  // every curve hidden: keep their axes
+  for (const c of pfCurves) if (c.v && !c.off) span(c.d, dv(c));
+  if (y0 > y1) for (const c of pfCurves) if (c.v) span(c.d, dv(c));  // every curve hidden: keep their axes
   if (y0 > y1 && its) for (const p of its.pairs) span(its.d, p.v);
   if (y0 > y1) { ctx.fillStyle = muted; ctx.fillText(!pfCurves.length ? 'No curves: show a product to add one' : pfCurves.some(c => !c.v) ? 'Reading values...' : 'No data along the line', L + 10, T + ph / 2); return; }
   if (y0 === y1) { y0 -= 1; y1 += 1; }
@@ -79,11 +113,13 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
   };
   if (its?.annual) { ctx.strokeStyle = muted; ctx.lineWidth = 1.8; ctx.setLineDash([6, 4]); for (const p of its.pairs) path(its.d, p.v); ctx.setLineDash([]); }
   else if (its) { ctx.strokeStyle = 'rgba(140, 140, 140, 0.45)'; ctx.lineWidth = 1; for (const p of its.pairs) path(its.d, p.v); }
+  if (ref) { ctx.strokeStyle = fg; ctx.lineWidth = 1; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(L, Y(0)); ctx.lineTo(L + pw, Y(0)); ctx.stroke(); ctx.setLineDash([]); }
   const halo = tok('--panel'), shown = c => selected && c.href === selected.assets[pfKey]?.href;
   for (const c of [...pfCurves.filter(c => !shown(c)), ...pfCurves.filter(shown)]) {  // the shown product on top
     if (!c.v || c.off) continue;
-    ctx.strokeStyle = halo; ctx.lineWidth = shown(c) ? 4.5 : 3.5; path(c.d, c.v);
-    ctx.strokeStyle = c.color; ctx.lineWidth = shown(c) ? 2.4 : 1.4; path(c.d, c.v);
+    const v = dv(c);
+    ctx.strokeStyle = halo; ctx.lineWidth = shown(c) ? 4.5 : 3.5; path(c.d, v);
+    ctx.strokeStyle = c.color; ctx.lineWidth = shown(c) ? 2.4 : 1.4; path(c.d, v);
   }
   // where the fronts or grounding lines shown cross the line (ticks down from the top, in their year
   // colors), and the travel-time marks (ticks up from the bottom)
@@ -291,7 +327,9 @@ $('pfSec').addEventListener('toggle', () => { if (!$('pfSec').open && (drawKind 
 floatingPlot($('pfPlot'), $('pfDrag'), $('pfSize'), () => drawProfile());
 window.addEventListener('resize', () => { if (!$('pfPlot').hidden) drawProfile(); });
 $('pfCsv').onclick = () => {
-  const rows = [['source', 'collection', 'item', 'start', 'end', 'asset', 'unit', 'distance_km', 'x_km', 'y_km', 'lat', 'lon', 'value']];
+  const ref = pfRef ? pfCurves.find(c => c.href === pfRef && c.v) : null;  // with a reference, a column of the change from it
+  const rows = [['source', 'collection', 'item', 'start', 'end', 'asset', 'unit', 'distance_km', 'x_km', 'y_km', 'lat', 'lon', 'value',
+    ...(ref ? [`change_from_${fmtDate(ref.it.start)}`] : [])]];
   const csvText = t => /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
   const pos = dm => {
     const [x, y] = pfAt(dm), [lon, lat] = ol.proj.toLonLat([x, y], viewCode);
@@ -299,8 +337,9 @@ $('pfCsv').onclick = () => {
   };
   for (const c of pfCurves) {
     if (!c.v || c.off) continue;
+    const ch = ref && pfChange(c, ref);
     for (let k = 0; k < c.v.length; k++) rows.push(['GrIMP', csvText(c.name), c.it.id, fmtDate(c.it.start), fmtDate(c.it.end), c.key, c.unit,
-                                                    ...pos(c.d[k]), Number.isNaN(c.v[k]) ? '' : c.v[k]]);
+                                                    ...pos(c.d[k]), Number.isNaN(c.v[k]) ? '' : c.v[k], ...(ch ? [Number.isNaN(ch[k]) ? '' : ch[k]] : [])]);
   }
   // ITS_LIVE is drawn for comparison only: data that are not GrIMP products are shown, never exported.
   saveBlob(new Blob([rows.map(r => r.join(',')).join('\n') + '\n'], { type: 'text/csv' }), `${items[0]?.raw?.collection || 'grimp'}_${pfKey}_profile.csv`);

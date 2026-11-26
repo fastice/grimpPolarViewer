@@ -1,7 +1,9 @@
 // Trend line on the time series plot (Jakobshavn, Greenland annual): each point's least-squares rate, r2
 // and p match an independent fit of the values plotted, the box lists one rate per point and can be
-// dragged and minimized, the trend is off in the month-of-year view, and unticking removes it.
-import { openViewer, catalogs, check, toMap, toPixel, zoomTo, shot, sleep, finish } from './lib.mjs';
+// dragged and minimized, the fit is error-weighted with error bars, the CSV and share link carry it, the
+// trend is off in the month-of-year view, and unticking removes it; on monthly products a line plus annual
+// cycle (residuals orthogonal to the design, not resolved on annual products).
+import { openViewer, catalogs, check, toMap, toPixel, zoomTo, text, shot, sleep, finish } from './lib.mjs';
 
 // Two-sided p of Student's t by direct integration of its density (x = tan u, Simpson), independent of the viewer's
 // incomplete beta function.
@@ -60,9 +62,61 @@ await shot(p, 'trendMin');
 await p.mouse.click(cv[0] + b2.x + b2.w / 2, cv[1] + b2.y + b2.h / 2); await sleep(300);
 check("clicking 'Trend +' restores it", !(await box()).min);
 
+// Least-squares check that needs no second fit: the weighted residuals are orthogonal to every column of the
+// design (1, t, and for a cycle cos and sin of the time of year).
+const orth = cycle => p.evaluate(cycle => window.grimpViewer.ts().trends.filter(t => t.f).map(t => {
+  const q = t.p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v, e: x.e })).filter(x => Number.isFinite(x.v));
+  const w = t.f.weighted ? q.map(x => 1 / x.e ** 2) : q.map(() => 1);
+  const yf = tt => { const y = new Date(tt).getUTCFullYear(), a = Date.UTC(y, 0, 1); return (tt - a) / (Date.UTC(y + 1, 0, 1) - a); };
+  const cols = [() => 1, x => x.t, ...(cycle ? [x => Math.cos(2 * Math.PI * yf(x.t)), x => Math.sin(2 * Math.PI * yf(x.t))] : [])];
+  return Math.max(...cols.map(c => { let s = 0, m = 0; q.forEach((x, k) => { const r = w[k] * (x.v - t.f.model(x.t)) * c(x); s += r; m += Math.abs(r); }); return m ? Math.abs(s) / m : 0; }));
+}), cycle);
+check('residuals orthogonal to the line', (await orth(false)).every(e => e < 1e-9), await orth(false));
+
+// annual products all fall at one time of year: no cycle
+await p.select('#tsTrendFit', 'cycle'); await sleep(400);
+check('line + cycle on annual products says the cycle is not resolved', (await p.evaluate(() => window.grimpViewer.ts().trends.map(t => t.text))).every(t => /no annual cycle/.test(t)));
+await p.select('#tsTrendFit', 'line'); await sleep(300);
+
+// error bars on: the fit is weighted by 1/error^2
+await p.$eval('#tsErr', e => e.click());
+await p.waitForFunction(() => /dates in/.test(document.getElementById('tsNote').textContent) && window.grimpViewer.ts().trends?.length, { timeout: 240000 }); await sleep(800);
+const wt = await p.evaluate(() => window.grimpViewer.ts().trends.map(t => ({ w: t.f?.weighted, rate: t.f?.rate })));
+check('with error bars the trend is error-weighted', wt.length === 2 && wt.every(t => t.w), wt);
+check('weighted residuals orthogonal to the line', (await orth(false)).every(e => e < 1e-9), await orth(false));
+
+// the CSV carries each point's trend
+const fs = await import('fs'), out = new URL('./out/', import.meta.url).pathname;
+for (const f of fs.readdirSync(out)) if (f.endsWith('_points.csv')) fs.unlinkSync(out + f);
+const cdp = await p.createCDPSession(); await cdp.send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: out });
+await p.$eval('#tsCsv', e => e.click());
+let csv = null; for (let i = 0; i < 40 && !csv; i++) { await sleep(250); const f = fs.readdirSync(out).find(f => f.endsWith('_points.csv')); if (f) csv = fs.readFileSync(out + f, 'utf8'); }
+const head = csv?.split('\n')[0].split(',') || [], row1 = csv?.split('\n')[1].split(',') || [];
+check('CSV has the trend columns, filled with the fit', head.includes('trend_rate_per_year') && head.includes('trend_p') && Math.abs(+row1[head.indexOf('trend_rate_per_year')] - wt[0].rate) < 1e-9
+  && row1[head.indexOf('trend_weighted')] === '1', { head: head.slice(14), row: row1.slice(14) });
+
+// the share link keeps the trend
+await p.$eval('#share', e => e.click()); await sleep(300);
+check('share link carries trend=line', new URL(await p.evaluate(() => location.href)).searchParams.get('trend') === 'line');
+await p.$eval('#tsErr', e => e.click());
+await p.waitForFunction(() => /dates in/.test(document.getElementById('tsNote').textContent), { timeout: 240000 }); await sleep(500);
+
 await p.select('#tsXMode', 'season'); await sleep(500);
 check('month-of-year view: trend off and its box disabled', !(await p.evaluate(() => window.grimpViewer.ts().trends.length)) && await p.$eval('#tsTrend', e => e.disabled));
 await p.select('#tsXMode', 'date'); await sleep(300);
 await p.$eval('#tsTrend', e => e.click()); await sleep(300);
 check('unticking removes the trend', !(await p.evaluate(() => window.grimpViewer.ts().trends.length)));
+
+// monthly products: line + annual cycle
+await p.$eval('#tsTrend', e => e.click()); await p.select('#tsTrendFit', 'cycle');
+const status0 = await text(p, 'status');
+await p.$eval('#href', (e, u) => { e.value = u; }, catalogs.glMonthly);
+await p.click('#load');
+await p.waitForFunction(s0 => /items/.test(document.getElementById('status').textContent) && document.getElementById('status').textContent !== s0, { timeout: 120000 }, status0);
+await p.waitForFunction(() => /dates in/.test(document.getElementById('tsNote').textContent) && window.grimpViewer.ts().trends?.length, { timeout: 300000 }); await sleep(1500);
+const cy = await p.evaluate(() => window.grimpViewer.ts().trends.map(t => ({ text: t.text, amp: t.f?.amp, peak: t.f?.peak, n: t.p.values.filter(x => Number.isFinite(x.v)).length })));
+check('monthly: a cycle for each point, with amplitude and peak date', cy.length === 2 && cy.every(t => t.amp > 0 && t.peak >= 0 && t.peak < 1
+  && /; cycle \u00b1[\d.]+ m\/yr, peak [A-Z][a-z]{2} \d{1,2}$/.test(t.text)), cy);
+check('cycle residuals orthogonal to all four columns', (await orth(true)).every(e => e < 1e-9), await orth(true));
+await shot(p, 'trendCycle');
 await finish(browser);

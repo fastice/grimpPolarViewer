@@ -48,7 +48,7 @@ const pfAt = d => alongPath(pfLine, pfCum, d);
 
 function clearProfile() {
   ++pfToken; ++pfItsToken;
-  pfLine = null; pfKey = null; pfCurves = []; pfIts = null; pfFlow = null; pfOff = 0; pfPoint = null;
+  pfLine = null; pfKey = null; pfCurves = []; pfIts = null; pfFlow = null; pfOff = 0; pfPoint = null; pfRef = null; $('pfRefRow').hidden = true;
   pfAx.x.typed = pfAx.y.typed = null; $('pfAxRow').hidden = true;
   if (pfAdjust) { map.removeInteraction(pfAdjust); pfAdjust = null; }
   pfSource.clear(); itsPixCache.clear(); pfMarks = []; $('pfYrNote').textContent = '';
@@ -283,6 +283,10 @@ function pfOnShown(key) {
   if (key !== pfKey) { pfCurves = []; pfKey = key; pfIts = null; pfAx.y.typed = null; pfSer = null; ++pfSerToken; $('pfSerOn').checked = false; serUi(); }
   addProfileCurve(selected, key);
   refreshProfileIts();
+  if (startSer && selected?.assets[key]) {  // a shared date series, once its line and anchor are shown
+    const [dt, k0, k1] = startSer; startSer = null;
+    if ([...$('pfSerDt').options].some(o => +o.value === dt)) { $('pfSerOn').checked = true; $('pfSerDt').value = [...$('pfSerDt').options].find(o => +o.value === dt).value; serStart([k0, k1]); }
+  }
 }
 
 async function profileValues(it, key) {
@@ -355,13 +359,17 @@ function serCands(anchor, dt) {
   }
   return [...best.values()].sort((a, b) => a.k - b.k);
 }
-function serStart() {  // (re)start the series on the shown product: it and up to 3 steps later (or earlier, near the end)
-  serSteps();
+function serStart(win) {  // (re)start the series on the shown product: it and up to 3 steps later (or earlier, near the end),
+  serSteps();             // or the steps win = [k0, k1] from it (a shared link), at most pfSerMax
   const it = selected, dt = +$('pfSerDt').value;
   if (!$('pfSerOn').checked || !pfLine || !it?.assets[pfKey]) pfSer = null;
   else {
     const cands = serCands(it, dt), a = cands.findIndex(c => c.k === 0), i1 = Math.min(cands.length - 1, a + 3);
     pfSer = { anchor: it, dt, cands, i0: Math.max(0, i1 - 3), i1 };
+    if (win) {
+      const j0 = cands.findIndex(c => c.k >= win[0]), j1 = cands.findLastIndex(c => c.k <= win[1]);
+      if (j0 >= 0 && j1 >= j0) Object.assign(pfSer, { i0: j0, i1: Math.min(j1, j0 + pfSerMax - 1) });
+    }
   }
   serUi(); serApply();
 }

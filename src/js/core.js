@@ -16,6 +16,18 @@ const presets = [
   ['Amundsen Sea (PIG) S1 backscatter (uncalibrated, 2015-Feb 2026)', 'https://s3.kopah.uw.edu/ianj-grimp/public/pig/backscatter/v04/ase-backscatter.parquet', 'S'],
 ];
 let hemi = 'N';
+// Go to: well-known glaciers and regions per hemisphere [name, lon, lat, half-width of the view in km]. The
+// points are those of the glacier-name list (Greenland) and the SCAR gazetteer (Antarctica).
+const goToPlaces = {
+  N: [['Whole ice sheet', -42, 72, 1300], ['Jakobshavn Isbræ (Sermeq Kujalleq)', -49.8, 69.1833, 45], ['Helheim Gletsjer', -38.3067, 66.3735, 35],
+      ['Kangerlussuaq Gletsjer', -33.076, 68.6746, 35], ['Kangiata Nunaata Sermia', -49.6102, 64.2966, 35], ['Upernavik Isstrøm', -54.2837, 72.8409, 40],
+      ['Humboldt Gletsjer', -63.3957, 79.4462, 60], ['Petermann Gletsjer', -60.05, 80.5833, 60], ['79 North and Zachariae Isstrøm', -20.6, 79.25, 80]],
+  S: [['Whole continent', 0, -90, 2800], ['Amundsen Sea Embayment', -105, -75.3, 250], ['Pine Island Glacier', -100, -75.1667, 80],
+      ['Thwaites Glacier', -106.75, -75.5, 90], ['Getz Ice Shelf', -125, -74.25, 150], ['Totten Glacier', 116.3333, -67, 70],
+      ['Denman Glacier', 99.5, -66.75, 70], ['Lambert Glacier and Amery Ice Shelf', 70.5, -70.5, 300], ['Byrd Glacier', 159, -80.3333, 70],
+      ['Whillans Ice Stream', -145, -83.6667, 250], ['Recovery Glacier', -28, -81.1667, 200], ['Ross Ice Shelf', -175, -81.5, 550],
+      ['Ronne Ice Shelf', -61, -78.5, 450]],
+};
 
 function setHemi(h) {
   hemi = h;
@@ -24,6 +36,7 @@ function setHemi(h) {
   $('preset').replaceChildren(new Option('Custom URL', ''),
     ...presets.map(([t, , ph], i) => [t, i, ph]).filter(([, , ph]) => ph === h).map(([t, i]) => new Option(t, String(i))));
   fillBackground(h);
+  $('goTo').replaceChildren(new Option('Go to a glacier...', ''), ...goToPlaces[h].map(([name], i) => new Option(name, String(i))));
 }
 function pickHemi(h) {
   // Switching hemisphere opens that hemisphere's first collection.

@@ -265,20 +265,23 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
       ctx.globalAlpha = 1;
     }
   }
-  // Trend: a least-squares line through each point's values on the x axis (dashed, haloed, in the point's
-  // color) over the dates it fits, and a box listing each rate per year with its 1-sigma error, r2 and p.
-  const trends = [];
+  // Trend: a least-squares line (or line plus annual cycle) through each point's values on the x axis
+  // (dashed, haloed, in the point's color) over the dates it fits, weighted by the errors when error bars
+  // are on, and a box listing each rate per year with its 1-sigma error, r2 and p (and the cycle).
+  const trends = [], cycle = $('tsTrendFit').value === 'cycle';
   if ($('tsTrend').checked && !seasonal) for (const p of curOff ? [] : vis) {
-    const f = linFit(p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v })).filter(x => Number.isFinite(x.v) && x.t >= t0 && x.t <= t1));
+    const q = p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, v: x.v, e: x.e })).filter(x => Number.isFinite(x.v) && x.t >= t0 && x.t <= t1);
+    const f = fitTrend(q, cycle, tsPlotInfo.withErr);
+    if (f?.unresolved) { trends.push({ p, text: `${p.n}: no annual cycle (the dates all fall at one time of year)` }); continue; }
     if (!f) continue;
-    const at = t => f.v0 + f.rate * (t - f.tm) / yearMs;
+    const nStep = cycle ? Math.max(2, Math.ceil((f.tb - f.ta) / (yearMs / 48))) : 1;
     for (const [w, c] of [[4, halo], [2, p.color]]) {
-      ctx.strokeStyle = c; ctx.lineWidth = w; ctx.setLineDash([8, 4]);
-      ctx.beginPath(); ctx.moveTo(X(f.ta), Y(at(f.ta))); ctx.lineTo(X(f.tb), Y(at(f.tb))); ctx.stroke();
+      ctx.strokeStyle = c; ctx.lineWidth = w; ctx.setLineDash([8, 4]); ctx.beginPath();
+      for (let k = 0; k <= nStep; k++) { const t = f.ta + (f.tb - f.ta) * k / nStep; if (k) ctx.lineTo(X(t), Y(f.model(t))); else ctx.moveTo(X(t), Y(f.model(t))); }
+      ctx.stroke();
     }
     ctx.setLineDash([]);
-    const dec = f.se > 0 ? Math.max(0, 1 - Math.floor(Math.log10(f.se))) : 2;
-    trends.push({ p, f, text: `${p.n}: ${f.rate >= 0 ? '+' : '\u2212'}${Math.abs(f.rate).toFixed(dec)} \u00b1 ${f.se.toFixed(dec)} ${tsPlotInfo.unit ? `${tsPlotInfo.unit} ` : ''}per year, r\u00b2 ${f.r2.toFixed(2)}, p ${f.p < 0.001 ? '< 0.001' : f.p.toPrecision(2)}` });
+    trends.push({ p, f, text: `${p.n}: ${trendText(f, tsPlotInfo.unit)}` });
   }
   if (onScreen) tsPlotInfo.trends = trends;
   if (onScreen) tsTrendBox = null;
@@ -299,7 +302,8 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
       tsLegendHits.push({ x: bx, y: by, w: bw, h: bh, trendToggle: true });
     } else {
       if (onScreen) {  // the header: click to minimize
-        ctx.fillStyle = muted; ctx.font = '11px "Atkinson Hyperlegible", sans-serif'; ctx.fillText('Trend', bx + 6, by + 11);
+        ctx.fillStyle = muted; ctx.font = '11px "Atkinson Hyperlegible", sans-serif';
+        ctx.fillText(`Trend${cycle ? ' + annual cycle' : ''}${trends.some(r => r.f?.weighted) ? ', error-weighted' : ''}`, bx + 6, by + 11);
         ctx.textAlign = 'center'; ctx.font = '700 13px sans-serif'; ctx.fillText('\u2212', bx + bw - 9, by + 11); ctx.textAlign = 'left';
         ctx.font = '12px "Atkinson Hyperlegible", sans-serif';
         tsLegendHits.push({ x: bx, y: by, w: bw, h: head + 3, trendToggle: true });
@@ -329,20 +333,53 @@ function drawTsPlot(canvas = $('tsCanvas'), scale = window.devicePixelRatio || 1
   ctx.restore();
   drawTsLegend(ctx, canvas, W, R, itsOn);
 }
-// Least-squares line through [{ t (ms), v }]: rate per year, its 1-sigma error from the scatter about the
-// line, r2, p (two-sided t test of a zero rate, n - 2 degrees of freedom), the value v0 at the mean time
-// tm, and the span fitted (ta to tb). Needs three dates.
+// Least-squares trend through [{ t (ms), v, e }]: a straight line, or with cycle a line plus an annual
+// sinusoid. Weighted by 1/e^2 when weighted and every value has an error. Returns the rate per year, its
+// 1-sigma error (scaled by the scatter about the fit), r2, p (two-sided t test of a zero rate, n - np
+// degrees of freedom), for a cycle its semi-amplitude amp and the day of the year of its peak (peak, 0-1),
+// the model at any time, and the span fitted (ta to tb). Null with too few dates (a line needs three, a
+// cycle five), or for a cycle whose dates do not spread through the year (cycle: 'unresolved').
 const yearMs = 365.25 * 86400e3;
-function linFit(q) {
-  if (q.length < 3) return null;
-  const n = q.length, tm = q.reduce((a, x) => a + x.t, 0) / n, v0 = q.reduce((a, x) => a + x.v, 0) / n;
-  const sxx = q.reduce((a, x) => a + ((x.t - tm) / yearMs) ** 2, 0);
-  if (!sxx) return null;
-  const rate = q.reduce((a, x) => a + (x.t - tm) / yearMs * (x.v - v0), 0) / sxx;
-  const ss = q.reduce((a, x) => a + (x.v - v0 - rate * (x.t - tm) / yearMs) ** 2, 0);
-  const sst = q.reduce((a, x) => a + (x.v - v0) ** 2, 0), se = Math.sqrt(ss / (n - 2) / sxx), df = n - 2;
+const tsYearFrac = t => { const y = new Date(t).getUTCFullYear(), a = Date.UTC(y, 0, 1); return (t - a) / (Date.UTC(y + 1, 0, 1) - a); };
+function fitTrend(q, cycle = false, weighted = false) {
+  const np = cycle ? 4 : 2, n = q.length;
+  if (n < np + 1) return null;
+  if (cycle) {  // mean resultant length of the dates' phases: near 1 when they all fall at one time of year
+    const ph = q.map(x => 2 * Math.PI * tsYearFrac(x.t));
+    if (Math.hypot(ph.reduce((a, f) => a + Math.cos(f), 0), ph.reduce((a, f) => a + Math.sin(f), 0)) / n > 0.8) return { unresolved: true };
+  }
+  const tm = q.reduce((a, x) => a + x.t, 0) / n;
+  const row = t => { const y = (t - tm) / yearMs, f = 2 * Math.PI * tsYearFrac(t); return cycle ? [1, y, Math.cos(f), Math.sin(f)] : [1, y]; };
+  const w = weighted && q.every(x => x.e > 0) ? q.map(x => 1 / x.e ** 2) : q.map(() => 1);
+  // normal equations, inverted by Gauss-Jordan with partial pivoting
+  const N = Array.from({ length: np }, () => new Array(2 * np).fill(0)), b = new Array(np).fill(0);
+  q.forEach((x, k) => { const a = row(x.t); for (let i = 0; i < np; i++) { b[i] += w[k] * a[i] * x.v; for (let j = 0; j < np; j++) N[i][j] += w[k] * a[i] * a[j]; } });
+  const scale = Math.max(...N.map((r, i) => r[i]));
+  N.forEach((r, i) => { r[np + i] = 1; });
+  for (let c = 0; c < np; c++) {
+    let piv = c;
+    for (let r = c + 1; r < np; r++) if (Math.abs(N[r][c]) > Math.abs(N[piv][c])) piv = r;
+    if (Math.abs(N[piv][c]) < 1e-10 * scale) return null;
+    [N[c], N[piv]] = [N[piv], N[c]];
+    const d = N[c][c]; N[c] = N[c].map(v => v / d);
+    for (let r = 0; r < np; r++) if (r !== c) { const f = N[r][c]; N[r] = N[r].map((v, j) => v - f * N[c][j]); }
+  }
+  const inv = N.map(r => r.slice(np)), coef = inv.map(r => r.reduce((a, v, j) => a + v * b[j], 0));
+  const model = t => row(t).reduce((a, v, j) => a + v * coef[j], 0);
+  const sw = w.reduce((a, v) => a + v, 0), vm = q.reduce((a, x, k) => a + w[k] * x.v, 0) / sw;
+  const ss = q.reduce((a, x, k) => a + w[k] * (x.v - model(x.t)) ** 2, 0), sst = q.reduce((a, x, k) => a + w[k] * (x.v - vm) ** 2, 0);
+  const df = n - np, rate = coef[1], se = Math.sqrt(inv[1][1] * ss / df);
   const p = se > 0 ? betaInc(df / 2, 0.5, df / (df + (rate / se) ** 2)) : 0;
-  return { rate, se, r2: sst ? 1 - ss / sst : 1, p, v0, tm, ta: Math.min(...q.map(x => x.t)), tb: Math.max(...q.map(x => x.t)) };
+  const out = { rate, se, r2: sst ? 1 - ss / sst : 1, p, model, weighted: w[0] !== 1 || w.some(v => v !== 1), ta: Math.min(...q.map(x => x.t)), tb: Math.max(...q.map(x => x.t)) };
+  if (cycle) Object.assign(out, { amp: Math.hypot(coef[2], coef[3]), peak: ((Math.atan2(coef[3], coef[2]) / (2 * Math.PI)) % 1 + 1) % 1 });
+  return out;
+}
+// One line of the trend box (and of the CSV's trend table): rate +- 1 sigma per year, r2, p, and the cycle.
+function trendText(f, unit) {
+  const dec = f.se > 0 ? Math.max(0, 1 - Math.floor(Math.log10(f.se))) : 2, u = unit ? `${unit} ` : '';
+  let s = `${f.rate >= 0 ? '+' : '\u2212'}${Math.abs(f.rate).toFixed(dec)} \u00b1 ${f.se.toFixed(dec)} ${u}per year, r\u00b2 ${f.r2.toFixed(2)}, p ${f.p < 0.001 ? '< 0.001' : f.p.toPrecision(2)}`;
+  if (f.amp !== undefined) s += `; cycle \u00b1${+f.amp.toPrecision(2)}${unit ? ` ${unit}` : ''}, peak ${new Date(Date.UTC(2001, 0, 1) + f.peak * 365 * 86400e3).toLocaleString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}`;
+  return s;
 }
 // Regularized incomplete beta I_x(a, b), by its continued fraction (Numerical Recipes betai/betacf).
 function betaInc(a, b, x) {
@@ -542,7 +579,7 @@ $('cropSec').addEventListener('toggle', () => { if (!$('cropSec').open && drawKi
 $('tsClear').onclick = () => { setTsMode(false); clearTsPoints(); refreshTs(); };
 $('tsRange').onchange = () => refreshTs();
 $('tsErr').onchange = () => refreshTs();
-$('tsStyle').onchange = $('tsTrend').onchange = () => drawTsPlot();
+$('tsStyle').onchange = $('tsTrend').onchange = $('tsTrendFit').onchange = () => drawTsPlot();
 $('tsIts').onchange = () => refreshIts();
 $('tsItsDt').onchange = () => refreshIts();
 // One button in the panel hides or shows the plot; the plot's own x also hides it.
@@ -593,7 +630,7 @@ floatingPlot($('tsPlot'), $('tsDrag'), $('tsSize'), () => drawTsPlot());
 $('tsShow').onclick = () => setTsPlot($('tsPlot').hidden);
 window.addEventListener('resize', () => { if (!$('tsPlot').hidden) drawTsPlot(); });
 $('tsXBar').onchange = () => drawTsPlot();
-$('tsXMode').onchange = () => { $('tsXBar').disabled = $('tsTrend').disabled = $('tsXMode').value === 'season'; drawTsPlot(); };
+$('tsXMode').onchange = () => { $('tsXBar').disabled = $('tsTrend').disabled = $('tsTrendFit').disabled = $('tsXMode').value === 'season'; drawTsPlot(); };
 $('tsYAuto').onclick = () => { tsYTyped = null; drawTsPlot(); };
 // The trend box: dragged by the user (a press that moves less than 4 px is a click), minimized by its header.
 const tsXY = e => { const r = $('tsCanvas').getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
@@ -645,19 +682,24 @@ $('tsCanvas').onclick = e => {
   if (best && best !== selected) select(best);
 };
 $('tsCsv').onclick = () => {
-  const info = tsPlotInfo, rows = [['point', 'label', 'x_km', 'y_km', 'lat', 'lon', 'item', 'start', 'end', 'asset', 'value', 'unit', 'error', 'collection']];
+  // With a trend on the plot, each row of the collection shown also carries its point's fit (blank for others).
+  const info = tsPlotInfo, tr = info.trends?.length ? info.trends : null;
+  const rows = [['point', 'label', 'x_km', 'y_km', 'lat', 'lon', 'item', 'start', 'end', 'asset', 'value', 'unit', 'error', 'collection',
+    ...(tr ? ['trend_rate_per_year', 'trend_rate_sigma', 'trend_r2', 'trend_p', 'trend_cycle_amplitude', 'trend_cycle_peak_day', 'trend_weighted'] : [])]];
   const csvText = t => /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  const trCols = p => { if (!tr) return []; const f = tr.find(r => r.p === p)?.f;
+    return f ? [f.rate, f.se, f.r2, f.p, f.amp ?? '', f.amp === undefined ? '' : Math.round(f.peak * 365) + 1, f.weighted ? 1 : 0] : ['', '', '', '', '', '', '']; };
   for (const p of tsVisible()) {
     const [lon, lat] = ol.proj.toLonLat(p.coord, viewCode);
     const pos = [p.n, csvText(p.label || ''), (p.coord[0] / 1000).toFixed(3), (p.coord[1] / 1000).toFixed(3), lat.toFixed(5), lon.toFixed(5)];
     if (!tsLayerOff.has(info.name)) for (const x of p.values) {
       rows.push([...pos, x.it.id, fmtDate(x.it.start), fmtDate(x.it.end), info.key, Number.isNaN(x.v) ? '' : x.v, info.unit,
-                 Number.isFinite(x.e) ? x.e : '', csvText(info.name)]);
+                 Number.isFinite(x.e) ? x.e : '', csvText(info.name), ...trCols(p)]);
     }
     for (const l of p.layers || []) {
       if ((l.name === info.name && l.key === info.key) || tsLayerOff.has(l.name)) continue;
       for (const x of l.values) rows.push([...pos, x.id, fmtDate(x.start), fmtDate(x.end), l.key, Number.isNaN(x.v) ? '' : x.v, l.unit,
-                                           Number.isFinite(x.e) ? x.e : '', csvText(l.name)]);
+                                           Number.isFinite(x.e) ? x.e : '', csvText(l.name), ...(tr ? ['', '', '', '', '', '', ''] : [])]);
     }
   }
   const coll = items[0]?.raw?.collection || 'grimp';

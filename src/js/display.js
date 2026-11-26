@@ -16,6 +16,9 @@ let startView = ['item', 'x', 't0', 'pts', 'area', 'anim', 'pf', 'flow'].some(k 
 // Year ranges of the glacier fronts and dated grounding lines, applied when their sliders are built.
 const startYears = { fronts: numList(startParams.get('fy') || ''), gl: numList(startParams.get('gy') || '') };
 let startStretch = numList(`${startParams.get('lo')},${startParams.get('hi')}`);
+// A shared profile date series: [dt option value, first and last step from the anchor (the item shown)].
+let startSer = (s => s && s.length === 3 && s.every(Number.isFinite) ? s : null)((startParams.get('pser') || '').split(',').filter(Boolean).map(Number));
+let startRef = startParams.get('pref');  // a shared profile's reference curve (item id), set once that curve is read
 let startAnimRes = +startParams.get('ares') || null;  // frame resolution (m) of a shared animation
 let animScrollPending = false;  // a shared animation scrolls the panel to the Animate section once the image is read
 function toRaw(v) { return (v - (band.offset ?? 0)) / (band.scale ?? 1); }

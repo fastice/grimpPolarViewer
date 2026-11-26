@@ -25,11 +25,12 @@
       <label class="lab" for="preset">Collections: choose a data set</label>
       <select id="preset"></select>
     </div>
+    <select id="goTo" aria-label="Go to a glacier"></select>
     <div>
       <label class="lab" for="href">Catalog URL (.parquet)</label>
       <div class="row"><input id="href" type="text" spellcheck="false"><button id="load" type="button">Load</button></div>
     </div>
-    <div class="row"><button id="share" type="button">Share this view</button><button id="shareQr" type="button" class="link">QR code</button><span id="shareNote" class="note"></span></div>
+    <div class="row"><button id="share" type="button">Share this view</button><button id="shareQr" type="button" class="link">QR code</button><button id="shareEmbed" type="button" class="link">Embed</button><span id="shareNote" class="note"></span></div>
     <div id="status" role="status"></div>
     <div id="maintNow" class="maint now" role="alert" hidden></div>
     <p class="maint">Data are served from UW Kopah storage, which is offline for scheduled maintenance on the
@@ -103,6 +104,7 @@
       <div class="ctl block-inner" id="swRow" hidden><label for="swRef">Left of the line</label><select id="swRef"></select></div>
       <div id="saOpts" class="block-inner" hidden>
         <div class="ctl"><label for="saRef">Minus</label><select id="saRef"></select></div>
+        <div class="ctl"><label for="saMode">As</label><select id="saMode"><option value="diff" selected>difference</option><option value="pct">percent change</option></select></div>
         <div class="ctl"><label for="saRes">Resolution</label><select id="saRes"></select></div>
         <div class="row" id="saRangeRow">
           <label for="saRange" class="note" style="flex:none">Range &plusmn;</label>
@@ -186,7 +188,8 @@
         <label class="optrow"><input id="tsXBar" type="checkbox" checked> Plot x axis follows the time-bar range</label>
         <label class="optrow"><span style="white-space:nowrap">Plot style</span> <select id="tsStyle"><option value="both" selected>lines and points</option>
           <option value="points">points only</option><option value="lines">lines only</option></select></label>
-        <label class="optrow"><input id="tsTrend" type="checkbox"> Trend line (least-squares fit: rate per year, r&sup2;, p)</label>
+        <div class="optrow"><label class="optrow"><input id="tsTrend" type="checkbox"> Trend:</label>
+          <select id="tsTrendFit"><option value="line" selected>straight line</option><option value="cycle">line + annual cycle</option></select></div>
         <div class="ctl"><span>Plot y range <b id="tsYMinV"></b> to <b id="tsYMaxV"></b> <button id="tsYAuto" type="button" class="link">Auto</button></span>
           <div id="tsYTrack" class="yslider"><div id="tsYBand" class="yband" tabindex="0" role="group" aria-label="Plot y range"></div>
             <div id="tsYLo" class="ythumb" tabindex="0" role="slider" aria-label="Bottom of the plot y axis"></div>
@@ -234,6 +237,7 @@
           <button id="pfSerLater" type="button" class="serbtn" aria-label="Later">&#9654;</button></div>
         <div id="pfSerNote" class="note"></div>
       </div>
+      <label class="optrow" id="pfRefRow" hidden><span class="nowrap">Plot</span> <select id="pfRef"><option value="" selected>values</option></select></label>
       <div class="optrow" id="pfItsRow"><label class="optrow"><input id="pfIts" type="checkbox"> ITS_LIVE in grey,</label>
         <label class="optrow">pairs up to <select id="pfItsDt"><option value="100000">any</option><option value="120">120 d</option>
         <option value="30">30 d</option><option value="12" selected>12 d</option></select></label></div>
@@ -257,6 +261,14 @@
       </div>
       <progress id="pfProg" max="1" value="0" hidden></progress>
       <div id="pfNote" class="note"></div>
+    </div>
+  </details>
+  <details id="msSec" class="block">
+    <summary>Measure <span id="msCount"></span></summary>
+    <div class="block-inner">
+      <div class="row"><button id="msDist" type="button">Distance</button><button id="msArea" type="button">Area</button>
+        <button id="msClear" type="button" class="link" hidden>Clear</button></div>
+      <div id="msNote" class="note"></div>
     </div>
   </details>
   <details id="cropSec" class="block" hidden>
@@ -285,6 +297,7 @@
 <div id="mapwrap">
   <div id="map"></div>
   <button id="panelToggle" type="button" aria-controls="panel" aria-expanded="true">&lsaquo; Hide controls</button>
+  <a id="embedOpen" target="_blank" rel="noopener" hidden>Open in the full viewer &#8599;</a>
   <div id="readout" class="readout" hidden><button id="roClose" type="button" hidden aria-label="Close the readout" title="Close">&times;</button><div id="roText"></div></div>
   <div id="mapfoot"><span id="pixRes" hidden></span></div>
   <div id="search" role="search" class="collapsed"><button id="searchOpen" type="button" aria-expanded="false" aria-controls="searchBox" title="Search places"><svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13 13l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Search</span></button><input id="searchBox" type="search" placeholder="Search places" autocomplete="off" spellcheck="false" aria-label="Search places"><button id="searchClear" type="button" class="link" hidden aria-label="Clear the search">&times;</button>
@@ -346,6 +359,7 @@
 <!-- @include js/search.js -->
 <!-- @include js/fronts.js -->
 <!-- @include js/boundaries.js -->
+<!-- @include js/measure.js -->
 <!-- @include js/outlines.js -->
 <!-- @include js/arrows.js -->
 <!-- @include js/contours.js -->

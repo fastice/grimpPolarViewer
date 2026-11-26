@@ -118,29 +118,41 @@ function saRange() {
 function drawStaticAnom(full = saShown?.full) {
   const c = saCache, v = c.values.get(selected), refItem = [...c.values.keys()].find(it => it.id === $('saRef').value);
   if (!v) return;
-  const n = c.W * c.H, d = new Float32Array(n), base = refItem ? c.values.get(refItem) : c.mean;
-  for (let j = 0; j < n; j++) d[j] = v[j] - base[j];
-  const L = refItem ? diffRange(d) : saRange(), stops = cmaps['blue-white-red'];
+  const n = c.W * c.H, d = new Float32Array(n), base = refItem ? c.values.get(refItem) : c.mean, pct = $('saMode').value === 'pct';
+  if (pct) {
+    // Percent change: in physical units, blank where the reference is under 1% of its 99th-percentile magnitude,
+    // so near-zero speeds do not blow up.
+    const phys = new Float32Array(n);
+    for (let j = 0; j < n; j++) phys[j] = base[j] * c.scale + c.offset;
+    const step = Math.max(1, Math.floor(n / 1e6)), mags = [];
+    for (let j = 0; j < n; j += step) if (!Number.isNaN(phys[j])) mags.push(Math.abs(phys[j]));
+    const s = Float32Array.from(mags).sort(), floor = 0.01 * (s[Math.floor(0.99 * (s.length - 1))] || 0);
+    for (let j = 0; j < n; j++) d[j] = Math.abs(phys[j]) > floor ? 100 * (v[j] - base[j]) * c.scale / phys[j] : NaN;
+  } else for (let j = 0; j < n; j++) d[j] = v[j] - base[j];
+  const L = pct ? diffRange(d, 1) : refItem ? diffRange(d) : saRange(), stops = cmaps['blue-white-red'];
   const canvas = frameCanvas({ values: d }, c.W, c.H, buildLut(stops), -L, L, '');
   staticLayer.setSource(new ol.source.ImageStatic({ url: canvas.toDataURL('image/png'), imageExtent: c.ext, projection: viewCode }));
   saShown = { full, d, L };
   applyLayers();
   $('saRangeRow').hidden = $('saStepRow').hidden = false;
-  const Ld = +(L * c.scale).toPrecision(3);
+  const Ld = +(L * (pct ? 1 : c.scale)).toPrecision(3), unit = pct ? '%' : c.unit;
+  $('saUnit').textContent = unit;
   if (!saTyped) $('saRange').value = Ld;
   $('stretchCtl').hidden = true;  // the normal color controls do not apply to the anomaly
   $('saLegend').hidden = false;
   $('saBar').style.background = `linear-gradient(90deg, ${stops.join(', ')})`;
-  $('saMin').textContent = -Ld; $('saMax').textContent = `${Ld} ${c.unit}`.trim();
-  $('saNote').textContent = `${fmtDate(selected.start)} minus ${refItem ? fmtDate(refItem.start) : `the mean of ${c.values.size} dates`}; `
-    + `${c.W} x ${c.H} px at ${+c.res.toPrecision(4)} m; ±${Ld} ${c.unit} ${saTyped ? '(typed)' : '(auto, 1% clip)'}. `
+  $('saMin').textContent = -Ld; $('saMax').textContent = `${Ld} ${unit}`.trim();
+  const refText = refItem ? fmtDate(refItem.start) : `the mean of ${c.values.size} dates`;
+  $('saNote').textContent = `${pct ? `Percent change of ${fmtDate(selected.start)} from ${refText} (blank where that is near zero)` : `${fmtDate(selected.start)} minus ${refText}`}; `
+    + `${c.W} x ${c.H} px at ${+c.res.toPrecision(4)} m; ±${Ld} ${unit} ${saTyped ? '(typed)' : '(auto, 1% clip)'}. `
     + `Blue below ${refItem ? 'that date' : 'the mean'}, red above.`;
 }
 
-// Automatic ± range of a difference from one date: the typed value, or the larger 1% tail of this difference.
-function diffRange(d) {
+// Automatic ± range of a difference from one date: the typed value, or the larger 1% tail of this difference
+// (scale: of the values in d, 1 for a percent change).
+function diffRange(d, scale = saCache.scale) {
   const typed = +$('saRange').value;
-  if (saTyped && typed > 0) return typed / saCache.scale;
+  if (saTyped && typed > 0) return typed / scale;
   const step = Math.max(1, Math.floor(d.length / 1e6)), picks = [];
   for (let j = 0; j < d.length; j += step) if (!Number.isNaN(d[j])) picks.push(d[j]);
   const s = Float32Array.from(picks).sort(), at = q => s[Math.min(s.length - 1, Math.max(0, Math.round(q * (s.length - 1))))] ?? 0;
@@ -175,6 +187,7 @@ $('saOn').onchange = $('stOn').onchange = e => {
 };
 $('saRes').onchange = () => { if (saActive()) showStaticAnom(); };
 $('saRef').onchange = () => { if ($('saOn').checked) showStaticAnom(); };
+$('saMode').onchange = () => { saTyped = false; $('saRange').value = ''; if (saShown && !saShown.stack) drawStaticAnom(); };
 $('saRange').onchange = () => { saTyped = +$('saRange').value > 0; if (saShown) drawStaticAnom(); };
 function saStep(dir) {
   const series = timeSeries(), i = series.indexOf(selected), j = i + dir;

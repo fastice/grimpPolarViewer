@@ -65,11 +65,13 @@ To send someone what you are looking at, click **Share this view** under the cat
 a link (and puts it in the address bar) that reopens the same collection, product, asset, map position
 and zoom, time range, color map and range, opacity, layers (glacier names, fronts and their years, basins,
 dated grounding lines and their years, flow arrows, particles, speed contours and their levels), background
-image, time-series points, and the profile or flow line with its travel-time marks.
+image, time-series points and their trend, and the profile or flow line with its travel-time marks, date
+series and reference date.
 **Share this animation**, in the Animate section, does the same and adds the animation's area box and
 settings; whoever opens the link clicks **Load frames** to build it.
 The **QR code** link next to either button shows the same link as a QR code, to scan with a phone or
-save as an image for a slide or poster.
+save as an image for a slide or poster. **Embed** copies HTML for an iframe of the view to put in a web
+page or slide: it shows the map alone (no panel), with an **Open in the full viewer** link.
 
 Nothing to install: it runs in any current desktop browser (Chrome, Edge, Firefox, Safari). Only
 downloading many files at once uses a small command-line tool (see [Download data](#8-download-data)).
@@ -88,7 +90,11 @@ so you can compare data sets at one glacier (the **⤢** button beside **+** and
 to the whole collection). Every product in the collection is outlined on the map, and listed
 under **Download** when that section is open; click either to show it.
 
-To find a glacier, click **Search** at the top right of the map, type its name and pick it from the
+For a quick start, **Go to a glacier** (under the Collections menu) zooms to a well-known glacier or
+region of the hemisphere: Jakobshavn, Helheim, Kangerlussuaq, Petermann or 79 North in Greenland; Pine
+Island, Thwaites, Totten or the big ice shelves in Antarctica.
+
+To find any other glacier, click **Search** at the top right of the map, type its name and pick it from the
 list (or press Enter for the first); the box folds back to the button (click it again, or press
 Escape, to close it yourself). Old and foreign names work too: *Jakobshavn* finds
 Sermeq Kujalleq, and accents are optional (*isbrae* finds Isbræ). In Antarctica it searches glaciers, ice
@@ -194,11 +200,17 @@ more files per date.
 - **Plot y range** sets the y axis: drag either handle, or drag the band between them to move the
   range up or down. The x axis follows the timeline's range. **Plot style** draws
   lines and points, points only, or lines only.
-- Tick **Trend line** to fit a straight line (least squares) to each point's values on the plot's x
-  axis. It is drawn dashed in the point's color, and a box lists each point's rate per year with the
-  1-sigma error of that rate, r² and p (two-sided t test of a zero rate). Drag the box to move it;
-  click its header to shrink it to **Trend +** and click that to bring it back. It needs at least three dates,
-  fits only the collection shown, and is off in the month-of-year view.
+- Tick **Trend** to fit each point's values on the plot's x axis by least squares, as a **straight line**
+  or a **line + annual cycle** (a sinusoid with a one-year period). It is drawn dashed in the point's
+  color, and a box lists each point's rate per year with the 1-sigma error of that rate, r² and p
+  (two-sided t test of a zero rate); with the cycle, also its amplitude (±, half the peak-to-trough
+  range) and the date of its peak. For monthly and shorter products, use the cycle: the seasonal
+  speed-up otherwise inflates the scatter about the line and biases the rate's error and p. With
+  **Error bars** on, the fit is weighted by 1/error² (the box says so). Drag the box to move it; click its
+  header to shrink it to **Trend +** and click that to bring it back. A line needs at least three dates,
+  a cycle five spread through the year (annual products all fall at one time of year, so they have none).
+  It fits only the collection shown, and is off in the month-of-year view. **Save CSV** adds each
+  point's fit as extra columns. p assumes the scatter about the fit is independent from date to date.
 - **Plot x axis: month of year** folds the series onto January to December, with one line per year
   colored from blue (oldest) to red (newest), to compare the seasonal cycle from year to year. A thick
   black line (white in dark mode) joins each point's mean for every calendar month. Click a value to show
@@ -254,6 +266,10 @@ the mosaic's speeds. The plot marks them with ticks along its bottom.
   under them, drag a handle to add or drop dates at that end, or drag the band to slide the whole
   series through time. Changing the step, or ticking the box again, starts over from the product
   on the map; curves you added by showing dates yourself stay.
+- With two or more curves, **Plot** switches from the values to the **change from** any one curve's
+  date: each curve minus that one, interpolated to the same distances along the line (the reference
+  plots as zero, dotted). It shows where along the glacier the speed has changed since then. ITS_LIVE
+  is left out, and **Save CSV** adds a column of the change.
 - **Plot x range** and **Plot y range** zoom the plot: drag either handle, or drag the band between
   them to pan; **Auto** goes back to the full line and the automatic y range. With x zoomed in, the
   automatic y range fits the part of the line shown.
@@ -280,7 +296,9 @@ Step through the years with **Earlier** and **Later**, or by clicking the ticks 
 image, or a box you draw with **Draw box** in that section for full resolution.
 
 To compare two dates directly, pick one under **Minus**: the anomaly then shows the displayed date
-minus that date, e.g. 2024-25 minus 2014-15. Or tick **Swipe: compare with another date** to split
+minus that date, e.g. 2024-25 minus 2014-15. Set **As** to **percent change** to show it relative to
+that date (or the mean) instead, which compares slow and fast ice on one scale; pixels where the
+reference is near zero (under 1% of its 99th-percentile value) are left blank. Or tick **Swipe: compare with another date** to split
 the map: the date you pick shows left of a line and the displayed date right of it, in the same
 colors. Drag the round handle (or use the arrow keys) to slide the line across a glacier.
 
@@ -357,6 +375,10 @@ Switch to **Southern** for Antarctic products, drawn with the South Pole at the 
   the second Tuesday of each month, 9 a.m.-5 p.m. Pacific (24 hours in January, April, July and
   October). The viewer will not load during those windows.
 - **Hide controls** (top left of the map) gives the map the whole window.
+- **Measure** (in the panel): **Distance** draws a line (click points, double-click to finish) and
+  **Area** a polygon (click the corners, then the first one again or double-click). Each is labeled on
+  the map with its true length or area on the WGS84 ellipsoid; the panel also gives the polar
+  stereographic map's own value, which differs by the projection's scale. **Clear** removes them.
 - **Phones and tablets:** the controls sit below the map; hide them for a full-screen map. Tap the
   map to read a value.
 - **Pixel size:** the label beside the scale bar gives the size of the pixels on the map: a coarser
