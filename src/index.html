@@ -303,6 +303,20 @@
       <div id="dgNote" class="note"></div>
     </div>
   </details>
+  <details id="figSec" class="block" hidden>
+    <summary>Save figure (PNG)</summary>
+    <div class="block-inner">
+      <div class="row"><button id="figDraw" type="button">Draw box</button><button id="figClearBox" type="button" class="link" hidden>Clear</button><span id="figBoxInfo" class="note"></span></div>
+      <div class="ctl"><label for="figSize">Size</label><select id="figSize"><option value="2">2&times; the box on screen</option>
+        <option value="4" selected>4&times; the box on screen</option><option value="8">8&times; the box on screen</option>
+        <option value="data">the data's own pixels</option><option value="in">a width in inches</option></select></div>
+      <div class="row"><label class="ctl" id="figWidthRow" hidden>Width (in)<input id="figWidth" type="number" step="any" min="0.5" value="6.5"></label>
+        <label class="ctl">dpi<input id="figDpi" type="number" step="1" min="30" value="300"></label></div>
+      <label class="optrow"><input id="figLabels" type="checkbox" checked> Color bar, scale bar and dates</label>
+      <button id="figSave" type="button" disabled>Save figure</button>
+      <div id="figNote" class="note"></div>
+    </div>
+  </details>
   <details id="cropSec" class="block" hidden>
     <summary id="dlTitle">Download</summary>
     <div class="block-inner">
@@ -398,6 +412,7 @@
 <!-- @include js/contours.js -->
 <!-- @include js/frontPositions.js -->
 <!-- @include js/strain.js -->
+<!-- @include js/figure.js -->
 <!-- @include js/ui.js -->
 </script>
 </body>

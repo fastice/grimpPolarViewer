@@ -107,7 +107,7 @@ async function loadCatalog(href, push = true, file = null) {
   const carry = tsPoints.length && prevCode === viewCode ? snapshotTsPoints(prevName) : null;
   stopDraw(); boxSource.clear(); cropBox = null; areaSource.clear(); areaBox = null; picks.clear(); saCache = null; clearStaticAnom(); clearTsPoints(); updateCropInfo();
   // The profile line and its curves carry over too, so the new catalog's product adds its curve.
-  if (prevCode !== viewCode) clearProfile();
+  if (prevCode !== viewCode) { clearProfile(); setFigBox(null); }  // as does the figure box
   // Keep the current view when the new catalog is in the same projection and its extent is in view, so
   // switching collections compares the same place; otherwise fit the map to the new catalog.
   const all = new ol.source.Vector({ features: items.map(i => i.feature) });
@@ -130,6 +130,7 @@ async function loadCatalog(href, push = true, file = null) {
   if (sv?.pf.length === 2) newProfile(sv.pf);
   else if (sv?.flow) newFlowProfile(sv.flow, sv.flen || undefined, true);
   if (sv?.area && !siteMode) { areaBox = sv.area; areaSource.addFeature(new ol.Feature(ol.geom.Polygon.fromExtent(areaBox))); areaChanged(); }
+  if (sv?.fig) { setFigBox(sv.fig, true); $('figSec').open = true; }
   if (sv?.anim) {
     $('animSec').open = true; $('animNote').textContent = 'Shared animation: click Load frames to build it.';
     $('animSec').scrollIntoView({ block: 'start' }); animScrollPending = true;

@@ -4,7 +4,7 @@ let startAsset = new URL(location.href).searchParams.get('asset');
 // to the first catalog loaded.
 const startParams = new URL(location.href).searchParams;
 const numList = (s, n = 2) => { const v = s.split(',').map(Number); return v.length === n && v.every(Number.isFinite) ? v : null; };
-let startView = ['item', 'x', 't0', 'pts', 'area', 'anim', 'pf', 'flow'].some(k => startParams.has(k)) ? {
+let startView = ['item', 'x', 't0', 'pts', 'area', 'anim', 'pf', 'flow', 'fig'].some(k => startParams.has(k)) ? {
   item: startParams.get('item'),
   center: numList(`${startParams.get('x')},${startParams.get('y')}`), zoom: +startParams.get('z') || null,
   t0: startParams.get('t0'), t1: startParams.get('t1'),
@@ -12,6 +12,7 @@ let startView = ['item', 'x', 't0', 'pts', 'area', 'anim', 'pf', 'flow'].some(k 
   area: numList(startParams.get('area') || '', 4), anim: startParams.get('anim') === '1',
   pf: (startParams.get('pf') || '').split(';').map(c => numList(c)).filter(Boolean),  // drawn profile line A;B
   flow: numList(startParams.get('flow') || ''), flen: numList(startParams.get('flen') || ''),  // flow-line point; m up, down
+  fig: numList(startParams.get('fig') || '', 4),  // a saved figure's box
 } : null;
 // Year ranges of the glacier fronts and dated grounding lines, applied when their sliders are built.
 const startYears = { fronts: numList(startParams.get('fy') || ''), gl: numList(startParams.get('gy') || '') };

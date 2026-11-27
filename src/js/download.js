@@ -13,7 +13,7 @@ let draw = null, drawKind = null, cropBox = null, areaBox = null;
 
 function stopDraw() {
   if (draw) map.removeInteraction(draw);
-  draw = null; drawKind = null; $('drawBox').textContent = 'Draw box'; $('pfDraw').textContent = 'Draw line'; $('pfFlow').textContent = 'Flow line';
+  draw = null; drawKind = null; $('drawBox').textContent = 'Draw box'; $('figDraw').textContent = 'Draw box'; $('pfDraw').textContent = 'Draw line'; $('pfFlow').textContent = 'Flow line';
   $('msDist').textContent = 'Distance'; $('msArea').textContent = 'Area';
   document.querySelectorAll('#dgSec [data-label]').forEach(b => { b.textContent = b.dataset.label; });
 }
@@ -51,7 +51,7 @@ function cropWindow(level, org = origin) {
 }
 
 function updateCropInfo() {
-  $('cropSec').hidden = !selected;
+  $('cropSec').hidden = $('figSec').hidden = !selected;
   refreshAnimInfo();
   const sel = $('cropRes');
   $('boxInfo').textContent = cropBox ? `${((cropBox[2] - cropBox[0]) / 1000).toFixed(1)} x ${((cropBox[3] - cropBox[1]) / 1000).toFixed(1)} km` : '';

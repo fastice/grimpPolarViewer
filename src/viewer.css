@@ -69,6 +69,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 #barTicks span::before { content: ''; position: absolute; left: 50%; top: -4px; height: 3px; border-left: 1px solid var(--muted); }
 #srBar { height: 10px; border-radius: 2px; border: 1px solid var(--line); }
 #srLegend .ends { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 12px; }
+.figCover { position: absolute; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: var(--bg); color: var(--fg); font-size: 15px; }
+#figSec .row .ctl input { width: 6em; }
 #bar { height: 10px; border-radius: 2px; background: linear-gradient(90deg, #000, #fff); border: 1px solid var(--line); }
 #frontsLegend .ends { white-space: nowrap; }
 #legend .ends, #saLegend .ends, #frontsLegend .ends, #glLegend .ends { display: flex; justify-content: space-between; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }

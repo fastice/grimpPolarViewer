@@ -134,24 +134,27 @@ function moveParticles(loop) {
 // before the first frame so the trails at the start are those at the end. The live particles pause while it
 // encodes; moving the map stops it.
 const particleMovieSecs = 10, particleMovieFps = 30;
+// The map's layer canvases composited on one W x H canvas (ratio canvas pixels per CSS pixel) over fill.
+function compositeMap(W, H, ratio, fill) {
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = fill; ctx.fillRect(0, 0, W, H);
+  for (const lc of map.getViewport().querySelectorAll('.ol-layer canvas, canvas.ol-layer')) {
+    if (!lc.width) continue;
+    const op = lc.parentNode.style.opacity || lc.style.opacity, tr = lc.style.transform.match(/^matrix\(([^(]*)\)$/);
+    const m = tr ? tr[1].split(',').map(Number) : [parseFloat(lc.style.width) / lc.width, 0, 0, parseFloat(lc.style.height) / lc.height, 0, 0];
+    ctx.globalAlpha = op === '' ? 1 : +op;
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0); ctx.transform(...m);
+    ctx.drawImage(lc, 0, 0);
+  }
+  return c;
+}
 function mapStill() {
-  // The map's layer canvases composited at the particle canvas's size, once the map has finished rendering.
+  // The map composited at the particle canvas's size, once the map has finished rendering (no-data areas are
+  // black in the movie).
   return new Promise(resolve => {
-    map.once('rendercomplete', () => {
-      const dpr = window.devicePixelRatio || 1, c = document.createElement('canvas');
-      c.width = pCanvas.width; c.height = pCanvas.height;
-      const ctx = c.getContext('2d');
-      ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, c.width, c.height);  // no-data areas are black in the movie
-      for (const lc of map.getViewport().querySelectorAll('.ol-layer canvas, canvas.ol-layer')) {
-        if (!lc.width) continue;
-        const op = lc.parentNode.style.opacity || lc.style.opacity, tr = lc.style.transform.match(/^matrix\(([^(]*)\)$/);
-        const m = tr ? tr[1].split(',').map(Number) : [parseFloat(lc.style.width) / lc.width, 0, 0, parseFloat(lc.style.height) / lc.height, 0, 0];
-        ctx.globalAlpha = op === '' ? 1 : +op;
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.transform(...m);
-        ctx.drawImage(lc, 0, 0);
-      }
-      resolve(c);
-    });
+    map.once('rendercomplete', () => resolve(compositeMap(pCanvas.width, pCanvas.height, window.devicePixelRatio || 1, '#000000')));
     map.renderSync();
   });
 }

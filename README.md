@@ -301,18 +301,6 @@ the mosaic's speeds. The plot shows them as a time axis along its top, labeled i
 
 ### 6. See what changed
 
-### Strain rates
-
-Velocity products (with vx and vy) have a **Strain rates** section. Pick **effective** (the overall
-rate of deformation), **along flow** (stretching +, compression -), **shear across flow** or
-**divergence** (thinning + or thickening - by flow), and the length the velocity differences are taken
-across (500 m to 10 km: longer is less noisy but blurs narrow shear margins), then click **Compute for
-this view**. The strain rate, in 1/yr, is computed in your browser for the area on screen, at the map's
-pixel size but no finer than the data, and drawn over the map (the speed layer is hidden under it),
-with its value under the pointer in the readout. It follows the date as you step through the time
-series; compute again after moving the map. **Color range** fixes the top of the color bar
-(automatic: 98% of the values in view).
-
 When a product is part of a time series, open **Anomaly and stack** and tick **Show as anomaly** to see how one date differs
 from the average of all dates: blue where the ice was slower than usual, red where it was faster.
 Step through the years with **Earlier** and **Later**, or by clicking the ticks on the timeline.
@@ -327,6 +315,32 @@ the map: the date you pick shows left of a line and the displayed date right of 
 colors. Drag the round handle (or use the arrow keys) to slide the line across a glacier.
 
 ![Speed in 2024-25 minus the mean of all 11 years (2014-15 to 2024-25): outlet glaciers faster (red) or slower (blue) than usual](Documents/images/anomaly.jpg)
+
+### Strain rates
+
+Velocity products (with vx and vy) have a **Strain rates** section. Pick **effective** (the overall
+rate of deformation), **along flow** (stretching +, compression -), **shear across flow** or
+**divergence** (thinning + or thickening - by flow), and the length the velocity differences are taken
+across (500 m to 10 km: longer is less noisy but blurs narrow shear margins), then click **Compute for
+this view**. The strain rate, in 1/yr, is computed in your browser for the area on screen, at the map's
+pixel size but no finer than the data, and drawn over the map (the speed layer is hidden under it),
+with its value under the pointer in the readout. It follows the date as you step through the time
+series; compute again after moving the map. **Color range** fixes the top of the color bar
+(automatic: 98% of the values in view).
+
+### Save a figure
+
+**Save figure (PNG)** makes a picture of part of the map at a higher resolution than the screen, for a
+paper or a slide. Click **Draw box** and click two corners, then pick the **Size**: 2, 4 or 8 times the
+box's size on screen, one pixel per pixel of the data, or a width in inches (e.g. 6.5 in at 300 dpi is
+1950 pixels across). The map is drawn again at that size, with everything shown on it (background,
+coastlines, fronts, names, your shapes, a strain map or the swipe), so lines and labels are sharp and the
+images are read from finer levels of the data, down to its full resolution (the note says when the figure
+is finer than the data, whose pixels are then enlarged). **Color bar, scale bar and dates** labels it. The
+PNG stores its dpi, so it comes in at its print size in Word, PowerPoint or LaTeX, and a .json saved beside
+it has the box, size, product, colors and a link that reopens the viewer with the same view and box: click
+**Save figure** there to make it again (the link is also stored in the PNG). Up to 8192 pixels a side and
+16.7 million in all; flow particles are not drawn.
 
 ### 7. Make an animation
 

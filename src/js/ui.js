@@ -34,6 +34,11 @@ const tips = {
   srLen: 'Velocity differences are taken across this length (centered), so it also smooths: longer is less noisy but blurs narrow shear margins',
   srMax: 'Top of the color range in 1/yr (signed rates use the same value below 0); blank for automatic (98% of the values in view)',
   srCompute: 'Compute the strain rate from vx and vy for the map view (at the map\'s pixel size, no finer than the data); compute again after moving',
+  figDraw: 'Draw the box to save as a figure: click one corner, then the opposite corner',
+  figSize: 'Pixels of the figure: a multiple of the box\'s size on screen, one per pixel of the data (its finest level), or a width in inches at the dpi below. Everything shown is drawn again at that size, with sharp lines and labels',
+  figDpi: 'Dots per inch stored in the PNG, so it comes in at its print size in Word, PowerPoint or LaTeX (it does not change the pixels unless the size is a width in inches)',
+  figLabels: 'Draw a color bar (top right), the dates (bottom left) and a scale bar (bottom right) on the figure',
+  figSave: 'Save the figure as a PNG, and beside it a .json with the box, size, product, colors and a link that reopens the viewer with this view and box to make it again (the link is also stored in the PNG)',
   dgCrs: 'Coordinates of the saved GeoPackage: the map\'s polar stereographic grid in meters (as the GrIMP GeoTIFFs), or longitude and latitude in degrees (EPSG:4326)',
   dgClear: 'Remove all the digitized shapes (to edit one instead: drag a point to move it, drag a side to add a point, double-click or Alt-click a point to delete it; drag inside a shape, or Ctrl-drag any shape, to move it)',
   msClear: 'Remove the measurements from the map (to edit one instead: drag a point to move it, drag a side to add a point, double-click or Alt-click a point to delete it)',
@@ -334,6 +339,23 @@ map.on('pointermove', e => {
 const shareToggles = ['names', 'fronts', 'bounds', 'gl', 'arrows', 'particles', 'contour'];  // optional layers: <key>On
 async function shareView(anim, note, qr = false, embed = false) {
   if (localCatalog) { $(note).textContent = 'This catalog is open from this computer, so a link cannot show it to anyone else.'; return; }
+  const u = shareUrl(anim), q = u.searchParams;
+  history.replaceState(null, '', u);
+  if (qr) { showQr(u.href, anim); return; }
+  if (embed) {  // an iframe of the same view in embed mode
+    q.set('embed', 1);
+    const code = `<iframe src="${u.href.replace(/&/g, '&amp;')}" width="900" height="600" style="border:0" allowfullscreen title="GrIMP Polar Viewer"></iframe>`;
+    let ok = false;
+    try { await navigator.clipboard.writeText(code); ok = true; } catch (e) { /* not allowed here */ }
+    $(note).textContent = ok ? 'Embed code (an iframe of this view, map only) copied to the clipboard.' : `Embed code: ${code}`;
+    return;
+  }
+  let copied = false;
+  try { await navigator.clipboard.writeText(u.href); copied = true; } catch (e) { /* not allowed here */ }
+  $(note).textContent = copied ? 'Link copied to the clipboard (also in the address bar).' : 'Copy the link from the address bar.';
+}
+// the link to this view (with the animation's settings when anim)
+function shareUrl(anim) {
   const u = new URL(location.origin + location.pathname), q = u.searchParams, v = map.getView();
   q.set('href', $('href').value);
   if (selected) { q.set('item', selected.id); q.set('asset', $('asset').value); }
@@ -375,19 +397,7 @@ async function shareView(anim, note, qr = false, embed = false) {
     q.set('afps', $('animFps').value);
     if (!$('animLoop').checked) q.set('aloop', 0);
   }
-  history.replaceState(null, '', u);
-  if (qr) { showQr(u.href, anim); return; }
-  if (embed) {  // an iframe of the same view in embed mode
-    q.set('embed', 1);
-    const code = `<iframe src="${u.href.replace(/&/g, '&amp;')}" width="900" height="600" style="border:0" allowfullscreen title="GrIMP Polar Viewer"></iframe>`;
-    let ok = false;
-    try { await navigator.clipboard.writeText(code); ok = true; } catch (e) { /* not allowed here */ }
-    $(note).textContent = ok ? 'Embed code (an iframe of this view, map only) copied to the clipboard.' : `Embed code: ${code}`;
-    return;
-  }
-  let copied = false;
-  try { await navigator.clipboard.writeText(u.href); copied = true; } catch (e) { /* not allowed here */ }
-  $(note).textContent = copied ? 'Link copied to the clipboard (also in the address bar).' : 'Copy the link from the address bar.';
+  return u;
 }
 $('share').onclick = () => shareView(false, 'shareNote');
 $('animShare').onclick = () => shareView(true, 'animNote');
