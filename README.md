@@ -337,9 +337,10 @@ box's size on screen, one pixel per pixel of the data, or a width in inches (e.g
 coastlines, fronts, names, your shapes, a strain map or the swipe), so lines and labels are sharp and the
 images are read from finer levels of the data, down to its full resolution (the note says when the figure
 is finer than the data, whose pixels are then enlarged). **Color bar, scale bar and dates** labels it. The
-PNG stores its dpi, so it comes in at its print size in Word, PowerPoint or LaTeX, and a .json saved beside
-it has the box, size, product, colors and a link that reopens the viewer with the same view and box: click
-**Save figure** there to make it again (the link is also stored in the PNG). Up to 8192 pixels a side and
+PNG stores its dpi, so it comes in at its print size in Word, PowerPoint or LaTeX. **Save the .json
+sidecar** then saves a .json beside it with the box, size, product, colors and a link that reopens the
+viewer with the same view and box: click **Save figure** there to make it again (the link is also stored
+in the PNG). Up to 8192 pixels a side and
 16.7 million in all; flow particles are not drawn.
 
 ### 7. Make an animation

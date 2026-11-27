@@ -1,0 +1,186 @@
+[
+ [
+  "open",
+  "Welcome to the Grimp Polar Viewer."
+ ],
+ [
+  "open",
+  "It lets you explore the Greenland Ice Sheet Mapping Project's velocity and radar products right in your web browser, on maps centered on the pole, the way polar scientists draw them."
+ ],
+ [
+  "open",
+  "There's nothing to install."
+ ],
+ [
+  "coll",
+  "Start by choosing a collection: annual, quarterly, monthly, or six- and twelve-day velocity, radar backscatter, or Terra SAR X glacier sites."
+ ],
+ [
+  "coll",
+  "When you switch collections, the map stays where you are, so it's easy to compare data sets at one glacier."
+ ],
+ [
+  "color",
+  "Speed opens on a log scale, in the same colors as the Grimp browse images, so slow ice and fast glaciers like Jakobshavn both show. Untick log scale for a linear scale, then type a maximum or drag the clip slider to set its range."
+ ],
+ [
+  "time",
+  "The bar on the left is a timeline, newest at the top."
+ ],
+ [
+  "time",
+  "Drag the handles to set a range of dates, or click a tick to show that date."
+ ],
+ [
+  "time",
+  "Move the mouse over the map to read off the speed and its error."
+ ],
+ [
+  "ts",
+  "To see how the ice has changed, open Time series at points and click a few spots."
+ ],
+ [
+  "ts",
+  "Each one is read from every date and plotted as the values arrive."
+ ],
+ [
+  "ts",
+  "The seasonal view shows the average for each month, with any one year drawn on top, so you can see the summer speed-up at a glance."
+ ],
+ [
+  "ts",
+  "Tick Trend to fit each series: a straight line, or for monthly data, a line plus an annual cycle. The box gives the rate of change with its error, r squared and p, and the size and timing of the summer peak."
+ ],
+ [
+  "ts",
+  "Plots can be saved as a picture, and the values as a CSV file."
+ ],
+ [
+  "pf",
+  "For a profile, draw a line, or click Flow line and pick a point on a glacier."
+ ],
+ [
+  "pf",
+  "The viewer traces the line along the ice flow. Drag the point to nudge it until the line follows the glacier the way you want, then click Use this line. A time axis along the top of the plot shows how many years the ice takes to travel down it."
+ ],
+ [
+  "pf",
+  "Drag the slider under the buttons to make the line longer or shorter, upstream or downstream."
+ ],
+ [
+  "pf",
+  "Each product you've shown gets its own curve, so you can see how the speed along the glacier has changed."
+ ],
+ [
+  "pf",
+  "Click a date in the legend to hide its curve, or click its cross to remove it."
+ ],
+ [
+  "pf",
+  "Set Plot to change from a date, and each curve shows how much faster or slower the ice is than it was then, all along the glacier."
+ ],
+ [
+  "layers",
+  "You can add glacier names, calving fronts, basins and speed contours."
+ ],
+ [
+  "layers",
+  "And you can turn on flow particles, which drift with the ice, to give a feel for how the whole system moves."
+ ],
+ [
+  "strain",
+  "Strain rates shows how fast the ice is stretching, squeezing or shearing, worked out from the speed in the view."
+ ],
+ [
+  "strain",
+  "Pick effective, along flow, shear or divergence, and how far apart to take the differences, then click Compute. Move the mouse over the map to read the value."
+ ],
+ [
+  "anim",
+  "To watch change over time, open Animate and draw a box around a glacier."
+ ],
+ [
+  "anim",
+  "Tick Anomaly and load the frames to see each year's difference from the average: red where the ice was faster than usual, blue where it was slower."
+ ],
+ [
+  "anim",
+  "Save movie writes an M P 4 that plays in PowerPoint and on any computer."
+ ],
+ [
+  "bks",
+  "Animations work for radar images too. Here, six years of backscatter show Jakobshavn's calving front moving back and forth with the seasons."
+ ],
+ [
+  "bks",
+  "Swipe works on radar images too: a winter image on the left against late summer on the right shows how far the front moves in a few months."
+ ],
+ [
+  "share",
+  "Share this view copies a link that reopens exactly what you see, and the Q R code is handy for a poster or slide."
+ ],
+ [
+  "share",
+  "Embed copies code that puts this map, live, in your own web page."
+ ],
+ [
+  "share",
+  "Go to a glacier jumps straight to well known places, like Helheim."
+ ],
+ [
+  "share",
+  "Measure gives true distances and areas, corrected for the map projection. Drag a point to move it, or drag a side to add one."
+ ],
+ [
+  "share",
+  "Digitize draws your own points, lines, rectangles, circles and polygons, or freehand outlines traced with the mouse."
+ ],
+ [
+  "share",
+  "Drag inside a shape to move it, and drag a circle's edge to make it bigger or smaller."
+ ],
+ [
+  "share",
+  "Click plot beside a polygon to add it to Time series at points, as the average speed inside the shape on every date."
+ ],
+ [
+  "share",
+  "Type a name for each one in the list, then save them all as a Geo Package under a file name you choose, ready for Q G I S or Arc G I S. Open Geo Package brings shapes from those programs back in to edit, with all their fields."
+ ],
+ [
+  "share",
+  "In the Download section you can save Grimp products, or crop them to a box."
+ ],
+ [
+  "share",
+  "Other data drawn on the map, like glacier fronts, and the U C I basins and grounding lines, are for display only; their sources and credits, with download links, are on the GitHub page."
+ ],
+ [
+  "share",
+  "For many files, save a download list and fetch them with the command-line tool from the GitHub page."
+ ],
+ [
+  "share",
+  "And Open a folder reads a catalog and its Geo TIFFs from your own computer, so you can look at your own data without uploading anything."
+ ],
+ [
+  "ant",
+  "Click Southern for Antarctica, and pick the Amundsen Sea velocity series to look at Pine Island Glacier."
+ ],
+ [
+  "ant",
+  "Here the map shows the browse image, a shaded picture of the speed, but points and profiles still read the speed itself, so this point on the ice shelf plots how fast it has moved each year."
+ ],
+ [
+  "ant",
+  "To compare two dates directly, turn on swipe and drag the handle across the glacier."
+ ],
+ [
+  "ant",
+  "There's also a radar backscatter series for the Amundsen Sea, and a Nye-sar radar mosaic of the whole continent."
+ ],
+ [
+  "ant",
+  "The full guide is on the GitHub page. Enjoy exploring."
+ ]
+]

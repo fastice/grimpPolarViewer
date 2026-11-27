@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GrIMP Polar Viewer Tutorial</title>
+<style>
+  :root { --bg: #f6f7f9; --fg: #1b1f24; --muted: #5a6470; --accent: #1f6fb2; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #14171b; --fg: #e8eaed; --muted: #9aa4af; --accent: #6cb4f0; } }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 40px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  p { margin: 6px 0; color: var(--muted); }
+  video { display: block; width: 100%; height: auto; margin: 14px 0 10px; background: #000; border-radius: 6px; }
+  a { color: var(--accent); }
+  .links a { margin-right: 18px; white-space: nowrap; }
+</style>
+</head>
+<body>
+<main>
+  <h1>GrIMP Polar Viewer tutorial</h1>
+  <p>8 minutes, narrated. To turn captions on or off, use the player&rsquo;s <b>CC</b> button (in Chrome, the <b>&#8942;</b> menu, then <b>Captions</b>).</p>
+  <video controls preload="metadata" src="grimpPolarViewerTutorial.mp4">
+    <track kind="captions" src="captions.vtt" srclang="en" label="English">
+  </video>
+  <p class="links"><a href="../index.html">Open the viewer</a>
+    <a href="https://github.com/fastice/grimpPolarViewer">Guide on GitHub</a>
+    <a href="grimpPolarViewerTutorial.mp4" download>Download the video</a>
+    <a href="captions.vtt" download>Captions (.vtt)</a></p>
+</main>
+</body>
+</html>

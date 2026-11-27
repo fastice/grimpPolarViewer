@@ -4,7 +4,7 @@
 // beside a .json sidecar; the map comes back as it was. The sidecar's link reopens the viewer with the box and
 // size, and saving again there makes the same figure.
 import { execFileSync } from 'node:child_process';
-import { existsSync, unlinkSync, readFileSync } from 'node:fs';
+import { existsSync, unlinkSync, readFileSync, readdirSync } from 'node:fs';
 import { openViewer, catalogs, check, toMap, toPixel, zoomTo, text, sleep, shot, finish } from './lib.mjs';
 
 const out = new URL('./out/figure/', import.meta.url).pathname;
@@ -37,7 +37,7 @@ const H = Math.round(1950 * bh / bw);
 check('6.5 in at 300 dpi: 1950 pixels, finer than the data', s[0] === 1950 && s[1] === H && /6.50 x \d\.\d\d in at 300 dpi.*finer than the data's 200 m/.test(await note()), await note());
 
 // save it
-for (const f of ['png', 'json']) { const n = `${out}${await p.$eval('#lname', e => e.textContent.replace(/_vv_.*$/, ''))}_vv_figure.${f}`; if (existsSync(n)) unlinkSync(n); }
+for (const d of [out, out + 'again/']) if (existsSync(d)) for (const f of readdirSync(d)) if (/_figure\.(png|json)$/.test(f)) unlinkSync(d + f);  // earlier runs' files
 const cdp = await p.createCDPSession();
 await cdp.send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: out });
 const before = await fig();
@@ -45,6 +45,8 @@ await p.click('#figSave');
 await p.waitForFunction(() => /^Saved|Could not/.test(document.getElementById('figNote').textContent), { timeout: 180000 });
 await sleep(2000);
 const saved = await note(), name = (/^Saved (\S+)\.png/.exec(saved) || [])[1];
+check('only the PNG downloads by itself', !!name && existsSync(`${out}${name}.png`) && !existsSync(`${out}${name}.json`) && !(await p.$eval('#figFiles', e => e.hidden)));
+await p.click('#figJson'); await sleep(1500);
 check('saved note', !!name && saved.includes(`1950 x ${H} pixels`) && !/had not loaded/.test(saved), saved);
 const after = await fig();
 check('map back as it was', JSON.stringify(after.size) === JSON.stringify(before.size) && after.ratio === before.ratio

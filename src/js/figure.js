@@ -8,10 +8,11 @@ const figSource = new ol.source.Vector();
 const figLayer = new ol.layer.Vector({ source: figSource, zIndex: 5, style: outline('#e0559b') });
 map.addLayer(figLayer);
 const figMaxSide = 8192, figMaxPx = 16.7e6;  // canvas limits of common browsers (Safari: 16.7 million pixels)
-let figBox = null, figBusy = false, figFromLink = false;
+let figBox = null, figBusy = false, figFromLink = false, figFiles = null;  // figFiles: the last figure's { png, json, name }
 
 function setFigBox(box, fromLink = false) {
   figSource.clear(); figBox = box; figFromLink = fromLink;
+  figFiles = null; $('figFiles').hidden = true;
   if (box) figSource.addFeature(new ol.Feature(ol.geom.Polygon.fromExtent(box)));
   figInfo();
 }
@@ -149,11 +150,13 @@ async function saveFigure() {
     ...(sr ? { strainRate: sr } : {}),
     labels: $('figLabels').checked, allTilesLoaded: complete, viewer: build, created: new Date().toISOString(),
   };
+  // Only the PNG downloads by itself: browsers that allow one download without a click (Safari, phones) keep
+  // only the last of two. The .json (and the PNG again, if the browser blocked it) are a click each.
+  figFiles = { png, json: new Blob([JSON.stringify(info, null, 1)], { type: 'application/json' }), name };
   saveBlob(png, `${name}.png`);
-  await pause(400);  // two downloads at once: some browsers drop the second
-  saveBlob(new Blob([JSON.stringify(info, null, 1)], { type: 'application/json' }), `${name}.json`);
   figInfo();
-  $('figNote').textContent = `Saved ${name}.png (${W} x ${H} pixels) and ${name}.json, which has the link that rebuilds it.`
+  $('figFiles').hidden = false;
+  $('figNote').textContent = `Saved ${name}.png (${W} x ${H} pixels). Save the .json sidecar too: it has the link that rebuilds the figure (also stored in the PNG).`
     + (complete ? '' : ' Some map tiles had not loaded after 2 minutes, so parts may be blank; save again.');
 }
 
@@ -168,6 +171,8 @@ $('figDraw').onclick = () => {
 };
 $('figClearBox').onclick = () => { if (drawKind === 'fig') stopDraw(); setFigBox(null); $('figNote').textContent = ''; };
 $('figSave').onclick = saveFigure;
+$('figJson').onclick = () => { if (figFiles) saveBlob(figFiles.json, `${figFiles.name}.json`); };
+$('figPng').onclick = () => { if (figFiles) saveBlob(figFiles.png, `${figFiles.name}.png`); };
 for (const id of ['figSize', 'figWidth', 'figDpi']) $(id).addEventListener('input', figInfo);
 $('figSec').addEventListener('toggle', () => { if (!$('figSec').open && drawKind === 'fig') stopDraw(); });
 map.on('moveend', () => { if (figBox && !figBusy) figInfo(); });
