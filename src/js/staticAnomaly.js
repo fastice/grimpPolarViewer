@@ -163,7 +163,7 @@ function drawStack(full = saShown?.full) {
   // The per-pixel mean of the dates in the time range, colored with the normal stretch and color map.
   const c = saCache;
   if (!c || c.key !== $('asset').value) return;
-  const canvas = frameCanvas({ values: c.mean }, c.W, c.H, buildLut(cmaps[$('cmap').value] || cmaps.gray), rawLo, rawHi, '');
+  const canvas = frameCanvas({ values: c.mean }, c.W, c.H, buildLut(cmaps[$('cmap').value] || cmaps.gray), rawLo, rawHi, '', null, logScale);
   staticLayer.setSource(new ol.source.ImageStatic({ url: canvas.toDataURL('image/png'), imageExtent: c.ext, projection: viewCode }));
   saShown = { full, d: c.mean, stack: true };
   applyLayers();

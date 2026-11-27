@@ -1,5 +1,9 @@
 const zeroFloorAssets = new Set(['vv', 'ex', 'ey']), signedAssets = new Set(['vx', 'vy']);
 let stretchMode = 'both', lastSeqCmap = 'gray', cmapChosen = false;
+// Speeds open on a log scale in the browse colors over the browse images' 1-3000 m/yr, until the log box is
+// changed (logChosen) or the clip moved (clipMoved, which stretches to the image instead).
+let logChosen = null, clipMoved = false;
+const browseRange = [1, 3000];
 // Animation: one frame per item of the selected item's time series (items in the time range that
 // cover the same area), cut to the crop box or the whole image/site, drawn with the color range and
 // color map in force when the frames are loaded, so every frame is directly comparable.
@@ -152,15 +156,16 @@ async function readFrame(it, key, ext, res, W, H) {
   return rgb ? { rgba: out } : { values: out };
 }
 
-function frameCanvas(frame, W, H, lut, lo, hi, label, bar = null) {
+function frameCanvas(frame, W, H, lut, lo, hi, label, bar = null, log = false) {
   const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d'), img = ctx.createImageData(W, H), px = img.data;
   if (frame.rgba) px.set(frame.rgba);
   else {
-    const v = frame.values, span = hi - lo || 1;
+    const v = frame.values, span = hi - lo || 1, logSpan = Math.log(hi / lo) || 1;
     for (let k = 0; k < v.length; k++) {
       if (Number.isNaN(v[k])) continue;  // alpha stays 0
-      const q = Math.min(255, Math.max(0, Math.round((v[k] - lo) / span * 255))) * 3;
+      const f = log ? (v[k] > 0 ? Math.log(v[k] / lo) / logSpan : 0) : (v[k] - lo) / span;
+      const q = Math.min(255, Math.max(0, Math.round(f * 255))) * 3;
       px[k * 4] = lut[q]; px[k * 4 + 1] = lut[q + 1]; px[k * 4 + 2] = lut[q + 2]; px[k * 4 + 3] = 255;
     }
   }
@@ -230,7 +235,7 @@ async function buildFrames() {
         if (token !== animToken) return;
         add(it, frameCanvas(f, W, H, lut, rawLo, rawHi, label(it), withBar ? {
           stops: barStops, dlo: toDisp(rawLo), dhi: toDisp(rawHi), centered: stretchMode === 'symmetric',
-          title: `${key}${unit ? ` (${unit})` : ''}` } : null), f.values || null);
+          title: `${key}${unit ? ` (${unit})` : ''}${logScale ? ', log scale' : ''}` } : null, logScale), f.values || null);
         await pause(0);  // let the page repaint the progress note
       }
     } else {

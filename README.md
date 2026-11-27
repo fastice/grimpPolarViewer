@@ -122,9 +122,11 @@ The bar down the left edge of the map is a timeline, newest at the top, with a t
 <img src="Documents/images/panel-color.png" align="right" width="300" alt="Color bar, color map menu, clip slider and min/max boxes">
 
 In the **Color bar** section, pick a **color map**, and use the **Clip** slider to set how many of the
-brightest (and darkest) pixels saturate, or type exact **Min** and **Max** values. Speeds start at zero
-(in viridis until you pick another map); velocity components (vx, vy) are centered on zero in blue and
-red:
+brightest (and darkest) pixels saturate, or type exact **Min** and **Max** values. Speed (vv) opens on
+a **Log scale** in the **browse** colors over 1 to 3000 m/yr, so it looks like the GrIMP browse
+images, with slow ice and fast glaciers both visible; moving the Clip slider fits the log range to the
+image instead. Untick Log scale for a linear scale from zero (in viridis until you pick another map).
+Velocity components (vx, vy) are centered on zero in blue and red:
 
 <br clear="right">
 

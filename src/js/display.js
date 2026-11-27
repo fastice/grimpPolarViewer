@@ -52,11 +52,13 @@ function showAsset(key) {
   }
   // Speeds and errors start at a hard 0; velocity components are stretched symmetrically about 0.
   stretchMode = zeroFloorAssets.has(key) ? 'zero' : signedAssets.has(key) ? 'symmetric' : 'both';
-  $('clipwhere').textContent = { zero: 'at the top (min fixed at 0)', symmetric: 'each end, centered on 0', both: 'each end' }[stretchMode];
+  logScale = stretchMode === 'zero' && (logChosen ?? key === 'vv');
+  $('logRow').hidden = stretchMode !== 'zero'; $('logScale').checked = logScale;
+  clipWhere();
   if (stretchMode === 'symmetric') {
     if ($('cmap').value !== 'blue-white-red') { lastSeqCmap = $('cmap').value; $('cmap').value = 'blue-white-red'; }
   } else if (!cmapChosen) {
-    $('cmap').value = key === 'vv' ? 'viridis' : 'gray';  // speed opens in viridis until a map is picked
+    $('cmap').value = key === 'vv' ? (logScale ? 'browse' : 'viridis') : 'gray';  // speed opens in browse colors until a map is picked
   } else if ($('cmap').value === 'blue-white-red') {
     $('cmap').value = lastSeqCmap;
   }
@@ -67,8 +69,8 @@ function showAsset(key) {
   if (stretchMode === 'zero') lo = toRaw(0);
   if (stretchMode === 'symmetric') { const L = Math.max(Math.abs(toDisp(lo)), Math.abs(toDisp(hi))); lo = toRaw(-L); hi = toRaw(L); }
   rasterLayer.setSource(new ol.source.GeoTIFF({ sources: [{ url: a.href, nodata }], normalize: false, interpolate: true, projection }));
-  setStretch(...(startStretch || [toDisp(lo), toDisp(hi)]));
-  $('lunit').textContent = band.unit || '';
+  setStretch(...(startStretch || (logScale && key === 'vv' && !clipMoved ? browseRange : [toDisp(lo), toDisp(hi)])));
+  $('lunit').textContent = unitText();
   loadSample(a.href, nodata);
   compareKey = ''; refreshCompare();
 }
@@ -81,20 +83,25 @@ function rgbStyle(a) {
   return { color: ['array', ['band', 1], ['band', 2], ['band', 3], alpha] };
 }
 
+const unitText = () => `${band.unit || ''}${logScale ? ' (log scale)' : ''}`;
+function clipWhere() {
+  $('clipwhere').textContent = logScale ? 'each end (log scale)' : { zero: 'at the top (min fixed at 0)', symmetric: 'each end, centered on 0', both: 'each end' }[stretchMode];
+}
 function setStretch(dlo, dhi) {
+  if (logScale && !(dlo > 0)) dlo = dhi / 1000;  // a log scale starts above 0
   const r = v => +v.toPrecision(4);
   $('smin').value = r(dlo); $('smax').value = r(dhi);
   $('lmin').textContent = r(dlo); $('lmax').textContent = r(dhi);
   const changed = rawLo !== toRaw(dlo) || rawHi !== toRaw(dhi);
   rawLo = toRaw(dlo); rawHi = toRaw(dhi);
-  if (!rgbMode) { rasterLayer.updateStyleVariables({ lo: rawLo, hi: rawHi }); if (compareItem) compareLayer.updateStyleVariables({ lo: rawLo, hi: rawHi }); }
+  if (!rgbMode) { const v = styleVars(rawLo, rawHi, logScale); rasterLayer.updateStyleVariables(v); if (compareItem) compareLayer.updateStyleVariables(v); }
   if (changed && frames.length) resetAnimation('The color range changed; load the frames again to use it.');
   if (changed && saShown?.stack) drawStack();
 }
 
 function setColormap(name) {
   if (frames.length) resetAnimation('The color map changed; load the frames again to use it.');
-  rasterLayer.setStyle(rasterStyle(cmaps[name], rawLo, rawHi));
+  rasterLayer.setStyle(rasterStyle(cmaps[name], rawLo, rawHi, logScale));
   syncCompareStyle();
   $('bar').style.background = `linear-gradient(90deg, ${cmaps[name].join(', ')})`;
   if (saShown?.stack) drawStack();

@@ -18,7 +18,7 @@ const itemDates = it => `${fmtDate(it.start)} to ${fmtDate(it.end)}`;
 function syncCompareStyle() {
   if (!compareItem) return;
   const a = compareItem.assets[$('asset').value];
-  compareLayer.setStyle(rgbMode ? rgbStyle(a) : rasterStyle(cmaps[$('cmap').value] || cmaps.gray, rawLo, rawHi));
+  compareLayer.setStyle(rgbMode ? rgbStyle(a) : rasterStyle(cmaps[$('cmap').value] || cmaps.gray, rawLo, rawHi, logScale));
 }
 
 function refreshCompare() {

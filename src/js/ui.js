@@ -5,7 +5,9 @@ function applyClip() {
   if (startStretch) { setStretch(...startStretch); startStretch = null; return; }  // a shared link's range wins once
   const at = q => sample[Math.min(sample.length - 1, Math.max(0, Math.round(q * (sample.length - 1))))];
   const lo = toDisp(at(p / 100)), hi = toDisp(at(1 - p / 100));
-  if (stretchMode === 'zero') setStretch(0, hi);
+  if (logScale && $('asset').value === 'vv' && !clipMoved) setStretch(...browseRange);
+  else if (logScale) setStretch(Math.max(lo, hi / 1e4), hi);
+  else if (stretchMode === 'zero') setStretch(0, hi);
   else if (stretchMode === 'symmetric') {
     // Same limit both sides: the larger of the two tails, so neither end clips more than p%.
     const L = Math.max(Math.abs(lo), Math.abs(hi));
@@ -64,7 +66,8 @@ const tips = {
   frontsOn: 'Winter ice-front positions of Greenland outlet glaciers, 1972-73 to 2020-21 (NSIDC-0642 v2), colored by year; point at a front for its date',
   namesOn: 'Glacier and place names: Greenland from Bjørk et al. 2015, Antarctica from the SCAR Composite Gazetteer. Zoomed out only the major ones, more as you zoom in',
   cmap: 'Color map for single-band images',
-  clip: 'Percent of pixels saturated at each end of the color range (only the top for speeds; symmetric for vx/vy)',
+  clip: 'Percent of pixels saturated at each end of the color range (only the top for speeds on a linear scale; symmetric for vx/vy)',
+  logScale: 'Spread the colors evenly in log(speed), so slow ice and fast glaciers both show; speed opens this way, in the browse colors over 1 to 3000 m/yr like the GrIMP browse images (move Clip to fit the range to the image instead)',
   smin: 'Lowest value of the color range (type to override the clip)',
   smax: 'Highest value of the color range (type to override the clip)',
   saOn: 'Show the displayed date minus the per-pixel mean of all dates in its time series, or minus one date (Minus)',
@@ -190,7 +193,18 @@ $('footOn').onchange = e => footLayer.setVisible(e.target.checked);
 $('smin').onchange = $('smax').onchange = () => setStretch(+$('smin').value, +$('smax').value);
 $('cmap').replaceChildren(...Object.keys(cmaps).map(k => new Option(k, k)));
 $('cmap').onchange = e => { if (e.target.value !== 'blue-white-red') { lastSeqCmap = e.target.value; cmapChosen = true; } setColormap(e.target.value); };
-$('clip').oninput = applyClip;
+// Phones grey out files of a type they do not know (.gpkg, .geojson, .gpx), so there the outline and
+// GeoPackage pickers take any file; their readers refuse the wrong ones with a message.
+if (matchMedia('(pointer: coarse)').matches) for (const id of ['olFile', 'dgFile']) $(id).removeAttribute('accept');
+$('clip').oninput = () => { clipMoved = true; applyClip(); };
+$('logScale').onchange = e => {
+  logChosen = logScale = e.target.checked;
+  if (!cmapChosen && $('asset').value === 'vv') $('cmap').value = logScale ? 'browse' : 'viridis';
+  clipWhere(); $('lunit').textContent = unitText();
+  if (logScale && !(rawLo > 0)) setStretch(toDisp(rawHi) / 1000, toDisp(rawHi));
+  setColormap($('cmap').value);
+  applyClip();
+};
 function setPanel(show) {
   document.body.classList.toggle('nopanel', !show);
   $('panelToggle').innerHTML = show ? '&lsaquo; Hide controls' : '&#9776; Controls';
@@ -322,6 +336,7 @@ async function shareView(anim, note, qr = false, embed = false) {
   if (dates.length && (i0 > 0 || i1 < dates.length - 1)) { q.set('t0', fmtDate(new Date(dates[i0]))); q.set('t1', fmtDate(new Date(dates[i1]))); }
   if (selected && !rgbMode) { q.set('lo', $('smin').value); q.set('hi', $('smax').value); }
   if (cmapChosen) q.set('cmap', lastSeqCmap);
+  if (selected && stretchMode === 'zero' && !rgbMode) q.set('log', logScale ? '1' : '0');
   if (rasterLayer.getOpacity() < 1) q.set('op', rasterLayer.getOpacity());
   const off = ['base', 'coast', 'foot'].filter(k => !$(`${k}On`).checked);
   if (off.length) q.set('off', off.join(','));
@@ -397,6 +412,7 @@ $('qrSave').onclick = () => $('qrCanvas').toBlob(b => saveBlob(b, 'grimp-viewer-
 {
   const c = startParams.get('cmap'), op = startParams.get('op');
   if (c in cmaps && c !== 'blue-white-red') { $('cmap').value = c; lastSeqCmap = c; cmapChosen = true; }
+  if (startParams.has('log')) logChosen = startParams.get('log') === '1';
   if (op) { $('opacity').value = op; rasterLayer.setOpacity(+op); }
   if (startParams.get('anim') === '1') {
     $('animStep').value = startParams.get('astep') || '';

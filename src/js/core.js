@@ -73,19 +73,40 @@ const cmaps = {
   gray: ['#000000', '#ffffff'],
   viridis: ['#440154', '#482878', '#3e4989', '#31688e', '#26828e', '#1f9e89', '#35b779', '#6ece58', '#b5de2b', '#fde725'],
   magma: ['#000004', '#180f3d', '#440f76', '#721f81', '#9e2f7f', '#cd4071', '#f1605d', '#fd9668', '#feca8d', '#fcfdbf'],
+  // The GrIMP browse images' colors (sampled from them), evenly spaced in log speed from 1 to 3000 m/yr: on a
+  // log scale over that range, vv looks like the browse image.
+  browse: ['#ffafa8', '#ffc9a7', '#ffeba6', '#ecffa3', '#c5ff9e', '#97ff97', '#88ffb7', '#71ffe2', '#48daff', '#056aff', '#0102ff', '#6500ff', '#ca00ff', '#ff00cd', '#ff0067', '#ff0005'],
   cividis: ['#00224e', '#123570', '#3b496c', '#575d6d', '#707173', '#8a8678', '#a59c74', '#c3b369', '#e1cc55', '#fee838'],
   // Diverging for signed velocity: blue negative, white exactly at 0 (middle stop), red positive.
   'blue-white-red': ['#053061', '#2166ac', '#4393c3', '#92c5de', '#d1e5f0', '#ffffff', '#fddbc7', '#f4a582', '#d6604d', '#b2182b', '#67001f'],
 };
 const hexRgba = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16), 1];
-function rasterStyle(stops, lo, hi) {
-  // Normalize to 0-1 between lo and hi, then look up the color map; band 2 is the nodata mask.
-  const t = ['clamp', ['/', ['-', ['band', 1], ['var', 'lo']], ['-', ['var', 'hi'], ['var', 'lo']]], 0, 1];
-  const ramp = ['interpolate', ['linear'], t];
-  stops.forEach((c, i) => ramp.push(i / (stops.length - 1), hexRgba(c)));
-  return { variables: { lo, hi }, color: ['case', ['==', ['band', 2], 0], [0, 0, 0, 0], ramp] };
+// the style variables: the color range, and on a log scale the values at lo (hi / lo)^(k / 32), k = 0-32
+function styleVars(lo, hi, log) {
+  if (!log) return { lo, hi };
+  const l = lo > 0 ? lo : hi / 1000;
+  return { lo, hi, ...Object.fromEntries(Array.from({ length: 33 }, (_, k) => [`k${k}`, l * (hi / l) ** (k / 32)])) };
 }
-let rawLo = 0, rawHi = 1, rgbMode = false;
+function rasterStyle(stops, lo, hi, log = false) {
+  // Normalize to 0-1 between lo and hi, then look up the color map; band 2 is the nodata mask. On a log scale
+  // the colors at 0-1 positions k / 32 are placed at the values lo (hi / lo)^(k / 32) (styleVars), one ramp
+  // straight on the value (the shaders have no log).
+  let ramp;
+  if (log) {
+    const rgb = stops.map(hexRgba), n = stops.length - 1;
+    ramp = ['interpolate', ['linear'], ['band', 1]];
+    for (let k = 0; k <= 32; k++) {
+      const t = k / 32 * n, i = Math.min(n - 1, Math.floor(t)), f = t - i;
+      ramp.push(['var', `k${k}`], rgb[i].map((c, j) => j === 3 ? 1 : c + (rgb[i + 1][j] - c) * f));
+    }
+  } else {
+    const t = ['clamp', ['/', ['-', ['band', 1], ['var', 'lo']], ['-', ['var', 'hi'], ['var', 'lo']]], 0, 1];
+    ramp = ['interpolate', ['linear'], t];
+    stops.forEach((c, i) => ramp.push(i / (stops.length - 1), hexRgba(c)));
+  }
+  return { variables: styleVars(lo, hi, log), color: ['case', ['==', ['band', 2], 0], [0, 0, 0, 0], ramp] };
+}
+let rawLo = 0, rawHi = 1, rgbMode = false, logScale = false;
 const rasterLayer = new ol.layer.WebGLTile({ zIndex: 2, style: rasterStyle(cmaps.gray, 0, 1) });
 const baseLayer = new ol.layer.Tile({ zIndex: 0 });
 // Background image: one product of an image (backscatter) collection, in gray between Blue Marble and the main layer.
