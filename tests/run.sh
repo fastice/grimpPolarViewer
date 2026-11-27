@@ -3,7 +3,9 @@
 # window.grimpViewer, serves it on 127.0.0.1 and runs each test (default: every tests/*.test.mjs).
 # The data are read from Kopah, so the tests need the network.
 #
-#   tests/run.sh [test.mjs ...]      (env: CHROME = Chrome binary, PORT = local port, default 8767)
+#   tests/run.sh [test.mjs ...]      (env: CHROME = Chrome binary, PORT = local port, default 8767,
+#                                     JOBS = tests run at once, default 4; each test's output is printed
+#                                     when it ends, in the order given; JOBS=1 streams it as it runs)
 set -uo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -23,10 +25,23 @@ sleep 0.5
 
 [ $# -gt 0 ] || set -- "$here"/*.test.mjs
 failed=()
-for t in "$@"; do
-  [ -f "$t" ] || t="$here/$t"
-  echo "== $(basename "$t")"
-  node "$t" || failed+=("$(basename "$t")")
-done
+tests=()
+for t in "$@"; do [ -f "$t" ] && tests+=("$t") || tests+=("$here/$t"); done
+jobs=${JOBS:-4}
+if [ "$jobs" -le 1 ]; then
+  for t in "${tests[@]}"; do
+    echo "== $(basename "$t")"
+    node "$t" || failed+=("$(basename "$t")")
+  done
+else
+  logs=$(mktemp -d)
+  trap 'kill $server; rm -r "$logs"' EXIT
+  printf '%s\n' "${tests[@]}" | xargs -P "$jobs" -I{} bash -c 'node "$1" > "$2/$(basename "$1").log" 2>&1 || touch "$2/$(basename "$1").fail"' _ {} "$logs"
+  for t in "${tests[@]}"; do
+    b=$(basename "$t")
+    echo "== $b"; cat "$logs/$b.log"
+    [ -e "$logs/$b.fail" ] && failed+=("$b")
+  done
+fi
 if [ ${#failed[@]} -gt 0 ]; then echo "FAILED: ${failed[*]}"; exit 1; fi
 echo "All tests passed"

@@ -45,7 +45,7 @@ function showAsset(key) {
   $('legend').hidden = false;
   if (rgbMode) {
     rasterLayer.setStyle(rgbStyle(a));
-    rasterLayer.setSource(new ol.source.GeoTIFF({ sources: [{ url: a.href, nodata }], normalize: true, interpolate: true, projection }));
+    rasterLayer.setSource(new ol.source.GeoTIFF({ sources: [tiffSource(a.href, nodata)], normalize: true, interpolate: true, projection }));
     loadSample(a.href, nodata);
     compareKey = ''; refreshCompare();
     return;
@@ -69,7 +69,7 @@ function showAsset(key) {
   if (st.mean != null && st.stddev) { lo = Math.max(lo, st.mean - 2 * st.stddev); hi = Math.min(hi, st.mean + 2 * st.stddev); }
   if (stretchMode === 'zero') lo = toRaw(0);
   if (stretchMode === 'symmetric') { const L = Math.max(Math.abs(toDisp(lo)), Math.abs(toDisp(hi))); lo = toRaw(-L); hi = toRaw(L); }
-  rasterLayer.setSource(new ol.source.GeoTIFF({ sources: [{ url: a.href, nodata }], normalize: false, interpolate: true, projection }));
+  rasterLayer.setSource(new ol.source.GeoTIFF({ sources: [tiffSource(a.href, nodata)], normalize: false, interpolate: true, projection }));
   setStretch(...(startStretch || (logScale && key === 'vv' && !clipMoved ? browseRange : [toDisp(lo), toDisp(hi)])));
   $('lunit').textContent = unitText();
   loadSample(a.href, nodata);
@@ -88,11 +88,28 @@ const unitText = () => `${band.unit || ''}${logScale ? ' (log scale)' : ''}`;
 function clipWhere() {
   $('clipwhere').textContent = logScale ? 'each end (log scale)' : { zero: 'at the top (min fixed at 0)', symmetric: 'each end, centered on 0', both: 'each end' }[stretchMode];
 }
+// On a log scale, the powers of 10 between the ends of the color range (and 2 and 5 times them when the range
+// spans less than two decades), as [value, 0-1 position along the bar], not at the very ends.
+function logTicks(lo, hi) {
+  if (!(lo > 0 && hi > lo)) return [];
+  const out = [], span = Math.log(hi / lo), steps = Math.log10(hi / lo) < 2 ? [1, 2, 5] : [1];
+  for (let e = Math.floor(Math.log10(lo)); e <= Math.ceil(Math.log10(hi)); e++) for (const m of steps) {
+    const v = m * 10 ** e, f = Math.log(v / lo) / span;
+    if (f > 0.05 && f < 0.95) out.push([v, f]);
+  }
+  return out;
+}
+function drawBarTicks(dlo, dhi) {
+  const ticks = logScale ? logTicks(dlo, dhi) : [];
+  $('barTicks').hidden = !ticks.length;
+  $('barTicks').replaceChildren(...ticks.map(([v, f]) => { const s = document.createElement('span'); s.textContent = v; s.style.left = `${(f * 100).toFixed(2)}%`; return s; }));
+}
 function setStretch(dlo, dhi) {
   if (logScale && !(dlo > 0)) dlo = dhi / 1000;  // a log scale starts above 0
   const r = v => +v.toPrecision(4);
   $('smin').value = r(dlo); $('smax').value = r(dhi);
   $('lmin').textContent = r(dlo); $('lmax').textContent = r(dhi);
+  drawBarTicks(dlo, dhi);
   const changed = rawLo !== toRaw(dlo) || rawHi !== toRaw(dhi);
   rawLo = toRaw(dlo); rawHi = toRaw(dhi);
   if (!rgbMode) { const v = styleVars(rawLo, rawHi, logScale); rasterLayer.updateStyleVariables(v); if (compareItem) compareLayer.updateStyleVariables(v); }
@@ -115,7 +132,7 @@ const tiffCache = new Map();
 function assetLevels(href) {
   // Every resolution level of one COG (full image first, then overviews), opened once per page.
   if (!tiffCache.has(href)) tiffCache.set(href, (async () => {
-    const tiff = await GeoTIFF.fromUrl(href);
+    const tiff = await (localFiles.has(href) ? GeoTIFF.fromBlob(localFiles.get(href)) : GeoTIFF.fromUrl(href));
     const n = await tiff.getImageCount();
     const base = await tiff.getImage(0), r0 = base.getResolution()[0];
     const found = [];

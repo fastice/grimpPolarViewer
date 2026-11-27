@@ -38,7 +38,7 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
   const css = getComputedStyle(document.documentElement), tok = n => css.getPropertyValue(n).trim();
   const fg = tok('--fg'), muted = tok('--muted'), line = tok('--line');
   ctx.fillStyle = tok('--panel'); ctx.fillRect(0, 0, W, H);
-  const R = 14, T = 30, B = 42, ph = H - T - B, km = pfLen() / 1000;
+  const R = 14, T = pfMarks.length ? 48 : 30, B = 42, ph = H - T - B, km = pfLen() / 1000;  // room for the travel-time axis
   let L = 82, pw = W - L - R;  // L narrows to fit the y labels once the y range is known
   // Change from a reference curve (picked under Plot): every curve minus it, ITS_LIVE left out.
   if (canvas === $('pfCanvas')) pfRefOptions();
@@ -121,14 +121,28 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
     ctx.strokeStyle = halo; ctx.lineWidth = shown(c) ? 4.5 : 3.5; path(c.d, v);
     ctx.strokeStyle = c.color; ctx.lineWidth = shown(c) ? 2.4 : 1.4; path(c.d, v);
   }
-  // where the fronts or grounding lines shown cross the line (ticks down from the top, in their year
-  // colors), and the travel-time marks (ticks up from the bottom)
+  // where the fronts or grounding lines shown cross the line (ticks down from the top, in their year colors)
   const Xk = km => L + (km - xa) / (xb - xa) * pw;
   ctx.lineWidth = 2.5;
   for (const c of fpCross) { ctx.strokeStyle = c.color; ctx.beginPath(); ctx.moveTo(Xk(c.km), T); ctx.lineTo(Xk(c.km), T + 10); ctx.stroke(); }
-  ctx.strokeStyle = fg; ctx.lineWidth = 1.5;
-  for (const m of pfMarks) { ctx.beginPath(); ctx.moveTo(Xk(m.km), T + ph); ctx.lineTo(Xk(m.km), T + ph - (m.t % (5 * +$('pfYrStep').value) ? 5 : 10)); ctx.stroke(); }
   ctx.restore();
+  // the travel-time marks as a time axis along the top: ticks up from the plot, every fifth one longer
+  // and labeled in years (+ downstream, - upstream; all labeled when there are few), labels kept apart
+  if (pfMarks.length) {
+    const step = +$('pfYrStep').value, few = pfMarks.length <= 12;
+    ctx.save(); ctx.strokeStyle = fg; ctx.fillStyle = fg; ctx.lineWidth = 1.5; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.font = '11px "Atkinson Hyperlegible", sans-serif';
+    let right = L;  // clear of the 'years' title left of the axis
+    for (const m of [...pfMarks].sort((a, b) => a.km - b.km)) {
+      if (m.km < xa - 1e-9 || m.km > xb + 1e-9) continue;
+      const x = Xk(m.km), major = m.t % (5 * step) === 0;
+      ctx.beginPath(); ctx.moveTo(x, T); ctx.lineTo(x, T - (major ? 7 : 4)); ctx.stroke();
+      const text = `${m.t > 0 ? '+' : ''}${m.t}`, w = ctx.measureText(text).width;
+      if ((major || few) && x - w / 2 > right + 4) { ctx.fillText(text, x, T - 8); right = x + w / 2; }
+    }
+    ctx.fillStyle = muted; ctx.textAlign = 'right'; ctx.fillText('years', L - 6, T - 8);
+    ctx.restore();
+  }
   // legend: each curve's dates (and catalog, when more than one), the shown product in bold; a click on
   // an entry hides or shows its curve (hidden entries are faded), a click on its x removes it. On screen
   // a header row minimizes it to a small 'Legend +' box, and a click on that box brings it back (a

@@ -449,12 +449,12 @@ function snapshotTsPoints(name) {
     const layers = (p.layers || []).filter(l => !(tsPlotInfo && l.name === name && l.key === tsPlotInfo.key));
     if (tsPlotInfo && p.values.some(x => Number.isFinite(x.v))) layers.push({ name, key: tsPlotInfo.key, unit: tsPlotInfo.unit,
       values: p.values.map(x => ({ t: (+x.it.start + +x.it.end) / 2, start: x.it.start, end: x.it.end, id: x.it.id, v: x.v, e: x.e })) });
-    return { n: p.n, coord: p.coord, label: p.label, its: p.its, itsKey: p.itsKey, layers, off: p.off };
+    return { n: p.n, coord: p.coord, label: p.label, its: p.its, itsKey: p.itsKey, layers, off: p.off, area: p.area };
   });
 }
 function restoreTsPoints(carry) {
   for (const q of carry) {
-    tsNext = q.n; addTsPoint(q.coord, q.label, false);
+    tsNext = q.n; addTsPoint(q.coord, q.label, false, q.area);
     Object.assign(tsPoints[tsPoints.length - 1], { layers: q.layers, its: q.its, itsKey: q.itsKey, off: q.off });
     tsPoints[tsPoints.length - 1].feature.set('off', !!q.off);
   }
@@ -481,12 +481,13 @@ function tsMarker(ctx, shape, x, y, r, fill) {
   if (fill) ctx.fill(); else ctx.stroke();
 }
 
-function addTsPoint(coord, label = '', refresh = true) {
+// area: a shape from tsArea (its series is the mean inside; coord is a point inside it)
+function addTsPoint(coord, label = '', refresh = true, area = null) {
   const n = tsNext++, color = tsColors[(n - 1) % tsColors.length];
-  const f = new ol.Feature({ geometry: new ol.geom.Point(coord) });
+  const f = new ol.Feature({ geometry: area ? area.geom : new ol.geom.Point(coord) });
   f.setProperties({ n, color });
   tsSource.addFeature(f);
-  tsPoints.push({ n, coord, color, label, feature: f, values: [] });
+  tsPoints.push({ n, coord, color, label, feature: f, values: [], area });
   $('tsClear').hidden = false;
   if (refresh) { selectSiteAt([coord]); refreshTs(); }
 }
@@ -684,7 +685,11 @@ $('tsCanvas').onclick = e => {
 $('tsCsv').onclick = () => {
   // With a trend on the plot, each row of the collection shown also carries its point's fit (blank for others).
   const info = tsPlotInfo, tr = info.trends?.length ? info.trends : null;
+  // Shapes add their area and, per date, the median, pixel count, share of the shape covered and cell size.
+  const areas = tsVisible().some(p => p.area);
+  const areaCols = (p, x) => !areas ? [] : !p.area ? ['', '', '', '', ''] : [(p.area.trueKm2 ?? p.area.km2).toFixed(3), ...(x?.s ? [Number.isFinite(x.s.median) ? x.s.median : '', x.s.n, x.s.cov.toFixed(3), x.s.res] : ['', '', '', ''])];
   const rows = [['point', 'label', 'x_km', 'y_km', 'lat', 'lon', 'item', 'start', 'end', 'asset', 'value', 'unit', 'error', 'collection',
+    ...(areas ? ['area_km2', 'median', 'pixels', 'coverage', 'pixel_m'] : []),
     ...(tr ? ['trend_rate_per_year', 'trend_rate_sigma', 'trend_r2', 'trend_p', 'trend_cycle_amplitude', 'trend_cycle_peak_day', 'trend_weighted'] : [])]];
   const csvText = t => /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
   const trCols = p => { if (!tr) return []; const f = tr.find(r => r.p === p)?.f;
@@ -694,12 +699,12 @@ $('tsCsv').onclick = () => {
     const pos = [p.n, csvText(p.label || ''), (p.coord[0] / 1000).toFixed(3), (p.coord[1] / 1000).toFixed(3), lat.toFixed(5), lon.toFixed(5)];
     if (!tsLayerOff.has(info.name)) for (const x of p.values) {
       rows.push([...pos, x.it.id, fmtDate(x.it.start), fmtDate(x.it.end), info.key, Number.isNaN(x.v) ? '' : x.v, info.unit,
-                 Number.isFinite(x.e) ? x.e : '', csvText(info.name), ...trCols(p)]);
+                 Number.isFinite(x.e) ? x.e : '', csvText(info.name), ...areaCols(p, x), ...trCols(p)]);
     }
     for (const l of p.layers || []) {
       if ((l.name === info.name && l.key === info.key) || tsLayerOff.has(l.name)) continue;
       for (const x of l.values) rows.push([...pos, x.id, fmtDate(x.start), fmtDate(x.end), l.key, Number.isNaN(x.v) ? '' : x.v, l.unit,
-                                           Number.isFinite(x.e) ? x.e : '', csvText(l.name), ...(tr ? ['', '', '', '', '', '', ''] : [])]);
+                                           Number.isFinite(x.e) ? x.e : '', csvText(l.name), ...areaCols(p, null), ...(tr ? ['', '', '', '', '', '', ''] : [])]);
     }
   }
   const coll = items[0]?.raw?.collection || 'grimp';

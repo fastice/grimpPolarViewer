@@ -30,6 +30,10 @@ const tips = {
   dgSave: 'Save the shapes as a GeoPackage (.gpkg) in the map projection: drawn shapes in layers points, lines and polygons, opened ones in the layers they came from with all their fields; each with its name (type over a name in the list to change it) and its true length or area. Opens in QGIS, ArcGIS or GDAL',
   dgOpen: 'Open a GeoPackage (.gpkg) from QGIS, ArcGIS or this viewer: its points, lines and polygons are added to the list to edit, with all their fields, and saved again in layers of the same names. Up to 50 MB, 5,000 shapes and 250,000 points',
   dgName: 'Name of the saved GeoPackage (.gpkg is added); left empty, it is grimpShapes_EPSG<code>_<date>',
+  srKind: 'Effective: the overall rate of deformation; along flow: stretching (+) or compression (-) in the flow direction; shear: across the flow; divergence: thinning (+) or thickening (-) by flow',
+  srLen: 'Velocity differences are taken across this length (centered), so it also smooths: longer is less noisy but blurs narrow shear margins',
+  srMax: 'Top of the color range in 1/yr (signed rates use the same value below 0); blank for automatic (98% of the values in view)',
+  srCompute: 'Compute the strain rate from vx and vy for the map view (at the map\'s pixel size, no finer than the data); compute again after moving',
   dgCrs: 'Coordinates of the saved GeoPackage: the map\'s polar stereographic grid in meters (as the GrIMP GeoTIFFs), or longitude and latitude in degrees (EPSG:4326)',
   dgClear: 'Remove all the digitized shapes (to edit one instead: drag a point to move it, drag a side to add a point, double-click or Alt-click a point to delete it; drag inside a shape, or Ctrl-drag any shape, to move it)',
   msClear: 'Remove the measurements from the map (to edit one instead: drag a point to move it, drag a side to add a point, double-click or Alt-click a point to delete it)',
@@ -201,7 +205,7 @@ $('logScale').onchange = e => {
   logChosen = logScale = e.target.checked;
   clipMoved = false;
   if (!cmapChosen && $('asset').value === 'vv') $('cmap').value = logScale ? 'browse' : 'viridis';
-  clipWhere(); $('lunit').textContent = unitText();
+  clipWhere(); $('lunit').textContent = unitText(); drawBarTicks(toDisp(rawLo), toDisp(rawHi));
   if (logScale && !(rawLo > 0)) setStretch(toDisp(rawHi) / 1000, toDisp(rawHi));
   setColormap($('cmap').value);
   applyClip();
@@ -300,7 +304,7 @@ async function readoutError(it, key, coord) {
 function updateReadout(e) {
   // A tap's readout stays until the next tap, so it gets a close button (the "x 12.34 km" text is not one).
   $('roClose').hidden = e.originalEvent?.pointerType !== 'touch';
-  const ro = $('roText'), lines = [frontNote(e.pixel), glNote(e.pixel), basinNote(e.coordinate)].filter(Boolean);
+  const ro = $('roText'), lines = [frontNote(e.pixel), glNote(e.pixel), basinNote(e.coordinate), strainNote(e.coordinate)].filter(Boolean);
   const coords = [readoutCoords(e.coordinate), ...lines].join('<br>');
   $('readout').hidden = false;
   ro.innerHTML = `${coords}<br><span class="note" style="color:inherit">reading value...</span>`;
@@ -329,6 +333,7 @@ map.on('pointermove', e => {
 // Share this animation adds the area box and animation settings; the frames are loaded on request.
 const shareToggles = ['names', 'fronts', 'bounds', 'gl', 'arrows', 'particles', 'contour'];  // optional layers: <key>On
 async function shareView(anim, note, qr = false, embed = false) {
+  if (localCatalog) { $(note).textContent = 'This catalog is open from this computer, so a link cannot show it to anyone else.'; return; }
   const u = new URL(location.origin + location.pathname), q = u.searchParams, v = map.getView();
   q.set('href', $('href').value);
   if (selected) { q.set('item', selected.id); q.set('asset', $('asset').value); }
@@ -344,7 +349,7 @@ async function shareView(anim, note, qr = false, embed = false) {
   const bgIt = $('bgColl').value && bgItems[+$('bgItem').value];
   q.set('bg', bgIt ? $('bgColl').value.split('/').pop() : 'none');
   if (bgIt) q.set('bgi', bgIt.id);
-  if (tsPoints.length) q.set('pts', tsPoints.map(p => p.coord.map(Math.round).join(',')).join(';'));
+  if (tsPoints.some(p => !p.area)) q.set('pts', tsPoints.filter(p => !p.area).map(p => p.coord.map(Math.round).join(',')).join(';'));  // shapes are not shared
   const on = shareToggles.filter(k => $(`${k}On`).checked && !$(`${k}On`).disabled);
   if (on.length) q.set('on', on.join(','));
   if (on.includes('contour') && $('contourLevels').value !== $('contourLevels').defaultValue) q.set('clev', contourLevels().join(','));

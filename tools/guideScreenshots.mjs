@@ -1,7 +1,7 @@
 // Screenshots for the grimpPolarViewer user guide, taken from the live viewer in headless Chrome.
 //
 //   npm install --no-save puppeteer-core   (in the repo; node_modules is git-ignored; uses system Chrome)
-//   node tools/guideScreenshots.mjs <outDir>
+//   node tools/guideScreenshots.mjs <outDir>            (VIEWER_URL=<page> to shoot a local build instead of the live one)
 //   python tools/guideImages.py <outDir> Documents/images
 //
 // Chrome runs with software WebGL (SwiftShader), so the map renders without a GPU. The script uses
@@ -11,7 +11,7 @@ import { mkdirSync } from 'fs';
 
 const out = process.argv[2] || 'shots';
 mkdirSync(`${out}/gif`, { recursive: true });
-const base = 'https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html';
+const base = process.env.VIEWER_URL || 'https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html';  // VIEWER_URL: a local build
 const cat = {
   vel: 'https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0725/v06/nsidc-0725.parquet',
   bks: 'https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0723/v04/nsidc-0723.parquet',

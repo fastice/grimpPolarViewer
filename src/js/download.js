@@ -231,7 +231,9 @@ async function runDownload(list, crop) {
         if (!out) { skipped++; continue; }
         saveBlob(out.blob, out.name); mb += out.blob.size / 1e6;
       } else {
-        saveUrl(atNsidc(it, key) || it.assets[key].href, it.assets[key].href.split('/').pop());
+        const h = it.assets[key].href;
+        if (localFiles.has(h)) saveBlob(localFiles.get(h), baseName(h));  // from a folder: the file itself
+        else saveUrl(atNsidc(it, key) || h, h.split('/').pop());
       }
       saved++;
       await pause(crop ? 400 : 800);

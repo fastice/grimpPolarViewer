@@ -22,32 +22,52 @@ const siteHint = '. Click a box on the map to choose a glacier site; points and 
 function clearSiteHint() { const t = $('status').textContent; if (t.endsWith(siteHint)) setStatus(t.slice(0, -siteHint.length)); }
 const siteName = it => it.raw?.['grimp:site'] || it.id;
 
+// A catalog opened from a folder on this computer (Open a folder): localCatalog holds the folder's GeoTIFFs by
+// file name while it is open, and localFiles each asset href (a path or URL, as the catalog gives it) whose
+// file is in the folder; those are read from the disk (nothing is uploaded), the others from their URLs.
+let localCatalog = null;
+const localFiles = new Map();
+const baseName = h => h.split(/[\\/]/).pop().split('?')[0];
+// a GeoTIFF source for OpenLayers: the file from the folder, or the URL
+const tiffSource = (href, nodata) => localFiles.has(href) ? { blob: localFiles.get(href), nodata } : { url: href, nodata };
+
 function toItem(r) {
   const epsg = num(r['proj:epsg']);
-  const assets = Object.fromEntries(Object.entries(r.assets || {}).filter(([, a]) => a && /^https?:\/\//i.test(a.href || '')));
+  const local = a => localCatalog?.get(baseName(a.href || ''));
+  const assets = Object.fromEntries(Object.entries(r.assets || {}).filter(([, a]) => a && (/^https?:\/\//i.test(a.href || '') || local(a))));
+  for (const a of Object.values(assets)) if (local(a)) localFiles.set(a.href, local(a));
   const start = r.start_datetime || r.datetime, end = r.end_datetime || r.datetime;
   const native = r['proj:geometry'];
   return { id: r.id, epsg, assets, start, end, geom: native?.type ? native : null, geom4326: r.geometry, raw: r };
 }
 
-async function loadCatalog(href, push = true) {
+// file: the catalog from a folder on this computer (href is then its name; nothing goes in the page URL)
+async function loadCatalog(href, push = true, file = null) {
   const prevCode = viewCode, prevName = tsCollectionName();
-  $('href').value = href;
+  if (!file) { localCatalog = null; localFiles.clear(); }
+  $('href').value = file ? '' : href;
+  $('href').placeholder = file ? `${href} (from this computer)` : '';
   const p = presets.findIndex(([, u]) => u === href);
   if (p >= 0 && presets[p][2] !== hemi) setHemi(presets[p][2]);
   $('preset').value = p >= 0 ? String(p) : '';
-  if (push) {
+  if (file) { const u = new URL(location.href); u.searchParams.delete('href'); history.replaceState(null, '', u); }  // the page URL names no catalog
+  else if (push) {
     const u = new URL(location.href); u.searchParams.set('href', href);
     if (u.href !== location.href) history.pushState({ href }, '', u);
   }
   setStatus('Loading catalog...');
   try {
-    const resp = await fetch(href, { cache: 'no-cache' });  // revalidate: catalogs are replaced in place
-    if (!resp.ok) throw new Error(`HTTP ${resp.status} reading ${href}`);
-    const rows = await parquetReadObjects({ file: await resp.arrayBuffer(), compressors });
+    let buf;
+    if (file) buf = await file.arrayBuffer();
+    else {
+      const resp = await fetch(href, { cache: 'no-cache' });  // revalidate: catalogs are replaced in place
+      if (!resp.ok) throw new Error(`HTTP ${resp.status} reading ${href}`);
+      buf = await resp.arrayBuffer();
+    }
+    const rows = await parquetReadObjects({ file: buf, compressors });
     items = rows.map(toItem).sort((a, b) => a.start - b.start);
   } catch (e) {
-    setStatus(`Could not load catalog: ${e.message}. If Kopah is in its maintenance window (below), try again later.`, true); return;
+    setStatus(`Could not load catalog: ${e.message}` + (file ? '.' : '. If Kopah is in its maintenance window (below), try again later.'), true); return;
   }
   const codes = [...new Set(items.map(i => i.epsg).filter(Boolean))];
   const code = codes.length ? `EPSG:${codes[0]}` : 'EPSG:3857';
@@ -76,9 +96,11 @@ async function loadCatalog(href, push = true) {
   $('pickBlock').hidden = !siteMode;
   $('dlTitle').textContent = siteMode ? 'Download sites' : 'Download';
   if (!cropAllowed && $('cropOn').checked) { $('cropOn').checked = false; $('cropOn').dispatchEvent(new Event('change')); }
-  const name = href.split('/').pop();
+  const name = file ? file.name : href.split('/').pop();
   $('title').firstChild.textContent = name;
-  setStatus(`${items.length} items, ${code}${codes.length > 1 ? ` (catalog mixes ${codes.join(', ')}; showing first)` : ''}`);
+  const nAssets = items.reduce((n, it) => n + Object.keys(it.assets).length, 0), nLocal = items.reduce((n, it) => n + Object.values(it.assets).filter(a => localFiles.has(a.href)).length, 0);
+  setStatus(`${items.length} items, ${code}${codes.length > 1 ? ` (catalog mixes ${codes.join(', ')}; showing first)` : ''}`
+    + (file ? `; ${nLocal} of ${nAssets} files read from the folder${nLocal < nAssets ? ', the others from their URLs' : ''}` : ''));
   selected = null; rasterLayer.setSource(null); $('legend').hidden = true;
   $('asset').replaceChildren();
   // Points carry over to a catalog in the same projection; the old catalog's series stay on the plot.
@@ -259,8 +281,22 @@ function select(it, zoom = false) {
   if (dates.length) drawTimebar();
   if (zoom) map.getView().fit(it.feature.getGeometry().getExtent(), { padding: [40, 40, 40, 40], duration: 250 });
   showAsset(pickAsset(it));
+  refreshStrain();
   fillCropAssets(it);
   nsidcFor(it);
   if (tsPlotInfo && !$('tsPlot').hidden) drawTsPlot();  // move the plot's date marker
 }
 
+
+// Open a folder: its first .parquet catalog (the one nearest the top, then by name) and its GeoTIFFs.
+$('openDisk').onclick = () => $('diskFiles').click();
+$('diskFiles').onchange = () => {
+  const files = [...$('diskFiles').files];
+  $('diskFiles').value = '';
+  const depth = f => (f.webkitRelativePath || f.name).split('/').length;
+  const pq = files.filter(f => /\.parquet$/i.test(f.name)).sort((a, b) => depth(a) - depth(b) || a.name.localeCompare(b.name));
+  if (!pq.length) { setStatus('No .parquet catalog in the folder chosen.', true); return; }
+  localCatalog = new Map(files.filter(f => /\.tiff?$/i.test(f.name)).map(f => [f.name, f]));
+  localFiles.clear(); tiffCache.clear();
+  loadCatalog(pq[0].name, false, pq[0]);
+};

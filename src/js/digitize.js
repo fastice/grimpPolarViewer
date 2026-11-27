@@ -59,13 +59,32 @@ function dgList(toEnd = false) {
     size.className = 'note'; size.textContent = dgSizeOf(f); f.set('sizeEl', size, true);
     del.type = 'button'; del.className = 'link'; del.textContent = '×'; del.title = `Delete this ${f.get('shape')}`;
     del.onclick = () => { dgSource.removeFeature(f); dgList(); };
-    li.append(name, size, del);
+    li.append(name, size);
+    if (dgBase(dgGeom(f.getGeometry()).getType()) === 'Polygon') {
+      const plot = document.createElement('button');
+      plot.type = 'button'; plot.className = 'link dgPlot'; plot.textContent = 'plot';
+      plot.title = 'Plot the mean of the product shown inside this shape on every date (in Time series at points)';
+      plot.onclick = () => dgPlot(f);
+      li.append(plot);
+    }
+    li.append(del);
     return li;
   }));
   ul.scrollTop = toEnd ? ul.scrollHeight : top;
   $('dgSave').hidden = $('dgClear').hidden = !fs.length;
   $('dgName').placeholder = dgFileName(dgOutSrs(viewCode, $('dgCrs').value === '4326'), true);
   $('dgCount').textContent = fs.length ? `(${fs.length})` : '';
+}
+// A polygon's series over time: the mean of the product shown inside it, added to Time series at points
+// (a copy: later edits to the shape do not change the series).
+function dgPlot(f) {
+  if ($('tsSec').hidden) { $('dgNote').textContent = 'Plotting over time needs a product with more than one date.'; return; }
+  const g = dgGeom(f.getGeometry()), polys = g.getType() === 'MultiPolygon' ? g.getPolygons() : [g];
+  const inside = polys.reduce((a, b) => b.getArea() > a.getArea() ? b : a).getInteriorPoint().getCoordinates().slice(0, 2);
+  $('tsSec').open = true;
+  addTsPoint(inside, f.get('name'), true, tsArea(g, dgSize(f.getGeometry())[1]));
+  $('tsSec').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  $('dgNote').textContent = `${f.get('name')} is series ${tsPoints[tsPoints.length - 1].n} in Time series at points: the mean inside it on every date. Later edits to the shape do not change it.`;
 }
 const dgDrawing = () => drawKind in dgTools;
 function dgStart(btn) {
@@ -124,8 +143,9 @@ map.on('change:view', () => {
   dgList(); $('dgNote').textContent = '';
 });
 
-// GeoPackage (OGC 12-128r18, version 1.4): the core tables and one feature table per geometry type, with
-// the geometries as GeoPackage binary (a header with the srs_id and the envelope, then little-endian WKB).
+// GeoPackage version 1.3 (OGC 12-128r15; nothing here needs 1.4, which older GDAL and ArcGIS warn about): the
+// core tables and one feature table per geometry type, with the geometries as GeoPackage binary (a header
+// with the srs_id and the envelope, then little-endian WKB).
 const dgWkt = {
   4326: ['WGS 84', 'GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AXIS["Latitude",NORTH],AXIS["Longitude",EAST],AUTHORITY["EPSG","4326"]]'],
   3413: ['WGS 84 / NSIDC Sea Ice Polar Stereographic North', 'PROJCS["WGS 84 / NSIDC Sea Ice Polar Stereographic North",GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]],PROJECTION["Polar_Stereographic"],PARAMETER["latitude_of_origin",70],PARAMETER["central_meridian",-45],PARAMETER["false_easting",0],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["Easting",SOUTH],AXIS["Northing",SOUTH],AUTHORITY["EPSG","3413"]]'],
@@ -174,7 +194,7 @@ const dgSchemas = {};  // the columns ([name, declared type]) and description of
 const sqlName = s => `"${String(s).replace(/"/g, '""')}"`;
 async function gpkgBytes(features, code, latlon = false) {
   const SQL = await loadSqlJs(), db = new SQL.Database(), srs = dgOutSrs(code, latlon);
-  db.run(`PRAGMA application_id = 1196444487; PRAGMA user_version = 10400;
+  db.run(`PRAGMA application_id = 1196444487; PRAGMA user_version = 10300;
     CREATE TABLE gpkg_spatial_ref_sys (srs_name TEXT NOT NULL, srs_id INTEGER PRIMARY KEY, organization TEXT NOT NULL,
       organization_coordsys_id INTEGER NOT NULL, definition TEXT NOT NULL, description TEXT);
     CREATE TABLE gpkg_contents (table_name TEXT NOT NULL PRIMARY KEY, data_type TEXT NOT NULL, identifier TEXT UNIQUE, description TEXT DEFAULT '',

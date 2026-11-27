@@ -7,7 +7,8 @@ let saCache = null, saShown = null, saToken = 0, saBusy = false, saTyped = false
 
 function applyLayers() {
   const anim = frames.length > 0, sa = !anim && !!saShown;
-  animLayer.setVisible(anim); staticLayer.setVisible(sa); rasterLayer.setVisible(!anim && !sa);
+  // a strain map (strain.js) stands in for the product, so its gaps do not show the product's colors
+  animLayer.setVisible(anim); staticLayer.setVisible(sa); rasterLayer.setVisible(!anim && !sa && !srLayer.getVisible());
   swipeShow();
 }
 

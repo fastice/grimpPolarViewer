@@ -64,6 +64,11 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .seg button:last-child { border-radius: 0 4px 4px 0; border-left: 0; }
 .seg button[aria-pressed="true"] { background: var(--accent); color: var(--panel); border-color: var(--accent); }
 #legend[hidden] { display: none; }
+#barTicks { position: relative; height: 13px; margin-top: 3px; font: 10px var(--font-mono); color: var(--muted); }
+#barTicks span { position: absolute; top: 1px; transform: translateX(-50%); }
+#barTicks span::before { content: ''; position: absolute; left: 50%; top: -4px; height: 3px; border-left: 1px solid var(--muted); }
+#srBar { height: 10px; border-radius: 2px; border: 1px solid var(--line); }
+#srLegend .ends { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 12px; }
 #bar { height: 10px; border-radius: 2px; background: linear-gradient(90deg, #000, #fff); border: 1px solid var(--line); }
 #frontsLegend .ends { white-space: nowrap; }
 #legend .ends, #saLegend .ends, #frontsLegend .ends, #glLegend .ends { display: flex; justify-content: space-between; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
@@ -255,4 +260,5 @@ body.embed #panelToggle { display: none; }
 #dgList input { flex: 1; min-width: 0; font-size: 12px; }
 #dgList .note { white-space: nowrap; }
 #dgList button.link { font-size: 15px; text-decoration: none; }
+#dgList button.dgPlot { font-size: 12px; text-decoration: underline; }
 #dgName { width: 100%; box-sizing: border-box; font-size: 12px; }

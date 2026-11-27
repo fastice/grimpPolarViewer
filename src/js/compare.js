@@ -33,7 +33,7 @@ function refreshCompare() {
   else if (`${compareItem.id}|${key}` !== compareKey) {
     compareKey = `${compareItem.id}|${key}`;
     syncCompareStyle();
-    compareLayer.setSource(new ol.source.GeoTIFF({ sources: [{ url: a.href, nodata: a['raster:bands']?.[0]?.nodata ?? undefined }],
+    compareLayer.setSource(new ol.source.GeoTIFF({ sources: [tiffSource(a.href, a['raster:bands']?.[0]?.nodata ?? undefined)],
       normalize: rgbMode, interpolate: true, projection: compareItem.epsg ? `EPSG:${compareItem.epsg}` : undefined }));
   }
   swipeShow();

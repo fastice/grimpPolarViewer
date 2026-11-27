@@ -188,7 +188,7 @@ function frameCanvas(frame, W, H, lut, lo, hi, label, bar = null, log = false) {
   return canvas;
 }
 
-function drawColorBar(ctx, W, fs, { stops, dlo, dhi, title, centered }) {
+function drawColorBar(ctx, W, fs, { stops, dlo, dhi, title, centered, log }) {
   // Top-right legend: title (with unit), gradient, and end values (plus 0 when centered).
   const bf = Math.max(8, Math.round(fs * 0.75)), pad = Math.round(bf * 0.6);
   const bw = Math.round(Math.min(W - fs * 2 - pad * 2, Math.max(bf * 12, W * 0.32))), bh = Math.round(bf * 0.9);
@@ -207,6 +207,17 @@ function drawColorBar(ctx, W, fs, { stops, dlo, dhi, title, centered }) {
   ctx.textAlign = 'left'; ctx.fillText(fmt(dlo), x0, yl);
   ctx.textAlign = 'right'; ctx.fillText(fmt(dhi), x0 + bw, yl);
   if (centered) { ctx.textAlign = 'center'; ctx.fillText('0', x0 + bw / 2, yl); }
+  if (log) {  // decade labels on the same line as the end values, each only where it fits between its neighbors
+    ctx.textAlign = 'center';
+    let left = x0 + ctx.measureText(fmt(dlo)).width + bf * 0.5;
+    const right = x0 + bw - ctx.measureText(fmt(dhi)).width - bf * 0.5;
+    for (const [v, f] of logTicks(dlo, dhi)) {
+      const x = x0 + f * bw, w = ctx.measureText(String(v)).width;
+      if (x - w / 2 < left || x + w / 2 > right) continue;
+      ctx.fillRect(x, yb + bh, 1, bf * 0.25); ctx.fillText(String(v), x, yl);
+      left = x + w / 2 + bf * 0.5;
+    }
+  }
   ctx.textAlign = 'left';
 }
 
@@ -236,7 +247,7 @@ async function buildFrames() {
         if (token !== animToken) return;
         add(it, frameCanvas(f, W, H, lut, rawLo, rawHi, label(it), withBar ? {
           stops: barStops, dlo: toDisp(rawLo), dhi: toDisp(rawHi), centered: stretchMode === 'symmetric',
-          title: `${key}${unit ? ` (${unit})` : ''}${logScale ? ', log scale' : ''}` } : null, logScale), f.values || null);
+          title: `${key}${unit ? ` (${unit})` : ''}${logScale ? ', log scale' : ''}`, log: logScale } : null, logScale), f.values || null);
         await pause(0);  // let the page repaint the progress note
       }
     } else {

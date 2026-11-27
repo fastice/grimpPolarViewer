@@ -195,6 +195,16 @@ color per point. With a velocity **browse** image on the map, points (and profil
 speed (vv), so the browse image can serve as the map to pick on. Tick **Error bars** for velocity errors; it is slower, since a speed error needs four
 more files per date.
 
+To follow an area instead of a point, draw a polygon, rectangle or circle in **Digitize** (or open one
+from a GeoPackage) and click **plot** beside it in the list: it joins the plot as a numbered series,
+outlined on the map in its color, whose value on each date is the mean over the pixels inside it (read
+at the finest overview that keeps the shape under 100,000 pixels). Dates whose data cover less than
+half the shape are left off the plot, since their mean would be biased to the part covered; with
+**Error bars** on, the error is the mean of the pixels' errors (not divided down by the pixel count,
+since neighboring errors are correlated). The CSV adds each shape's area and, per date, the median,
+pixel count, share of the shape covered and pixel size. Shapes are copied when added, so later edits
+to the drawing do not change the series.
+
 - The plot and the timeline are linked: the date on the map is marked on the plot, and clicking a
   point on the plot shows that date's image.
 - Drag the **✥** at the plot's top left to move it anywhere over the map, and its bottom-right
@@ -249,7 +259,7 @@ velocity mosaic (Greenland, or the Amundsen Sea in Antarctica), whatever product
 there is none, from the loaded catalog's velocity product with the longest averaging period.
 Tick **Travel-time marks** to dot the flow line every 1, 2, 5 ... 100 years: where ice at the point will
 be after that many years (+, downstream) and where it was that long ago (-, upstream), for steady flow at
-the mosaic's speeds. The plot marks them with ticks along its bottom.
+the mosaic's speeds. The plot shows them as a time axis along its top, labeled in years.
 
 - Show another date (a timeline tick, a footprint on the map, or a point on the time-series plot) and
   its curve is added to the same plot, so you can see a front retreat or a speed-up along the flow
@@ -290,6 +300,18 @@ the mosaic's speeds. The plot marks them with ticks along its bottom.
   one row per sample (ITS_LIVE is drawn for comparison only and is not saved); **Save plot** writes the picture.
 
 ### 6. See what changed
+
+### Strain rates
+
+Velocity products (with vx and vy) have a **Strain rates** section. Pick **effective** (the overall
+rate of deformation), **along flow** (stretching +, compression -), **shear across flow** or
+**divergence** (thinning + or thickening - by flow), and the length the velocity differences are taken
+across (500 m to 10 km: longer is less noisy but blurs narrow shear margins), then click **Compute for
+this view**. The strain rate, in 1/yr, is computed in your browser for the area on screen, at the map's
+pixel size but no finer than the data, and drawn over the map (the speed layer is hidden under it),
+with its value under the pointer in the readout. It follows the date as you step through the time
+series; compute again after moving the map. **Color range** fixes the top of the color bar
+(automatic: 98% of the values in view).
 
 When a product is part of a time series, open **Anomaly and stack** and tick **Show as anomaly** to see how one date differs
 from the average of all dates: blue where the ice was slower than usual, red where it was faster.
@@ -422,12 +444,19 @@ Switch to **Southern** for Antarctic products, drawn with the South Pole at the 
 ## Using your own data
 
 Any public collection of cloud-optimized GeoTIFFs with a stac-geoparquet catalog can be opened in
-the viewer, in Greenland (EPSG:3413) or Antarctic (EPSG:3031) polar stereographic. Put the catalog
-link after `?href=`:
+the viewer, in Greenland (EPSG:3413) or Antarctic (EPSG:3031) polar stereographic. Type the catalog
+link into **Catalog URL**, or put it after `?href=`:
 
 ```
 https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=<your catalog URL>
 ```
+
+To look at data that is not online, or not public, click **Open a folder** under Catalog URL and pick a
+folder on your computer holding a catalog (`.parquet`) and its GeoTIFFs: the files are read in your
+browser and nothing is uploaded. Each asset is matched to a file in the folder by its file name, so the
+catalog's hrefs can be URLs or bare file names; an asset whose file is not in the folder is read from
+its URL. A catalog open from a folder cannot be shared as a link, since the files are only on your
+computer.
 
 [Documents/grimpPolarViewer.md](Documents/grimpPolarViewer.md) describes the catalog format, how
 to make one, how to host the files, and how the viewer works.

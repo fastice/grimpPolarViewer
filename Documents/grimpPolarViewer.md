@@ -572,7 +572,8 @@ them. Split 2026-11-21 from the single `index.html` (the build reproduced it byt
 **Tests:** `tests/run.sh` builds the page with a test hook (it adds the profile and time-series state
 to `window.grimpViewer`), serves it on 127.0.0.1 and runs each `tests/*.test.mjs` in headless Chrome;
 `tests/run.sh flowLine.test.mjs` runs one. They read data from Kopah, install puppeteer-core into
-`tests/node_modules` on the first run, and take about a minute. Each check prints `ok` or `FAIL`; the
+`tests/node_modules` on the first run, and run four at a time (`JOBS=4`, each test's output printed when
+it ends; the whole suite takes about 3 minutes; `JOBS=1` runs them one by one, streaming the output). Each check prints `ok` or `FAIL`; the
 script exits 1 if any failed, and screenshots go to `tests/out/`. Set `CHROME` to the Chrome binary
 on a Mac (default `/usr/bin/google-chrome`); `mapOverlays.test.mjs` also needs `ffmpeg` on the PATH.
 
@@ -594,6 +595,13 @@ on a Mac (default `/usr/bin/google-chrome`); `mapOverlays.test.mjs` also needs `
 | `mapOverlays.test.mjs` | Speed contours (default and typed levels), flow particles (trails drawn, 10 s particle movie decoded by ffmpeg and its loop seam checked, restart after a move, stop), vv ± error in the readout, Jakobshavn basin true area vs map area |
 | `shareLink.test.mjs` | A shared link reopens the ticked layers, the fronts year range, typed contour levels, a trimmed flow line (accepted) with 5-year marks, and a drawn line |
 | `seasonal.test.mjs` | Monthly series at a Jakobshavn point folded onto the months of the year; monthly means; a click on a value shows that product; time-bar option disabled and restored |
+| `digitize.test.mjs` | Digitize: every tool, freehand, rename/delete, vertex drag, circle resize, moving shapes, GeoPackage read back by GDAL (layers, EPSG, names, true areas vs GDAL geodesic within 0.01%, validator), EPSG:4326 choice, hemisphere stash, list scrolling. |
+| `areaSeries.test.mjs` | Shapes as series: a Digitize rectangle and an opened multi-part polygon with a hole, plotted from their list rows; means and pixel counts equal GDAL's rasterization of the same shapes on the same overview grid; error bars; CSV shape columns; outline in the series color. |
+| `localCatalog.test.mjs` | Open a folder (`makeLocalCatalog.py`): parquet and GeoTIFFs read from the disk (a bare-name href and a made-up URL), readout and a point's series from the files, no share link. |
+| `strain.test.mjs` | Strain rates on synthetic stretching and simple-shear fields (`makeStrainCatalog.py`, a folder catalog): all four kinds exact under the pointer, recomputed on a date change, Clear. |
+| `logScale.test.mjs` | vv on a log scale in browse colors, 1-3000 m/yr, matching the browse image pixel for pixel; decade labels; linear; clip; each image back at 1-3000. |
+| `gpkgOpen.test.mjs` | Open GeoPackage: UTM file with multi-part, hole, Z, null and curved rows; fields, fids and types kept on save; reopen; size and format refusals; south shapes to the Antarctic map. |
+| `phoneFiles.test.mjs` | Phone file pickers take any file; desktop keeps the type filters. |
 | `timeSeries.test.mjs` | Points: read, legend hide/remove, y range slider and Auto, catalog switch with per-catalog hide/remove |
 
 **Scripting hook:** the page sets `window.grimpViewer = { map }` (the OpenLayers map), for the

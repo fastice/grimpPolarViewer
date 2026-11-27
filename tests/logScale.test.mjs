@@ -10,6 +10,8 @@ const val = id => p.$eval('#' + id, e => e.type === 'checkbox' ? e.checked : e.v
 check('vv opens on a log scale in browse colors, 1 to 3000', (await val('logScale')) && (await val('cmap')) === 'browse' && +(await val('smin')) === 1 && +(await val('smax')) === 3000
   && /log scale/.test(await text(p, 'lunit')) && !(await p.$eval('#logRow', e => e.hidden)), [await val('cmap'), await val('smin'), await val('smax'), await text(p, 'lunit')]);
 
+check('log color bar labels its decades', (await p.$$eval('#barTicks span', e => e.map(x => x.textContent))).join() === '10,100,1000' && !(await p.$eval('#barTicks', e => e.hidden)),
+  await p.$$eval('#barTicks span', e => e.map(x => [x.textContent, x.style.left])));
 // the map against the browse image: screen colors at a grid of points over Jakobshavn and the ice sheet
 await zoomTo(p, await toMap(p, -48.0, 69.2), 400e3);
 await p.evaluate(() => { for (const id of ['footOn', 'coastOn', 'baseOn']) { const e = document.getElementById(id); if (e?.checked) e.click(); } });
@@ -36,6 +38,7 @@ await p.select('#asset', 'vv'); await sleep(1500);
 
 // unticking: viridis from 0, clipped at the top
 await p.click('#logScale'); await sleep(500);
+check('linear: no decade labels', await p.$eval('#barTicks', e => e.hidden));
 check('linear: viridis from 0', !(await val('logScale')) && (await val('cmap')) === 'viridis' && +(await val('smin')) === 0 && +(await val('smax')) < 3000 && !/log/.test(await text(p, 'lunit')),
   [await val('cmap'), await val('smin'), await val('smax')]);
 await p.click('#logScale'); await sleep(500);

@@ -29,6 +29,8 @@
     <div>
       <label class="lab" for="href">Catalog URL (.parquet)</label>
       <div class="row"><input id="href" type="text" spellcheck="false"><button id="load" type="button">Load</button></div>
+      <div class="note"><button id="openDisk" type="button" class="link">Open a folder</button> with a catalog and its GeoTIFFs from this computer (read here, nothing is uploaded)
+        <input id="diskFiles" type="file" webkitdirectory multiple hidden></div>
     </div>
     <div class="row"><button id="share" type="button">Share this view</button><button id="shareQr" type="button" class="link">QR code</button><button id="shareEmbed" type="button" class="link">Embed</button><span id="shareNote" class="note"></span></div>
     <div id="status" role="status"></div>
@@ -78,6 +80,7 @@
     <div id="rgbNote" class="note" hidden>RGB image, shown as stored.</div>
     <div id="stretchCtl" class="block-inner">
     <div id="bar"></div>
+    <div id="barTicks" hidden></div>
     <div class="ends"><span id="lmin"></span><span id="lunit"></span><span id="lmax"></span></div>
     <div class="ctl"><label for="cmap">Color map</label><select id="cmap"></select></div>
     <label class="optrow" id="logRow" hidden><input id="logScale" type="checkbox"> Log scale</label>
@@ -89,6 +92,19 @@
     </div>
     <div id="clipnote" class="note"></div>
     </div>
+    </div>
+  </details>
+  <details id="srSec" class="block" hidden>
+    <summary>Strain rates</summary>
+    <div class="block-inner">
+      <div class="ctl"><label for="srKind">Strain rate</label><select id="srKind"><option value="eff">effective</option><option value="lon">along flow</option>
+        <option value="shear">shear across flow</option><option value="div">divergence (thinning +)</option></select></div>
+      <div class="ctl"><label for="srLen">Differences across</label><select id="srLen"><option value="500">500 m</option><option value="1000">1 km</option>
+        <option value="2000" selected>2 km</option><option value="5000">5 km</option><option value="10000">10 km</option></select></div>
+      <div class="ctl"><label for="srMax">Color range (1/yr; blank: automatic)</label><input id="srMax" type="number" step="any" min="0" placeholder="auto"></div>
+      <div class="row"><button id="srCompute" type="button">Compute for this view</button><button id="srClear" type="button" class="link" hidden>Clear</button></div>
+      <div id="srLegend" hidden><div id="srBar"></div><div class="ends"><span id="srMin"></span><span id="srMid"></span><span id="srMaxL"></span></div></div>
+      <div id="srNote" class="note"></div>
     </div>
   </details>
   <details id="saBlock" class="block" hidden>
@@ -381,6 +397,7 @@
 <!-- @include js/arrows.js -->
 <!-- @include js/contours.js -->
 <!-- @include js/frontPositions.js -->
+<!-- @include js/strain.js -->
 <!-- @include js/ui.js -->
 </script>
 </body>
