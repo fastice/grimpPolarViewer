@@ -41,7 +41,7 @@ map.on('moveend', updatePixelNote);
 map.on('rendercomplete', updatePixelNote);
 
 function refreshStaticAnom() {
-  const series = timeSeries(), ok = !!selected && series.length >= 2 && !rgbMode;
+  const series = timeSeries(), ok = !!selected && series.length >= 2 && !rgbMode && !classMode;
   $('saBlock').hidden = !ok;
   if (!ok) { if (saShown) clearStaticAnom(); return; }
   $('stCount').textContent = `${series.length} dates`;
@@ -89,7 +89,7 @@ async function showStaticAnom() {
       const [W, H] = frameSize(k.ext, k.res), values = new Map();
       for (const [i, it] of k.series.entries()) {
         $('saNote').textContent = `Reading date ${i + 1} of ${k.series.length} (${fmtDate(it.start)})...`;
-        values.set(it, (await readFrame(it, k.key, k.ext, k.res, W, H)).values);
+        values.set(it, (await maskFrame(await readFrame(it, k.key, k.ext, k.res, W, H), it, k.ext, k.res, W, H)).values);
         if (token !== saToken) return;
         await pause(0);
       }
@@ -178,7 +178,7 @@ function drawStack(full = saShown?.full) {
 function clearStaticAnom(note = '') {
   ++saToken; saBusy = false; saShown = null;
   staticLayer.setSource(null); applyLayers();
-  $('stretchCtl').hidden = rgbMode; $('saLegend').hidden = true; $('saNote').textContent = note;
+  $('stretchCtl').hidden = rgbMode || classMode; $('saLegend').hidden = true; $('saNote').textContent = note;
 }
 
 $('saOn').onchange = $('stOn').onchange = e => {

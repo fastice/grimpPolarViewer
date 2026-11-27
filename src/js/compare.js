@@ -18,7 +18,7 @@ const itemDates = it => `${fmtDate(it.start)} to ${fmtDate(it.end)}`;
 function syncCompareStyle() {
   if (!compareItem) return;
   const a = compareItem.assets[$('asset').value];
-  compareLayer.setStyle(rgbMode ? rgbStyle(a) : rasterStyle(cmaps[$('cmap').value] || cmaps.gray, rawLo, rawHi, logScale));
+  compareLayer.setStyle(rgbMode ? rgbStyle(a) : classMode ? classStyle(a['classification:classes']) : rasterStyle(cmaps[$('cmap').value] || cmaps.gray, rawLo, rawHi, logScale));
 }
 
 function refreshCompare() {
@@ -33,8 +33,9 @@ function refreshCompare() {
   else if (`${compareItem.id}|${key}` !== compareKey) {
     compareKey = `${compareItem.id}|${key}`;
     syncCompareStyle();
-    compareLayer.setSource(new ol.source.GeoTIFF({ sources: [tiffSource(a.href, a['raster:bands']?.[0]?.nodata ?? undefined)],
-      normalize: rgbMode, interpolate: true, projection: compareItem.epsg ? `EPSG:${compareItem.epsg}` : undefined }));
+    const nodata = a['raster:bands']?.[0]?.nodata ?? undefined, projection = compareItem.epsg ? `EPSG:${compareItem.epsg}` : undefined;
+    if (rgbMode) compareLayer.setSource(new ol.source.GeoTIFF({ sources: [tiffSource(a.href, nodata)], normalize: true, interpolate: true, projection }));
+    else setLayerSource(compareLayer, compareItem, a, nodata, projection);
   }
   swipeShow();
 }

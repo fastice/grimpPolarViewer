@@ -10,6 +10,8 @@ const presets = [
   ['NSIDC-0727 quarterly velocity v6 (2015-2026)', 'https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0727/v06/nsidc-0727.parquet', 'N'],
   ['NSIDC-0766 6/12-day velocity v3 (2015-2026)', 'https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0766/v03/nsidc-0766.parquet', 'N'],
   ['NSIDC-0481 TSX glacier site velocity v5 (2008-2026)', 'https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0481/v05/nsidc-0481.parquet', 'N'],
+  ['NSIDC-0715 GrIMP DEM v2, 30 m (2008-2020 imagery)', 'https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0715/v02/nsidc-0715.parquet', 'N'],
+  ['NSIDC-0714 GIMP land ice / ocean mask, 15 m (2000, 2015, 2020)', 'https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0714/v01/nsidc-0714.parquet', 'N'],
   ['Antarctica NISAR gamma0 25 m (Aug-Sep 2026)', 'https://s3.kopah.uw.edu/ianj-grimp/public/display/nisar-gcov-ant-25m.parquet', 'S'],
   ['Amundsen Sea (PIG) S1 quarterly velocity (2015-2026)', 'https://s3.kopah.uw.edu/ianj-grimp/public/pig/quarterly/ase-quarterly.parquet', 'S'],
   ['Amundsen Sea (PIG) S1 annual velocity (2015-2026)', 'https://s3.kopah.uw.edu/ianj-grimp/public/pig/annual/ase-annual.parquet', 'S'],
@@ -106,7 +108,7 @@ function rasterStyle(stops, lo, hi, log = false) {
   }
   return { variables: styleVars(lo, hi, log), color: ['case', ['==', ['band', 2], 0], [0, 0, 0, 0], ramp] };
 }
-let rawLo = 0, rawHi = 1, rgbMode = false, logScale = false;
+let rawLo = 0, rawHi = 1, rgbMode = false, classMode = false, logScale = false;  // classMode: one band of classes
 const rasterLayer = new ol.layer.WebGLTile({ zIndex: 2, style: rasterStyle(cmaps.gray, 0, 1) });
 const baseLayer = new ol.layer.Tile({ zIndex: 0 });
 // Background image: one product of an image (backscatter) collection, in gray between Blue Marble and the main layer.

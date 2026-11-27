@@ -39,14 +39,31 @@ function showAsset(key) {
   const nodata = band.nodata ?? undefined;
   const projection = selected.epsg ? `EPSG:${selected.epsg}` : undefined;
   rgbMode = (a['raster:bands']?.length ?? 1) >= 3;
+  classMode = !rgbMode && !!a['classification:classes'];
   pfOnShown(plotAsset());
   refreshArrows(); refreshContours(); refreshParticles();
-  $('stretchCtl').hidden = rgbMode; $('rgbNote').hidden = !rgbMode;
+  $('stretchCtl').hidden = rgbMode || classMode; $('rgbNote').hidden = !rgbMode && !classMode;
+  // a class map (e.g. the land ice / ocean mask) lists its classes' colors; RGB images are shown as stored
+  const classes = classMode && a['classification:classes'];
+  $('rgbNote').replaceChildren(...(classes ? classes.map(c => {
+    const s = document.createElement('span'), sw = document.createElement('i');
+    s.className = 'classKey'; sw.style.background = `#${c.color_hint}`; s.append(sw, c.name);
+    return s;
+  }) : ['RGB image, shown as stored.']));
   $('lname').textContent = a.href.split('/').pop();
   $('legend').hidden = false;
   if (rgbMode) {
     rasterLayer.setStyle(rgbStyle(a));
     rasterLayer.setSource(new ol.source.GeoTIFF({ sources: [tiffSource(a.href, nodata)], normalize: true, interpolate: true, projection }));
+    maskInfo();
+    loadSample(a.href, nodata);
+    compareKey = ''; refreshCompare();
+    return;
+  }
+  if (classMode) {
+    rasterLayer.setStyle(classStyle(classes));
+    setLayerSource(rasterLayer, selected, a, nodata, projection);
+    maskInfo();
     loadSample(a.href, nodata);
     compareKey = ''; refreshCompare();
     return;
@@ -70,7 +87,8 @@ function showAsset(key) {
   if (st.mean != null && st.stddev) { lo = Math.max(lo, st.mean - 2 * st.stddev); hi = Math.min(hi, st.mean + 2 * st.stddev); }
   if (stretchMode === 'zero') lo = toRaw(0);
   if (stretchMode === 'symmetric') { const L = Math.max(Math.abs(toDisp(lo)), Math.abs(toDisp(hi))); lo = toRaw(-L); hi = toRaw(L); }
-  rasterLayer.setSource(new ol.source.GeoTIFF({ sources: [tiffSource(a.href, nodata)], normalize: false, interpolate: true, projection }));
+  setLayerSource(rasterLayer, selected, a, nodata, projection);
+  maskInfo();
   setStretch(...(startStretch || (logScale && key === 'vv' && !clipMoved ? browseRange : [toDisp(lo), toDisp(hi)])));
   $('lunit').textContent = unitText();
   loadSample(a.href, nodata);
@@ -84,6 +102,15 @@ function rgbStyle(a) {
   const alpha = a['raster:bands'].length >= 4 ? ['band', 4] : ['case', white, 0, 1];
   return { color: ['array', ['band', 1], ['band', 2], ['band', 3], alpha] };
 }
+
+// A class map: each class value in its color_hint, other values and no data clear
+function classStyle(classes) {
+  const color = ['match', ['band', 1]];
+  for (const c of classes) color.push(Number(c.value), hexRgba(`#${c.color_hint}`));  // int64 values come as BigInt
+  color.push([0, 0, 0, 0]);
+  return { color: ['case', ['==', ['band', 2], 0], [0, 0, 0, 0], color] };
+}
+const classOf = (a, v) => a?.['classification:classes']?.find(c => Number(c.value) === v);
 
 const unitText = () => `${band.unit || ''}${logScale ? ' (log scale)' : ''}`;
 function clipWhere() {
@@ -113,12 +140,13 @@ function setStretch(dlo, dhi) {
   drawBarTicks(dlo, dhi);
   const changed = rawLo !== toRaw(dlo) || rawHi !== toRaw(dhi);
   rawLo = toRaw(dlo); rawHi = toRaw(dhi);
-  if (!rgbMode) { const v = styleVars(rawLo, rawHi, logScale); rasterLayer.updateStyleVariables(v); if (compareItem) compareLayer.updateStyleVariables(v); }
+  if (!rgbMode && !classMode) { const v = styleVars(rawLo, rawHi, logScale); rasterLayer.updateStyleVariables(v); if (compareItem) compareLayer.updateStyleVariables(v); }
   if (changed && frames.length) resetAnimation('The color range changed; load the frames again to use it.');
   if (changed && saShown?.stack) drawStack();
 }
 
 function setColormap(name) {
+  if (classMode) return;
   if (frames.length) resetAnimation('The color map changed; load the frames again to use it.');
   rasterLayer.setStyle(rasterStyle(cmaps[name], rawLo, rawHi, logScale));
   syncCompareStyle();

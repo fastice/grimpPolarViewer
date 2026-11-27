@@ -264,3 +264,5 @@ body.embed #panelToggle { display: none; }
 #dgList button.link { font-size: 15px; text-decoration: none; }
 #dgList button.dgPlot { font-size: 12px; text-decoration: underline; }
 #dgName { width: 100%; box-sizing: border-box; font-size: 12px; }
+#rgbNote .classKey { display: inline-flex; align-items: center; gap: 0.35em; margin-right: 1em; }
+#rgbNote .classKey i { width: 0.9em; height: 0.9em; border: 1px solid var(--line, #888); border-radius: 2px; }

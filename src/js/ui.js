@@ -1,7 +1,7 @@
 function applyClip() {
   const p = +$('clip').value;
   $('clipv').textContent = `${p}%`;
-  if (rgbMode || !sample || !sample.length) return;
+  if (rgbMode || classMode || !sample || !sample.length) return;
   if (startStretch) { setStretch(...startStretch); startStretch = null; return; }  // a shared link's range wins once
   const at = q => sample[Math.min(sample.length - 1, Math.max(0, Math.round(q * (sample.length - 1))))];
   const lo = toDisp(at(p / 100)), hi = toDisp(at(1 - p / 100));
@@ -36,11 +36,12 @@ const tips = {
   srCompute: 'Compute the strain rate from vx and vy for the map view (at the map\'s pixel size, no finer than the data); compute again after moving',
   figDraw: 'Draw the box to save as a figure: click one corner, then the opposite corner',
   figSize: 'Pixels of the figure: a multiple of the box\'s size on screen, one per pixel of the data (its finest level), or a width in inches at the dpi below. Everything shown is drawn again at that size, with sharp lines and labels',
-  figDpi: 'Dots per inch stored in the PNG, so it comes in at its print size in Word, PowerPoint or LaTeX (it does not change the pixels unless the size is a width in inches)',
+  figDpi: 'Dots per inch stored in the image, so it comes in at its print size in Word, PowerPoint or LaTeX (it does not change the pixels unless the size is a width in inches)',
+  figFormat: 'PNG (lossless, the default), JPEG (smaller, slightly blurred edges) or TIFF (lossless, Deflate-compressed RGB, for journals that ask for it; it is also a GeoTIFF, so it opens in place in QGIS or ArcGIS — turn the labels off for a clean map layer). Each stores its dpi and the link that rebuilds the figure',
   figLabels: 'Draw a color bar (top right), the dates (bottom left) and a scale bar (bottom right) on the figure',
-  figSave: 'Save the figure as a PNG (it stores its dpi and the link that reopens the viewer with this view and box to make it again)',
+  figSave: 'Save the figure in the chosen format (it stores its dpi and the link that reopens the viewer with this view and box to make it again)',
   figJson: 'Save the figure\'s sidecar: a .json with the box, size, product, colors and the link that rebuilds it',
-  figPng: 'Save the same PNG again (if the browser did not keep it)',
+  figAgain: 'Save the same image again (if the browser did not keep it)',
   dgCrs: 'Coordinates of the saved GeoPackage: the map\'s polar stereographic grid in meters (as the GrIMP GeoTIFFs), or longitude and latitude in degrees (EPSG:4326)',
   dgClear: 'Remove all the digitized shapes (to edit one instead: drag a point to move it, drag a side to add a point, double-click or Alt-click a point to delete it; drag inside a shape, or Ctrl-drag any shape, to move it)',
   msClear: 'Remove the measurements from the map (to edit one instead: drag a point to move it, drag a side to add a point, double-click or Alt-click a point to delete it)',
@@ -66,7 +67,10 @@ const tips = {
   particlesOn: 'Streaks drifting with the flow of the shown velocity product (its vx and vy); faster ice moves faster and leaves longer trails. Paused while the map moves',
   contourOn: 'Lines of equal speed (isotachs) of the shown product\'s speed (vv), at the levels typed below, read at the map\'s resolution and lightly smoothed',
   particleSave: 'Save 10 s of the moving particles over a still of the map as shown, as an MP4 at screen resolution that loops seamlessly when played on repeat. Moving the map stops it',
-  contourLevels: 'Speeds to contour, m/yr, separated by commas (at most 12)',
+  contourLevels: 'Speeds to contour, m/yr, separated by commas (at most 12), or "every N" for every N m/yr',
+  maskSel: 'Show the product only where the GIMP land ice / ocean mask (NSIDC-0714, 15 m) is ice, land or water, using the mask year (2000, 2015 or 2020) nearest the product\'s dates. Also applies to the swipe, animations and anomalies; downloads are not masked',
+  demContourOn: 'Elevation contours of the GrIMP DEM (NSIDC-0715 v2, 30 m, 2008-2020 imagery) over whatever is shown, in Greenland (polar stereographic) views; lightly smoothed at the map\'s resolution',
+  demContourLevels: 'Elevations to contour, m: "every N" for every N m (at most 60 lines in view), or values separated by commas (at most 12)',
   pfAt: 'Type a flow-line point instead of clicking one: lat, lon in degrees (69.17, -49.5 or 69.17N 49.5W), or x, y in km in the map projection (-180, -2273 km); Enter or Trace',
   pfYrOn: 'Dots along the flow line where ice at the point was (upstream, -) or will be (downstream, +) after each interval, for steady flow at the speeds of the mosaic the line was traced on',
   pfYrStep: 'Years between travel-time marks',
@@ -282,6 +286,7 @@ async function readoutValue(coord) {
     if (fx < 0 || fy < 0 || fx >= g.W || fy >= g.H) return 'outside frame';
     const v = frames[animIdx].values[fy * g.W + fx];
     if (Number.isNaN(v)) return 'no data';
+    if (classMode) return `<b>${esc(g.key)}</b> ${esc(classOf(frames[animIdx].it.assets[g.key], v)?.name ?? v)} (${fmtDate(frames[animIdx].it.start)})`;
     const shown = g.anomaly ? v * g.scale : v * g.scale + g.offset;
     return `<b>${esc(g.key)}${g.anomaly ? ' minus mean' : ''}</b> ${fmtVal(shown)} ${esc(g.unit)} (${fmtDate(frames[animIdx].it.start)})`;
   }
@@ -295,6 +300,9 @@ async function readoutValue(coord) {
   if (vals.length >= 3) return `<b>${esc(key)}</b> R ${vals[0]} G ${vals[1]} B ${vals[2]}`;
   const v = vals[0];
   if (v === b.nodata || !Number.isFinite(v)) return `<b>${esc(key)}</b> no data`;
+  if (classMode) return `<b>${esc(key)}</b> ${esc(classOf(a, v)?.name ?? v)}`;
+  const masked = await maskedAt(selected, coord).catch(() => '');
+  if (masked) return `<b>${esc(key)}</b> masked (${esc(masked)})`;
   const sig = await readoutError(selected, key, coord).catch(() => NaN);
   return `<b>${esc(key)}</b> ${fmtVal(v * (b.scale ?? 1) + (b.offset ?? 0))}${Number.isFinite(sig) ? ` &plusmn; ${fmtVal(sig)}` : ''} ${esc(b.unit || '')}`;
 }
@@ -338,7 +346,7 @@ map.on('pointermove', e => {
 // time-series points, plot x axis and trend, and the profile or flow line (with its travel-time marks and
 // date series and reference curve). It goes in the address bar and, where allowed, the clipboard.
 // Share this animation adds the area box and animation settings; the frames are loaded on request.
-const shareToggles = ['names', 'fronts', 'bounds', 'gl', 'arrows', 'particles', 'contour'];  // optional layers: <key>On
+const shareToggles = ['names', 'fronts', 'bounds', 'gl', 'arrows', 'particles', 'contour', 'demContour'];  // optional layers: <key>On
 async function shareView(anim, note, qr = false, embed = false) {
   if (localCatalog) { $(note).textContent = 'This catalog is open from this computer, so a link cannot show it to anyone else.'; return; }
   const u = shareUrl(anim), q = u.searchParams;
@@ -364,9 +372,9 @@ function shareUrl(anim) {
   const [x, y] = v.getCenter();
   q.set('x', Math.round(x)); q.set('y', Math.round(y)); q.set('z', +v.getZoom().toFixed(2));
   if (dates.length && (i0 > 0 || i1 < dates.length - 1)) { q.set('t0', fmtDate(new Date(dates[i0]))); q.set('t1', fmtDate(new Date(dates[i1]))); }
-  if (selected && !rgbMode) { q.set('lo', $('smin').value); q.set('hi', $('smax').value); }
+  if (selected && !rgbMode && !classMode) { q.set('lo', $('smin').value); q.set('hi', $('smax').value); }
   if (cmapChosen) q.set('cmap', lastSeqCmap);
-  if (selected && stretchMode === 'zero' && !rgbMode) q.set('log', logScale ? '1' : '0');
+  if (selected && stretchMode === 'zero' && !rgbMode && !classMode) q.set('log', logScale ? '1' : '0');
   if (rasterLayer.getOpacity() < 1) q.set('op', rasterLayer.getOpacity());
   const off = ['base', 'coast', 'foot'].filter(k => !$(`${k}On`).checked);
   if (off.length) q.set('off', off.join(','));
@@ -376,7 +384,9 @@ function shareUrl(anim) {
   if (tsPoints.some(p => !p.area)) q.set('pts', tsPoints.filter(p => !p.area).map(p => p.coord.map(Math.round).join(',')).join(';'));  // shapes are not shared
   const on = shareToggles.filter(k => $(`${k}On`).checked && !$(`${k}On`).disabled);
   if (on.length) q.set('on', on.join(','));
-  if (on.includes('contour') && $('contourLevels').value !== $('contourLevels').defaultValue) q.set('clev', contourLevels().join(','));
+  if (maskOn(selected)) q.set('mask', maskShown());
+  if (on.includes('contour') && $('contourLevels').value !== $('contourLevels').defaultValue) q.set('clev', $('contourLevels').value.trim());
+  if (on.includes('demContour') && $('demContourLevels').value !== $('demContourLevels').defaultValue) q.set('delev', $('demContourLevels').value.trim());
   const narrowed = (sel, years) => sel[0] > years[0] || sel[1] < years[1];
   if (on.includes('fronts') && narrowed(frontsSel, frontsYears)) q.set('fy', frontsSel.join(','));
   if (on.includes('gl') && narrowed(glSel, glYears)) q.set('gy', glSel.join(','));
@@ -446,7 +456,8 @@ $('qrSave').onclick = () => $('qrCanvas').toBlob(b => saveBlob(b, 'grimp-viewer-
   }
   // Optional layers are drawn by their refresh once the catalog sets the view and shows an item.
   for (const k of (startParams.get('on') || '').split(',')) if (shareToggles.includes(k)) $(`${k}On`).checked = true;
-  if (startParams.get('clev')) $('contourLevels').value = startParams.get('clev').split(',').join(', ');
+  if (startParams.get('clev')) $('contourLevels').value = startParams.get('clev').replace(/,\s*/g, ', ');
+  if (startParams.get('delev')) $('demContourLevels').value = startParams.get('delev').replace(/,\s*/g, ', ');
   for (const k of (startParams.get('coff') || '').split(',')) if (['groundingLine', 'iceFront'].includes(k)) $('coastLegend').querySelector(`[data-kind=${k}]`).click();
   if (startParams.get('yr')) { $('pfYrOn').checked = true; $('pfYrStep').value = startParams.get('yr'); }
   if (['line', 'cycle'].includes(startParams.get('trend'))) { $('tsTrend').checked = true; $('tsTrendFit').value = startParams.get('trend'); }

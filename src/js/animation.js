@@ -80,11 +80,12 @@ function refreshAnimInfo() {
   if (frames.length) return;
   const ext = animExtent(), where = ext === areaBox ? 'inside the box'
     : siteMode ? `site ${siteName(selected)} (the orange box; click another box on the map to change it)` : 'the whole image';
-  $('animAnomRow').hidden = rgbMode; $('animBarRow').hidden = rgbMode;
-  $('animRangeRow').hidden = rgbMode || !$('animAnom').checked;
+  const asStored = rgbMode || classMode;
+  $('animAnomRow').hidden = asStored; $('animBarRow').hidden = asStored;
+  $('animRangeRow').hidden = asStored || !$('animAnom').checked;
   $('animRangeUnit').textContent = band.unit || '';
   $('animInfo').textContent = `${fs.length} frames, ${fmtDate(fs[0].start)} to ${fmtDate(fs[fs.length - 1].start)}, ${where}. `
-    + (rgbMode ? 'RGB images are shown as stored.'
+    + (rgbMode ? 'RGB images are shown as stored.' : classMode ? 'Classes are shown in their colors.'
        : $('animAnom').checked ? 'Each frame minus the per-pixel mean, centered on 0 in blue-white-red, using the current clip %.'
        : 'Every frame uses the current color range and color map.');
   const sel = $('animRes'), prev = sel.value;
@@ -157,6 +158,12 @@ async function readFrame(it, key, ext, res, W, H) {
   return rgb ? { rgba: out } : { values: out };
 }
 
+// a class map's frame as RGBA in its class colors (clear where no class)
+function classFrame(f, a) {
+  const rgba = new Uint8ClampedArray(f.values.length * 4);
+  f.values.forEach((v, k) => { const c = classOf(a, v); if (c) rgba.set([...hexRgba(`#${c.color_hint}`).slice(0, 3), 255], 4 * k); });
+  return { rgba };
+}
 function frameCanvas(frame, W, H, lut, lo, hi, label, bar = null, log = false) {
   const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d'), img = ctx.createImageData(W, H), px = img.data;
@@ -223,11 +230,11 @@ function drawColorBar(ctx, W, fs, { stops, dlo, dhi, title, centered, log }) {
 
 async function buildFrames() {
   const key = $('asset').value, series = animSeries(), ext = animExtent(), res = levels[+$('animRes').value].res;
-  const anomaly = $('animAnom').checked && !rgbMode;
+  const anomaly = $('animAnom').checked && !rgbMode && !classMode;
   const [W, H] = frameSize(ext, res);
-  const lut = rgbMode ? null : buildLut(anomaly ? cmaps['blue-white-red'] : (cmaps[$('cmap').value] || cmaps.gray));
+  const lut = rgbMode || classMode ? null : buildLut(anomaly ? cmaps['blue-white-red'] : (cmaps[$('cmap').value] || cmaps.gray));
   const scale = band.scale ?? 1, unit = band.unit || '';
-  const withBar = $('animBar').checked && !rgbMode;
+  const withBar = $('animBar').checked && !rgbMode && !classMode;
   const barStops = anomaly ? cmaps['blue-white-red'] : (cmaps[$('cmap').value] || cmaps.gray);
   resetAnimation();
   const token = ++animToken;  // after the reset, which bumps the token itself
@@ -243,9 +250,9 @@ async function buildFrames() {
     if (!anomaly) {
       for (const [i, it] of series.entries()) {
         $('animNote').textContent = `Loading frame ${i + 1} of ${series.length} (${fmtDate(it.start)})...`;
-        const f = await readFrame(it, key, ext, res, W, H);
+        const f = await maskFrame(await readFrame(it, key, ext, res, W, H), it, ext, res, W, H);
         if (token !== animToken) return;
-        add(it, frameCanvas(f, W, H, lut, rawLo, rawHi, label(it), withBar ? {
+        add(it, frameCanvas(classMode ? classFrame(f, it.assets[key]) : f, W, H, lut, rawLo, rawHi, label(it), withBar ? {
           stops: barStops, dlo: toDisp(rawLo), dhi: toDisp(rawHi), centered: stretchMode === 'symmetric',
           title: `${key}${unit ? ` (${unit})` : ''}${logScale ? ', log scale' : ''}`, log: logScale } : null, logScale), f.values || null);
         await pause(0);  // let the page repaint the progress note
@@ -256,7 +263,7 @@ async function buildFrames() {
       const stack = [];
       for (const [i, it] of series.entries()) {
         $('animNote').textContent = `Reading frame ${i + 1} of ${series.length} (${fmtDate(it.start)})...`;
-        stack.push((await readFrame(it, key, ext, res, W, H)).values);
+        stack.push((await maskFrame(await readFrame(it, key, ext, res, W, H), it, ext, res, W, H)).values);
         if (token !== animToken) return;
         await pause(0);
       }

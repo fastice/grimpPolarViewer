@@ -53,10 +53,13 @@
       <label><input id="arrowsOn" type="checkbox"> Flow arrows</label>
       <label><input id="particlesOn" type="checkbox"> Flow particles</label>
       <label><input id="contourOn" type="checkbox"> Speed contours</label>
+      <label><input id="demContourOn" type="checkbox"> Elevation contours</label>
     </div>
     <div id="particleRow" class="row" hidden><button id="particleSave" type="button">Save particle movie</button><span id="particleNote" class="note"></span></div>
     <div id="contourLegend" class="row" hidden><label class="lab" for="contourLevels" style="margin:0;flex:none">Contours</label>
       <input id="contourLevels" type="text" value="100, 250, 500, 1000, 2500, 5000" inputmode="decimal" spellcheck="false"><span class="note">m/yr</span></div>
+    <div id="demContourLegend" class="row" hidden><label class="lab" for="demContourLevels" style="margin:0;flex:none">Elevation</label>
+      <input id="demContourLevels" type="text" value="every 100" spellcheck="false"><span class="note">m</span></div>
     <div id="frontsLegend" hidden>
       <div class="dual yr"><div class="track" id="frontsBar"><div class="shade" id="frontsShadeL"></div><div class="shade" id="frontsShadeR"></div></div><div class="band" id="frontsBand"></div>
         <input id="frontsLo" type="range" aria-label="First winter of fronts shown"><input id="frontsHi" type="range" aria-label="Last winter of fronts shown"></div>
@@ -83,6 +86,9 @@
     <div id="barTicks" hidden></div>
     <div class="ends"><span id="lmin"></span><span id="lunit"></span><span id="lmax"></span></div>
     <div class="ctl"><label for="cmap">Color map</label><select id="cmap"></select></div>
+    <div class="ctl" id="maskRow" hidden><label for="maskSel">Show only <span id="maskNote" class="note"></span></label><select id="maskSel">
+      <option value="" selected>everything</option><option value="1">ice</option><option value="12">ice and land</option>
+      <option value="2">land</option><option value="3">water</option></select></div>
     <label class="optrow" id="logRow" hidden><input id="logScale" type="checkbox"> Log scale</label>
     <div class="ctl"><label for="clip">Clip <span id="clipv">1%</span> <span id="clipwhere">each end</span></label>
       <input id="clip" type="range" min="0" max="10" step="0.1" value="1"></div>
@@ -304,7 +310,7 @@
     </div>
   </details>
   <details id="figSec" class="block" hidden>
-    <summary>Save figure (PNG)</summary>
+    <summary>Save figure</summary>
     <div class="block-inner">
       <div class="row"><button id="figDraw" type="button">Draw box</button><button id="figClearBox" type="button" class="link" hidden>Clear</button><span id="figBoxInfo" class="note"></span></div>
       <div class="ctl"><label for="figSize">Size</label><select id="figSize"><option value="2">2&times; the box on screen</option>
@@ -312,9 +318,11 @@
         <option value="data">the data's own pixels</option><option value="in">a width in inches</option></select></div>
       <div class="row"><label class="ctl" id="figWidthRow" hidden>Width (in)<input id="figWidth" type="number" step="any" min="0.5" value="6.5"></label>
         <label class="ctl">dpi<input id="figDpi" type="number" step="1" min="30" value="300"></label></div>
+      <div class="ctl"><label for="figFormat">Format</label><select id="figFormat"><option value="png" selected>PNG</option>
+        <option value="jpg">JPEG</option><option value="tif">TIFF</option></select></div>
       <label class="optrow"><input id="figLabels" type="checkbox" checked> Color bar, scale bar and dates</label>
       <button id="figSave" type="button" disabled>Save figure</button>
-      <div id="figFiles" class="row" hidden><button id="figJson" type="button">Save the .json sidecar</button><button id="figPng" type="button" class="link">PNG again</button></div>
+      <div id="figFiles" class="row" hidden><button id="figJson" type="button">Save the .json sidecar</button><button id="figAgain" type="button" class="link">PNG again</button></div>
       <div id="figNote" class="note"></div>
     </div>
   </details>
@@ -395,6 +403,7 @@
 <!-- @include js/catalog.js -->
 <!-- @include js/display.js -->
 <!-- @include js/compare.js -->
+<!-- @include js/iceMask.js -->
 <!-- @include js/download.js -->
 <!-- @include js/animation.js -->
 <!-- @include js/staticAnomaly.js -->

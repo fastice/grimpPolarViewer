@@ -27,6 +27,8 @@ Go to, Measure and Digitize, and download, in Greenland and at Pine Island Glaci
 | Greenland radar backscatter, 2020-2026 | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0723/v04/nsidc-0723.parquet) | [NSIDC-0723 v4](https://doi.org/10.5067/WXQ366CP8YDE) |
 | Greenland 6/12-day ice velocity, 2015-2026 (NSIDC-0766 v3) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0766/v03/nsidc-0766.parquet&asset=vv) | [NSIDC-0766 v2](https://doi.org/10.5067/1AMEDB6VJ1NZ) |
 | Greenland glacier sites from TerraSAR-X, 2008-2026 (NSIDC-0481 v5) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0481/v05/nsidc-0481.parquet&asset=vv) | [NSIDC-0481 v4](https://doi.org/10.5067/GQZQY2M5507Z) |
+| Greenland surface elevation, GrIMP DEM, 30 m (NSIDC-0715 v2) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0715/v02/nsidc-0715.parquet&asset=dem) | [NSIDC-0715 v2](https://doi.org/10.5067/BHS4S5GAMFVY) |
+| Greenland ice, land and water mask, 15 m, 2000, 2015 and 2020 (NSIDC-0714 v1) | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0714/v01/nsidc-0714.parquet&asset=mask) | [NSIDC-0714 v1](https://doi.org/10.5067/B8X58MQBFUPA) |
 | Amundsen Sea (Pine Island, Thwaites) quarterly ice velocity, 2015-2026 | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/pig/quarterly/ase-quarterly.parquet&asset=vv) | |
 | Amundsen Sea (Pine Island, Thwaites) radar backscatter, 2015 to Feb 2026 | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/pig/backscatter/v04/ase-backscatter.parquet) | |
 | Amundsen Sea (Pine Island, Thwaites) annual ice velocity, 2015-2026 | [open](https://s3.kopah.uw.edu/ianj-grimp/public/viewer/index.html?href=https://s3.kopah.uw.edu/ianj-grimp/public/pig/annual/ase-annual.parquet&asset=vv) | |
@@ -56,6 +58,21 @@ at NSIDC. To cite the data, use NSIDC's references:
   Glacier Site Velocity Maps from InSAR. (NSIDC-0481, Version 4). [Data Set]. Boulder, Colorado
   USA. NASA National Snow and Ice Data Center Distributed Active Archive Center.
   https://doi.org/10.5067/GQZQY2M5507Z.
+- Howat, I., Negrete, A. & Smith, B. (2022). MEaSUREs Greenland Ice Mapping Project (GrIMP) Digital
+  Elevation Model from GeoEye and WorldView Imagery. (NSIDC-0715, Version 2). [Data Set]. Boulder,
+  Colorado USA. NASA National Snow and Ice Data Center Distributed Active Archive Center.
+  https://doi.org/10.5067/BHS4S5GAMFVY.
+- Howat, I. (2017). MEaSUREs Greenland Ice Mapping Project (GIMP) Land Ice and Ocean Classification
+  Mask. (NSIDC-0714, Version 1). [Data Set]. Boulder, Colorado USA. NASA National Snow and Ice Data
+  Center Distributed Active Archive Center. https://doi.org/10.5067/B8X58MQBFUPA.
+- For both, NSIDC also asks for: Howat, I., Negrete, A. & Smith, B. (2014). The Greenland Ice Mapping
+  Project (GIMP) land classification and surface elevation data sets. The Cryosphere, 8.
+  https://doi.org/10.5194/tc-8-1509-2014.
+
+The DEM is one mosaic of NSIDC's 30 m DEM tiles. The mask combines NSIDC's ice and ocean masks into
+three classes (ice; water; land, which is neither) for each of its three epochs, so the time bar steps
+through 2000, 2015 and 2020. It is stored as class values (1 ice, 2 land, 3 water), which is what
+downloads give; the viewer draws them in fixed colors with a key, and pointing at it names the class.
 
 These links only choose where to start. Once the viewer is open, switch to any other data set with
 the **Collections** menu at the top of the panel, and between Greenland and Antarctica with the
@@ -64,7 +81,7 @@ the **Collections** menu at the top of the panel, and between Greenland and Anta
 To send someone what you are looking at, click **Share this view** under the catalog URL. It copies
 a link (and puts it in the address bar) that reopens the same collection, product, asset, map position
 and zoom, time range, color map and range, opacity, layers (glacier names, fronts and their years, basins,
-dated grounding lines and their years, flow arrows, particles, speed contours and their levels), background
+dated grounding lines and their years, flow arrows, particles, speed and elevation contours and their levels), background
 image, time-series points and their trend, and the profile or flow line with its travel-time marks, date
 series and reference date.
 **Share this animation**, in the Animate section, does the same and adds the animation's area box and
@@ -130,6 +147,12 @@ Velocity components (vx, vy) are centered on zero in blue and red:
 
 <br clear="right">
 
+In Greenland, **Show only** under the color map hides everything but ice, land or water (or ice and
+land), using the GIMP land ice / ocean mask (NSIDC-0714) from the year nearest the product's dates
+(2000, 2015 or 2020; the year is shown beside it). Pick **ice** to see ice velocity alone. The mask
+also applies to the swipe, animations, anomalies and figures, and the readout says *masked (land)*
+where it hides a value; downloads are never masked. Share links carry it.
+
 ![East-west velocity component (vx) in blue and red](Documents/images/vx.jpg)
 
 Point at the map to read the exact value under the pointer, with its position in kilometers and
@@ -143,7 +166,9 @@ zoom, and left out where ice moves slower than 5 m/yr (and on rock). Tick **Flow
 that drift with the flow instead: faster ice moves faster and leaves longer trails (they pause while the
 map moves). **Save particle movie** saves 10 seconds of them over a still of the map as shown, as an MP4
 at screen resolution that loops seamlessly when played on repeat. Tick **Speed contours** for lines of equal speed, labeled in m/yr; type the speeds you want
-in the box under the toggles.
+in the box under the toggles. In Greenland, **Elevation contours** draws contours of the GrIMP DEM
+over whatever is shown, labeled in m: type values separated by commas, or **every 100** (the default)
+for every 100 m. Either box takes "every N".
 
 When you point at a velocity product that has error layers, the readout gives the value with its
 1-sigma error (for example *vv 5595.4 ± 12.1 m/yr*).
@@ -330,17 +355,19 @@ series; compute again after moving the map. **Color range** fixes the top of the
 
 ### Save a figure
 
-**Save figure (PNG)** makes a picture of part of the map at a higher resolution than the screen, for a
+**Save figure** makes a picture of part of the map at a higher resolution than the screen, for a
 paper or a slide. Click **Draw box** and click two corners, then pick the **Size**: 2, 4 or 8 times the
 box's size on screen, one pixel per pixel of the data, or a width in inches (e.g. 6.5 in at 300 dpi is
 1950 pixels across). The map is drawn again at that size, with everything shown on it (background,
 coastlines, fronts, names, your shapes, a strain map or the swipe), so lines and labels are sharp and the
 images are read from finer levels of the data, down to its full resolution (the note says when the figure
-is finer than the data, whose pixels are then enlarged). **Color bar, scale bar and dates** labels it. The
-PNG stores its dpi, so it comes in at its print size in Word, PowerPoint or LaTeX. **Save the .json
+is finer than the data, whose pixels are then enlarged). **Format** is PNG, JPEG (smaller) or TIFF
+(lossless, for journals that ask for it; it is also a GeoTIFF in the map's projection, so it opens in
+place in QGIS or ArcGIS). **Color bar, scale bar and dates** labels it. The image
+stores its dpi, so it comes in at its print size in Word, PowerPoint or LaTeX. **Save the .json
 sidecar** then saves a .json beside it with the box, size, product, colors and a link that reopens the
 viewer with the same view and box: click **Save figure** there to make it again (the link is also stored
-in the PNG). Up to 8192 pixels a side and
+in the image). Up to 8192 pixels a side and
 16.7 million in all; flow particles are not drawn.
 
 ### 7. Make an animation

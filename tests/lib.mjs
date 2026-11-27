@@ -8,6 +8,8 @@ export const catalogs = {
   glAnnual: kopah + 'nsidc-0725/v06/nsidc-0725.parquet',
   glMonthly: kopah + 'nsidc-0731/v06/nsidc-0731.parquet',
   aseAnnual: kopah + 'pig/annual/ase-annual.parquet',
+  dem: kopah + 'nsidc-0715/v02/nsidc-0715.parquet',
+  mask: kopah + 'nsidc-0714/v01/nsidc-0714.parquet',
 };
 const out = new URL('./out/', import.meta.url).pathname;
 let failures = 0;

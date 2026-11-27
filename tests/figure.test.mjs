@@ -1,8 +1,9 @@
 // Save figure (Greenland annual): a box drawn over Jakobshavn from a zoomed-out view, sized 4x the box on
 // screen, the data's pixels or a width in inches (too large refused); saved as a PNG of exactly that size with
 // its dpi and link stored, sharper than the screen (finer data, lines and labels drawn again, not enlarged),
-// beside a .json sidecar; the map comes back as it was. The sidecar's link reopens the viewer with the box and
-// size, and saving again there makes the same figure.
+// beside a .json sidecar; the map comes back as it was. JPEG and TIFF keep the size, dpi and link and match the
+// PNG, and the TIFF is a GeoTIFF on the box. The sidecar's link reopens the viewer with the box and size, and
+// saving again there makes the same figure.
 import { execFileSync } from 'node:child_process';
 import { existsSync, unlinkSync, readFileSync, readdirSync } from 'node:fs';
 import { openViewer, catalogs, check, toMap, toPixel, zoomTo, text, sleep, shot, finish } from './lib.mjs';
@@ -37,7 +38,7 @@ const H = Math.round(1950 * bh / bw);
 check('6.5 in at 300 dpi: 1950 pixels, finer than the data', s[0] === 1950 && s[1] === H && /6.50 x \d\.\d\d in at 300 dpi.*finer than the data's 200 m/.test(await note()), await note());
 
 // save it
-for (const d of [out, out + 'again/']) if (existsSync(d)) for (const f of readdirSync(d)) if (/_figure\.(png|json)$/.test(f)) unlinkSync(d + f);  // earlier runs' files
+for (const d of [out, out + 'again/']) if (existsSync(d)) for (const f of readdirSync(d)) if (/_figure\.(png|jpg|tif|json)$/.test(f)) unlinkSync(d + f);  // earlier runs' files
 const cdp = await p.createCDPSession();
 await cdp.send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: out });
 const before = await fig();
@@ -70,6 +71,34 @@ check('not blank, and sharper than the screen', m.std > 20 && m.detail > 3, { st
 check('sidecar: box, size, product, colors, link', JSON.stringify(side.box) === JSON.stringify(box.map(Math.round)) && side.crs === 'EPSG:3413'
   && side.pixels[0] === 1950 && side.dpi === 300 && side.product.asset === 'vv' && side.colors.logScale === true && side.allTilesLoaded === true
   && side.link === m.source, side);
+
+// JPEG and TIFF: the same size, dpi and link, and the same picture (TIFF lossless)
+const fmt = `
+import sys, json, numpy as np
+from PIL import Image
+im = Image.open(sys.argv[1]); ref = np.asarray(Image.open(sys.argv[2]).convert('RGB'), float)
+a = np.asarray(im.convert('RGB'), float)
+src = im.info.get('comment', b'').decode() if im.format == 'JPEG' else im.tag_v2.get(270, '')
+print(json.dumps({ 'format': im.format, 'size': im.size, 'dpi': [round(float(v)) for v in im.info.get('dpi', (0, 0))],
+  'compression': im.info.get('compression', ''), 'link': src, 'diff': float(np.abs(a - ref).mean()) if a.shape == ref.shape else -1 }))`;
+for (const [ext, tol] of [['jpg', 3], ['tif', 1]]) {
+  await p.select('#figFormat', ext);
+  await p.$eval('#figNote', e => { e.textContent = ''; });
+  await p.click('#figSave');
+  await p.waitForFunction(() => /^Saved|Could not/.test(document.getElementById('figNote').textContent), { timeout: 180000 });
+  await sleep(2000);
+  const f = `${out}${name}.${ext}`, again = await p.$eval('#figAgain', e => e.textContent);
+  const r = existsSync(f) ? JSON.parse(execFileSync('python3', ['-c', fmt, f, png], { encoding: 'utf8' })) : null;
+  check(`${ext}: 1950 pixels at 300 dpi with the link, matching the PNG`, r && r.size[0] === 1950 && r.size[1] === H && r.dpi[0] === 300
+    && r.link.includes(side.link.replace(/\?.*/, '')) && r.link.includes(`ffmt=${ext}`) && r.diff >= 0 && r.diff < tol
+    && (ext !== 'tif' || r.compression === 'tiff_adobe_deflate') && again === `${ext === 'jpg' ? 'JPEG' : 'TIFF'} again`, { r, again });
+}
+await p.select('#figFormat', 'png');
+// the TIFF is a GeoTIFF: EPSG:3413, the box's upper-left corner and square pixels of the box's width / 1950
+const gi = JSON.parse(execFileSync('gdalinfo', ['-json', `${out}${name}.tif`], { encoding: 'utf8' }));
+const gt = gi.geoTransform, epsgOk = /ID\["EPSG",3413\]\]$/.test(gi.coordinateSystem?.wkt || '');
+check('TIFF georeferenced in EPSG:3413 on the box', epsgOk && Math.abs(gt[0] - box[0]) < 1 && Math.abs(gt[1] - bw / 1950) < 1e-6 && gt[5] === -gt[1]
+  && Math.abs(gt[3] - ((box[1] + box[3]) / 2 + H * gt[1] / 2)) < gt[1], { gt, epsgOk, box });
 
 // the link rebuilds it
 const p2 = await browser.newPage();
