@@ -280,7 +280,9 @@
       <label class="optrow"><input id="dgFree" type="checkbox"> Freehand lines and polygons</label>
       <ul id="dgList"></ul>
       <div class="ctl" id="dgCrsRow"><label for="dgCrs">Save in</label><select id="dgCrs"><option value="map">map grid</option><option value="4326">lon, lat (EPSG:4326)</option></select></div>
-      <div class="row"><button id="dgSave" type="button" hidden>Save GeoPackage</button><button id="dgClear" type="button" class="link" hidden>Clear</button></div>
+      <div class="ctl"><label for="dgName">File name</label><input id="dgName" type="text" spellcheck="false"></div>
+      <div class="row wrap"><button id="dgOpen" type="button">Open GeoPackage</button><button id="dgSave" type="button" hidden>Save GeoPackage</button>
+        <button id="dgClear" type="button" class="link" hidden>Clear</button><input id="dgFile" type="file" accept=".gpkg,application/geopackage+sqlite3" hidden></div>
       <div id="dgNote" class="note"></div>
     </div>
   </details>

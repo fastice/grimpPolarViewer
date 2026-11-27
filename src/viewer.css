@@ -255,3 +255,4 @@ body.embed #panelToggle { display: none; }
 #dgList input { flex: 1; min-width: 0; font-size: 12px; }
 #dgList .note { white-space: nowrap; }
 #dgList button.link { font-size: 15px; text-decoration: none; }
+#dgName { width: 100%; box-sizing: border-box; font-size: 12px; }

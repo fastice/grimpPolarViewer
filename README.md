@@ -393,8 +393,17 @@ Switch to **Southern** for Antarctic products, drawn with the South Pole at the 
   EPSG:3031, in meters), or in longitude and latitude (EPSG:4326) if **Save in** is set to that,
   with layers `points`, `lines` and `polygons` (circles saved as 64-sided polygons), each with its
   name, shape and true length or area on the WGS84 ellipsoid (points also get lat and lon); it opens
-  in QGIS, ArcGIS or GDAL. The shapes are kept separately for each hemisphere until the page is
-  closed.
+  in QGIS, ArcGIS or GDAL. Type a **File name** to save under (`.gpkg` is added), or leave it empty
+  for `grimpShapes_EPSG<code>_<date>.gpkg`.
+  **Open GeoPackage** reads a `.gpkg` from QGIS, ArcGIS or this viewer (up to 50 MB, 5,000 shapes
+  and 250,000 points; larger files are refused with a message, so simplify or clip them first). Its
+  points, lines and polygons, multi-part or with holes and in any coordinate system the file
+  defines, are moved into the map's projection and added to the list, named from a `name` field
+  if there is one; shapes in the other hemisphere go with that hemisphere's map. They are edited
+  like drawn ones, and saved again in layers of the same names with all their fields and fids.
+  Curved shapes and rows with no shape are left out, heights (Z) and measures (M) are dropped, and
+  only feature layers are read (not styles, rasters or plain tables). The file name box takes the
+  opened file's name. The shapes are kept separately for each hemisphere until the page is closed.
 - **Phones and tablets:** the controls sit below the map; hide them for a full-screen map. Tap the
   map to read a value.
 - **Pixel size:** the label beside the scale bar gives the size of the pixels on the map: a coarser
