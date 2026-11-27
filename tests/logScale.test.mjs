@@ -47,6 +47,13 @@ check('clip on a log scale fits both ends', lo > 0 && lo < 5 && hi > 500 && hi !
 // a typed 0 is moved above 0
 await p.$eval('#smin', e => { e.value = '0'; e.dispatchEvent(new Event('change')); });
 check('a log scale never starts at 0', +(await val('smin')) > 0, await val('smin'));
+// the next image starts at 1 to 3000 again, as does ticking the box after the clip was moved
+await p.select('#asset', 'vx'); await sleep(1500); await p.select('#asset', 'vv');
+await p.waitForFunction(() => /valid pixels/.test(document.getElementById('clipnote').textContent), { timeout: 60000 }); await sleep(300);
+check('a new image starts at 1 to 3000 after the clip was moved', +(await val('smin')) === 1 && +(await val('smax')) === 3000, [await val('smin'), await val('smax')]);
+await p.$eval('#clip', e => { e.value = '0.5'; e.dispatchEvent(new Event('input')); }); await sleep(300);
+await p.click('#logScale'); await p.click('#logScale'); await sleep(300);
+check('ticking the box again starts at 1 to 3000', +(await val('smin')) === 1 && +(await val('smax')) === 3000, [await val('smin'), await val('smax')]);
 // the frame renderer's log mapping: 1, the geometric middle and 3000 give the bottom, middle and top
 const q = await p.evaluate(() => window.grimpViewer.fc([1, Math.sqrt(3000), 3000], 1, 3000, true));
 check('frames use the log mapping', q[0] === 0 && Math.abs(q[1] - 128) <= 1 && q[2] === 255, q);

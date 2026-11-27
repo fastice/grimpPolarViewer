@@ -148,13 +148,13 @@ in the box under the toggles.
 When you point at a velocity product that has error layers, the readout gives the value with its
 1-sigma error (for example *vv 5595.4 ± 12.1 m/yr*).
 
-In Antarctica, **Coastlines** draws the grounding line (white) and the ice front and coast of the GrIMP
+In Antarctica, **Coastlines** draws the UCI AIV grounding line (white) and the ice front and coast of the GrIMP
 2026 ice mask (cyan, with ice shelf names as you zoom in); click either entry in its legend to hide or show
-that line. Tick **Basins** for the drainage basins (dashed yellow): IMBIE in Antarctica, with their labels,
-and the glacier basins of Mouginot and Rignot (2019) in Greenland (tick **Glacier names** to label them).
+that line. Tick **Basins** for the drainage basins (dashed yellow): IMBIE (UCI AIV) in Antarctica, with their labels,
+and the UCI glacier basins of Mouginot and Rignot (2019) in Greenland (tick **Glacier names** to label them).
 Point at a basin for its true area in km², corrected for the polar stereographic map's scale distortion
 (the map area is shown beside it).
-Tick **Dated grounding lines** for the InSAR grounding lines of the Amundsen Sea glaciers (Pine Island,
+Tick **Dated grounding lines** for the UCI AIV InSAR grounding lines of the Amundsen Sea glaciers (Pine Island,
 Thwaites, Pope, Smith, Kohler, Getz, Abbot and others) from 1992 to 2025, colored from blue (oldest) to red
 (newest); point at one for its date and sensor, and drag the handles on its color bar to pick the years
 drawn (the band between them slides the range).
@@ -456,11 +456,12 @@ These are display-only: the viewer does not download them. Get them from their d
 - Greenland glacier names: Bjørk, A. A., et al. (2015), Brief communication: Getting Greenland's glaciers
   right, a new data set of all official Greenlandic glacier names, *The Cryosphere*, 9, 2215-2218,
   <https://doi.org/10.5194/tc-9-2215-2015>.
-- Antarctic grounding line, ice shelves and IMBIE basins: NSIDC-0709 v2, MEaSUREs Antarctic Boundaries for IPY 2007-2009 from Satellite Radar, <https://doi.org/10.5067/AXE4121732AD>.
-- Greenland glacier basins: Mouginot, J. and Rignot, E. (2019), Glacier catchments/basins for the Greenland Ice
+- Antarctic grounding line, ice shelves and IMBIE basins, from the University of California, Irvine (UCI AIV):
+  NSIDC-0709 v2, MEaSUREs Antarctic Boundaries for IPY 2007-2009 from Satellite Radar, <https://doi.org/10.5067/AXE4121732AD>.
+- Greenland glacier basins, from the University of California, Irvine (UCI): Mouginot, J. and Rignot, E. (2019), Glacier catchments/basins for the Greenland Ice
   Sheet, Dryad, <https://doi.org/10.7280/D1WT11> (used in Mouginot et al. (2019), Forty-six years of Greenland
   Ice Sheet mass balance from 1972 to 2018, *PNAS*, 116, 9239-9244, <https://doi.org/10.1073/pnas.1904242116>).
-- Amundsen Sea grounding lines (dated): NSIDC-0498 v2.1, MEaSUREs Antarctic Grounding Line from Differential Satellite Radar Interferometry, <https://doi.org/10.5067/IKBWW4RYHF1Q>.
+- Amundsen Sea grounding lines (dated), from the University of California, Irvine (UCI AIV): NSIDC-0498 v2.1, MEaSUREs Antarctic Grounding Line from Differential Satellite Radar Interferometry, <https://doi.org/10.5067/IKBWW4RYHF1Q>.
 - Antarctic place names: Secretariat SCAR (1992, updated 2025), Composite Gazetteer of Antarctica,
   Scientific Committee on Antarctic Research, <https://placenames.aq/>.
 - ITS_LIVE velocities for comparison in the time series and profile plots: velocity data generated using

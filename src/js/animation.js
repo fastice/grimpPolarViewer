@@ -1,7 +1,8 @@
 const zeroFloorAssets = new Set(['vv', 'ex', 'ey']), signedAssets = new Set(['vx', 'vy']);
 let stretchMode = 'both', lastSeqCmap = 'gray', cmapChosen = false;
 // Speeds open on a log scale in the browse colors over the browse images' 1-3000 m/yr, until the log box is
-// changed (logChosen) or the clip moved (clipMoved, which stretches to the image instead).
+// changed (logChosen). Every image (and ticking the box) starts at 1-3000; moving the clip (clipMoved) fits
+// the range to the image shown, until the next one.
 let logChosen = null, clipMoved = false;
 const browseRange = [1, 3000];
 // Animation: one frame per item of the selected item's time series (items in the time range that

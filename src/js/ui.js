@@ -47,11 +47,11 @@ const tips = {
   baseOn: 'NASA GIBS Blue Marble basemap',
   bgColl: 'Show an image (backscatter) product in gray under the main layer; kept for this hemisphere until you change it',
   bgItem: 'Which image of the background collection to show',
-  coastOn: 'Coastline overlay: NASA GIBS, except in Antarctica, where it is the NSIDC-0709 v2 grounding line (white) and the ice front and coast of the September 2026 GrIMP ice mask (cyan), with ice shelf names as you zoom in',
+  coastOn: 'Coastline overlay: NASA GIBS, except in Antarctica, where it is the NSIDC-0709 v2 grounding line from UC Irvine (UCI AIV; white) and the ice front and coast of the September 2026 GrIMP ice mask (cyan), with ice shelf names as you zoom in',
   footOn: 'Outlines of the items in the time range; click one to show it',
   arrowsOn: 'Flow direction of the shown velocity product (its vx and vy), averaged over each arrow\'s cell; longer arrows are faster (log scale up to the fastest 5% in view); none below 5 m/yr',
   olAdd: 'Draw your own GeoJSON, KML or GPX outlines on the map (they stay in this browser tab, nothing is uploaded)',
-  boundsOn: 'Drainage basins: IMBIE (NSIDC-0709 v2) in Antarctica, Mouginot and Rignot (2019) glacier basins in Greenland; point at a basin for its true area (the polar stereographic map area corrected for the projection scale)',
+  boundsOn: 'Drainage basins from UC Irvine: IMBIE (NSIDC-0709 v2, UCI AIV) in Antarctica, Mouginot and Rignot (2019, UCI) glacier basins in Greenland; point at a basin for its true area (the polar stereographic map area corrected for the projection scale)',
   particlesOn: 'Streaks drifting with the flow of the shown velocity product (its vx and vy); faster ice moves faster and leaves longer trails. Paused while the map moves',
   contourOn: 'Lines of equal speed (isotachs) of the shown product\'s speed (vv), at the levels typed below, read at the map\'s resolution and lightly smoothed',
   particleSave: 'Save 10 s of the moving particles over a still of the map as shown, as an MP4 at screen resolution that loops seamlessly when played on repeat. Moving the map stops it',
@@ -62,12 +62,12 @@ const tips = {
   fpShow: 'Plot where the glacier fronts or dated grounding lines shown on the map cross the line, against date (their year sliders pick the years); the profile plot marks the same crossings along its top',
   fpPng: 'Save the front-position plot as a PNG (these lines are not GrIMP data, so there is no CSV)',
   tsXMode: 'Plot against date, or fold the series onto the months of the year with one line per year (colored by year) to compare seasonal cycles',
-  glOn: 'Dated InSAR grounding lines of the Amundsen Sea glaciers, 1992-2025 (NSIDC-0498 v2.1), colored by year; point at one for its date. Antarctica only',
+  glOn: 'Dated InSAR grounding lines of the Amundsen Sea glaciers from UC Irvine (UCI AIV), 1992-2025 (NSIDC-0498 v2.1), colored by year; point at one for its date. Antarctica only',
   frontsOn: 'Winter ice-front positions of Greenland outlet glaciers, 1972-73 to 2020-21 (NSIDC-0642 v2), colored by year; point at a front for its date',
   namesOn: 'Glacier and place names: Greenland from Bjørk et al. 2015, Antarctica from the SCAR Composite Gazetteer. Zoomed out only the major ones, more as you zoom in',
   cmap: 'Color map for single-band images',
   clip: 'Percent of pixels saturated at each end of the color range (only the top for speeds on a linear scale; symmetric for vx/vy)',
-  logScale: 'Spread the colors evenly in log(speed), so slow ice and fast glaciers both show; speed opens this way, in the browse colors over 1 to 3000 m/yr like the GrIMP browse images (move Clip to fit the range to the image instead)',
+  logScale: 'Spread the colors evenly in log(speed), so slow ice and fast glaciers both show; speed opens this way, in the browse colors over 1 to 3000 m/yr like the GrIMP browse images; each image starts at 1 to 3000 (move Clip to fit the range to the image shown)',
   smin: 'Lowest value of the color range (type to override the clip)',
   smax: 'Highest value of the color range (type to override the clip)',
   saOn: 'Show the displayed date minus the per-pixel mean of all dates in its time series, or minus one date (Minus)',
@@ -199,6 +199,7 @@ if (matchMedia('(pointer: coarse)').matches) for (const id of ['olFile', 'dgFile
 $('clip').oninput = () => { clipMoved = true; applyClip(); };
 $('logScale').onchange = e => {
   logChosen = logScale = e.target.checked;
+  clipMoved = false;
   if (!cmapChosen && $('asset').value === 'vv') $('cmap').value = logScale ? 'browse' : 'viridis';
   clipWhere(); $('lunit').textContent = unitText();
   if (logScale && !(rawLo > 0)) setStretch(toDisp(rawHi) / 1000, toDisp(rawHi));

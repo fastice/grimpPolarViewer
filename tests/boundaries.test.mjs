@@ -40,7 +40,7 @@ check('Basins and Dated grounding lines off by default, enabled in Antarctica', 
 await p.click('#boundsOn'); await sleep(500);
 const b = await drawn(5);
 check('Basins: 19 IMBIE basins with labels, legend shown, Coastlines still drawn', b.visible && b.kinds === 'basins' && b.n === 19 && ['Ep-F', 'A-Ap'].every(n => b.labels.includes(n))
-  && !b.labels.includes('Pine Island') && !b.labels.includes('Ross West') && !(await hidden(p, 'boundsLegend')) && (await text(p, 'basinsKey')) === 'IMBIE basins'
+  && !b.labels.includes('Pine Island') && !b.labels.includes('Ross West') && !(await hidden(p, 'boundsLegend')) && (await text(p, 'basinsKey')) === 'IMBIE basins (UCI AIV)'
   && (await drawn(4)).kinds === 'groundingLine,iceFront', { ...b, labels: b.labels });
 await sleep(1000); await shot(p, 'boundariesAse');
 

@@ -16,8 +16,8 @@ const boundsUrl = 'data/antarcticBoundaries.json', iceFrontUrl = 'data/antarctic
 // Per projection: the files read the first time Basins (or Antarctic Coastlines) needs them, the basin legend text
 // and the source they fill.
 const boundsSets = {
-  'EPSG:3031': { urls: [boundsUrl, iceFrontUrl], what: 'Antarctic boundaries', basins: 'IMBIE basins', source: new ol.source.Vector() },
-  'EPSG:3413': { urls: ['data/greenlandBasins.json'], what: 'Greenland basins', basins: 'glacier basins (Mouginot 2019)', source: new ol.source.Vector() },
+  'EPSG:3031': { urls: [boundsUrl, iceFrontUrl], what: 'Antarctic boundaries', basins: 'IMBIE basins (UCI AIV)', source: new ol.source.Vector() },
+  'EPSG:3413': { urls: ['data/greenlandBasins.json'], what: 'Greenland basins', basins: 'glacier basins (UCI, Mouginot 2019)', source: new ol.source.Vector() },
 };
 const casing = w => new ol.style.Stroke({ color: 'rgba(0, 0, 0, 0.55)', width: w });
 const boundsStyles = {

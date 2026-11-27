@@ -53,6 +53,7 @@ function showAsset(key) {
   // Speeds and errors start at a hard 0; velocity components are stretched symmetrically about 0.
   stretchMode = zeroFloorAssets.has(key) ? 'zero' : signedAssets.has(key) ? 'symmetric' : 'both';
   logScale = stretchMode === 'zero' && (logChosen ?? key === 'vv');
+  clipMoved = false;
   $('logRow').hidden = stretchMode !== 'zero'; $('logScale').checked = logScale;
   clipWhere();
   if (stretchMode === 'symmetric') {
