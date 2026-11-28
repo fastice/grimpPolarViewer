@@ -32,6 +32,7 @@ let pfLine = null, pfKey = null, pfCurves = [], pfIts = null, pfToken = 0, pfIts
 let pfCum = null, pfOff = 0, pfFlow = null;  // cumulative m along pfLine; plotted distance of its start; flow trace
 const pfAx = { x: { typed: null, span: null, pos: [0, 1] }, y: { typed: null, span: null, pos: [0, 1] } };  // plot ranges
 let pfPoint = null, pfAdjust = null, pfWant = [0, 0];  // flow point feature; its drag interaction; lengths asked for (m)
+let pfElev = null, pfElevToken = 0;  // GrIMP DEM elevation along the line { d, v, res, line }, for the right axis
 let pfMarks = [];  // travel-time marks on the flow line: { t (years from the point), km (from the point) }
 const pfItsStep = 120;  // m between ITS_LIVE pair samples
 const itsAnnualRegion = { 3413: 'RGI05A', 3031: 'RGI19A' };  // ITS_LIVE annual mosaic region per projection
@@ -47,7 +48,7 @@ const pfLen = () => pfCum[pfCum.length - 1];
 const pfAt = d => alongPath(pfLine, pfCum, d);
 
 function clearProfile() {
-  ++pfToken; ++pfItsToken;
+  ++pfToken; ++pfItsToken; ++pfElevToken; pfElev = null;
   pfLine = null; pfKey = null; pfCurves = []; pfIts = null; pfFlow = null; pfOff = 0; pfPoint = null; pfRef = null; $('pfRefRow').hidden = true;
   pfAx.x.typed = pfAx.y.typed = null; $('pfAxRow').hidden = true;
   if (pfAdjust) { map.removeInteraction(pfAdjust); pfAdjust = null; }
@@ -68,7 +69,19 @@ function setProfileLine(line, off) {
   $('pfClear').hidden = false; $('pfSerRow').hidden = false;
   for (const [it, off, ser] of shown) { addProfileCurve(it, pfKey, ser); if (off) pfCurves.find(c => c.it === it).off = true; }
   if (selected && plotAsset()) pfOnShown(plotAsset());
-  travelMarks(); refreshFrontPositions();
+  travelMarks(); refreshFrontPositions(); refreshProfileElev();
+}
+// GrIMP DEM elevation along the line, plotted on a right y axis (Greenland views, when ticked)
+async function refreshProfileElev() {
+  const token = ++pfElevToken;
+  if (viewCode !== 'EPSG:3413' || !$('pfElevOn').checked || !pfLine) { pfElev = null; drawProfile(); return; }
+  if (pfElev?.line === pfLine) { drawProfile(); return; }
+  pfElev = null;
+  try {
+    const e = await profileValues(demItem, 'dem');
+    if (token === pfElevToken) pfElev = { ...e, line: pfLine };
+  } catch (err) { if (token === pfElevToken) $('pfNote').textContent = `Could not read the elevation: ${err.message}`; }
+  if (token === pfElevToken) drawProfile();
 }
 function newProfile(line) {
   clearProfile();
@@ -279,6 +292,7 @@ for (const id of ['pfLo', 'pfHi']) {
 function pfOnShown(key) {
   $('pfSec').hidden = !key;
   $('pfItsRow').hidden = !(key in itsVars);
+  $('pfElevRow').hidden = viewCode !== 'EPSG:3413';
   if (!pfLine || !key) return;
   if (key !== pfKey) { pfCurves = []; pfKey = key; pfIts = null; pfAx.y.typed = null; pfSer = null; ++pfSerToken; $('pfSerOn').checked = false; serUi(); }
   addProfileCurve(selected, key);

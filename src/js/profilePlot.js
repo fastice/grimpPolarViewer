@@ -38,7 +38,9 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
   const css = getComputedStyle(document.documentElement), tok = n => css.getPropertyValue(n).trim();
   const fg = tok('--fg'), muted = tok('--muted'), line = tok('--line');
   ctx.fillStyle = tok('--panel'); ctx.fillRect(0, 0, W, H);
-  const R = 14, T = pfMarks.length ? 48 : 30, B = 42, ph = H - T - B, km = pfLen() / 1000;  // room for the travel-time axis
+  const elev = pfElev?.line === pfLine && $('pfElevOn').checked ? pfElev : null, brown = '#a0683a';
+  let R = 14;
+  const T = pfMarks.length ? 48 : 30, B = 42, ph = H - T - B, km = pfLen() / 1000;  // room for the travel-time axis
   let L = 82, pw = W - L - R;  // L narrows to fit the y labels once the y range is known
   // Change from a reference curve (picked under Plot): every curve minus it, ITS_LIVE left out.
   if (canvas === $('pfCanvas')) pfRefOptions();
@@ -47,7 +49,7 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
   const label = `${ref ? `Change in ${pfKey} from ${fmtDate(ref.it.start)}` : pfKey}${unit ? ` (${unit})` : ''}`;
   const its = !ref && $('pfIts').checked && pfIts?.key === pfKey ? pfIts : null;
   ctx.font = '12px "Atkinson Hyperlegible", sans-serif'; ctx.fillStyle = fg; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
-  ctx.fillText(`${pfFlow ? 'Flow line' : 'Profile A to B'}: ${label}` + (!its ? '' : its.annual ? `; ITS_LIVE (dashed grey): ${its.year} annual mosaic`
+  ctx.fillText(`${pfFlow ? 'Flow line' : 'Profile A to B'}: ${label}` + (elev ? '; elevation (brown, right axis)' : '') + (!its ? '' : its.annual ? `; ITS_LIVE (dashed grey): ${its.year} annual mosaic`
     : `; ITS_LIVE (grey): pairs spanning ${fmtDate(new Date((+its.it.start + +its.it.end) / 2))}`), 44, 14, Math.max(60, W - 74));  // right of the move grip, clear of the close x  // clear of the close x
   // x range: the whole line, or as set on its slider (plotted km: from the flow line's point, or from A)
   const xFull = [pfOff / 1000, pfOff / 1000 + km];
@@ -74,8 +76,14 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
     $('pfAxRow').hidden = false;
   }
   if (pfAx.y.typed) [y0, y1] = pfAx.y.typed;
+  // the elevation's range over the x range shown, for the right axis
+  let z0 = Infinity, z1 = -Infinity;
+  if (elev) for (let k = 0; k < elev.v.length; k++) { const v = elev.v[k]; if (Number.isFinite(v) && inX(elev.d[k])) { z0 = Math.min(z0, v); z1 = Math.max(z1, v); } }
+  const zOn = z0 <= z1;
+  if (zOn) { if (z0 === z1) { z0 -= 1; z1 += 1; } const zp = (z1 - z0) * 0.06; z0 -= zp; z1 += zp; R = yAxisLeft(ctx, z0, z1) - 8; }
   L = yAxisLeft(ctx, y0, y1); pw = W - L - R;
   const X = dm => L + ((dm + pfOff) / 1000 - xa) / (xb - xa) * pw, Y = v => T + (1 - (v - y0) / (y1 - y0)) * ph;
+  const Z = v => T + (1 - (v - z0) / (z1 - z0)) * ph;
   ctx.strokeStyle = line; ctx.lineWidth = 1; ctx.fillStyle = muted; ctx.textAlign = 'right';
   const ys = niceStep(y1 - y0, 5);
   for (let v = Math.ceil(y0 / ys) * ys; v <= y1; v += ys) {
@@ -101,12 +109,12 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
     ctx.strokeStyle = '#ff3ea5'; ctx.lineWidth = 1.2; ctx.setLineDash([4, 3]);
     ctx.beginPath(); ctx.moveTo(X(-pfOff), T); ctx.lineTo(X(-pfOff), T + ph); ctx.stroke(); ctx.setLineDash([]);
   }
-  const path = (d, v) => {  // a polyline broken at missing values
+  const path = (d, v, F = Y) => {  // a polyline broken at missing values
     ctx.beginPath();
     let on = false;
     for (let k = 0; k < v.length; k++) {
       if (!Number.isFinite(v[k])) { on = false; continue; }
-      if (on) ctx.lineTo(X(d[k]), Y(v[k])); else ctx.moveTo(X(d[k]), Y(v[k]));
+      if (on) ctx.lineTo(X(d[k]), F(v[k])); else ctx.moveTo(X(d[k]), F(v[k]));
       on = true;
     }
     ctx.stroke();
@@ -115,6 +123,7 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
   else if (its) { ctx.strokeStyle = 'rgba(140, 140, 140, 0.45)'; ctx.lineWidth = 1; for (const p of its.pairs) path(its.d, p.v); }
   if (ref) { ctx.strokeStyle = fg; ctx.lineWidth = 1; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(L, Y(0)); ctx.lineTo(L + pw, Y(0)); ctx.stroke(); ctx.setLineDash([]); }
   const halo = tok('--panel'), shown = c => selected && c.href === selected.assets[pfKey]?.href;
+  if (zOn) { ctx.strokeStyle = halo; ctx.lineWidth = 4; path(elev.d, elev.v, Z); ctx.strokeStyle = brown; ctx.lineWidth = 2; path(elev.d, elev.v, Z); }
   for (const c of [...pfCurves.filter(c => !shown(c)), ...pfCurves.filter(shown)]) {  // the shown product on top
     if (!c.v || c.off) continue;
     const v = dv(c);
@@ -126,6 +135,16 @@ function drawProfile(canvas = $('pfCanvas'), scale = window.devicePixelRatio || 
   ctx.lineWidth = 2.5;
   for (const c of fpCross) { ctx.strokeStyle = c.color; ctx.beginPath(); ctx.moveTo(Xk(c.km), T); ctx.lineTo(Xk(c.km), T + 10); ctx.stroke(); }
   ctx.restore();
+  if (zOn) {  // the elevation axis on the right, in brown
+    ctx.save(); ctx.fillStyle = brown; ctx.strokeStyle = brown; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    const zs = niceStep(z1 - z0, 5);
+    for (let v = Math.ceil(z0 / zs) * zs; v <= z1; v += zs) {
+      ctx.beginPath(); ctx.moveTo(L + pw, Z(v)); ctx.lineTo(L + pw + 4, Z(v)); ctx.stroke();
+      ctx.fillText(fmtVal(+v.toPrecision(6)), L + pw + 6, Z(v));
+    }
+    ctx.translate(W - 10, T + ph / 2); ctx.rotate(Math.PI / 2); ctx.textAlign = 'center'; ctx.fillText('Elevation (m, ellipsoid)', 0, 0);
+    ctx.restore();
+  }
   // the travel-time marks as a time axis along the top: ticks up from the plot, every fifth one longer
   // and labeled in years (+ downstream, - upstream; all labeled when there are few), labels kept apart
   if (pfMarks.length) {
@@ -335,6 +354,7 @@ $('pfClear').onclick = () => { if (drawKind === 'profile' || drawKind === 'flow'
 $('pfShow').onclick = () => setPfPlot($('pfPlot').hidden);
 $('pfHide').onclick = () => setPfPlot(false);
 $('pfIts').onchange = () => refreshProfileIts();
+$('pfElevOn').onchange = refreshProfileElev;
 $('pfYrOn').onchange = $('pfYrStep').onchange = () => travelMarks();
 $('pfItsDt').onchange = () => refreshProfileIts();
 $('pfSec').addEventListener('toggle', () => { if (!$('pfSec').open && (drawKind === 'profile' || drawKind === 'flow')) stopDraw(); });
@@ -355,6 +375,10 @@ $('pfCsv').onclick = () => {
     for (let k = 0; k < c.v.length; k++) rows.push(['GrIMP', csvText(c.name), c.it.id, fmtDate(c.it.start), fmtDate(c.it.end), c.key, c.unit,
                                                     ...pos(c.d[k]), Number.isNaN(c.v[k]) ? '' : c.v[k], ...(ch ? [Number.isNaN(ch[k]) ? '' : ch[k]] : [])]);
   }
+  // the GrIMP DEM elevation along the line, when it is plotted
+  const elev = pfElev?.line === pfLine && $('pfElevOn').checked ? pfElev : null;
+  if (elev) for (let k = 0; k < elev.v.length; k++) rows.push(['GrIMP', 'NSIDC-0715 GrIMP DEM v2', 'GrIMP_DEM_30m_v02.0', '2008-05-15', '2020-11-19', 'dem', 'm',
+    ...pos(elev.d[k]), Number.isNaN(elev.v[k]) ? '' : elev.v[k], ...(ref ? [''] : [])]);
   // ITS_LIVE is drawn for comparison only: data that are not GrIMP products are shown, never exported.
   saveBlob(new Blob([rows.map(r => r.join(',')).join('\n') + '\n'], { type: 'text/csv' }), `${items[0]?.raw?.collection || 'grimp'}_${pfKey}_profile.csv`);
 };

@@ -317,6 +317,9 @@ the mosaic's speeds. The plot shows them as a time axis along its top, labeled i
   how far apart the two images are. The ITS_LIVE datacubes currently end in May 2025. For an annual
   product, the ITS_LIVE annual mosaic of the calendar year holding its middle date is drawn instead,
   as one dashed grey line (ITS_LIVE annual mosaics currently end with 2022).
+- In Greenland, tick **Elevation (GrIMP DEM) on a right axis** to plot the surface elevation along the
+  line in brown, with its own scale on the right (m above the WGS84 ellipsoid). It is saved in the
+  CSV and PNG, and share links keep it.
 - With **Glacier fronts** (Greenland) or **Dated grounding lines** (Amundsen Sea) on, **Fronts along the
   line** plots where each front or grounding line drawn crosses the line, as distance along the line
   against date, so a retreat reads as a falling trend; the year sliders on their color bars pick the

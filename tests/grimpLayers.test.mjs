@@ -42,6 +42,17 @@ check('readout gives the DEM elevation on Jakobshavn (a few hundred m)', zr > 10
 await shot(p, 'maskIce');
 await p.click('#share'); await sleep(500);
 check('share link carries mask=1', /[?&]mask=1(&|$)/.test(await p.evaluate(() => location.href)), await p.evaluate(() => location.href));
+
+// elevation on the profile plot's right axis: a line up Jakobshavn opened from a link, saved in the CSV
+const here = new URL(await p.evaluate(() => location.href));
+here.search = new URLSearchParams({ href: catalogs.glAnnual, asset: 'vv', pf: '-195000,-2272000;-120000,-2277000', on: 'pfElev' }).toString();
+await p.goto(here.href, { waitUntil: 'networkidle2', timeout: 120000 });
+await p.waitForFunction(() => window.grimpViewer.pf().pfElev?.n > 0 && window.grimpViewer.pf().pfCurves.some(c => c.v), { timeout: 120000 });
+const pe = await p.evaluate(() => window.grimpViewer.pf().pfElev);
+check('elevation read along the line: sea level at the fjord to over 1000 m inland', pe.n > 100 && pe.lo < 100 && pe.hi > 1000, pe);
+check('the elevation toggle is ticked from the link', await p.$eval('#pfElevOn', e => e.checked && !e.closest('#pfElevRow').hidden));
+await sleep(1500);
+await shot(p, 'profileElevation');
 await browser.close();
 
 // the DEM itself

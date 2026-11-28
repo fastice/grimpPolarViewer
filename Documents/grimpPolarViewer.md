@@ -124,6 +124,10 @@ The vertical bar at the left edge of the map has one tick per acquisition date (
 - RGB(A) assets (three or more bands, e.g. `browse`) are drawn as stored; the stretch controls hide.
   Three-band images without alpha (the velocity browse COGs) have a pure white (255, 255, 255)
   background, which is drawn transparent.
+- **Profile elevation** (Greenland): **Elevation (GrIMP DEM) on a right axis** (`pfElevOn`, share key `on=pfElev`)
+  reads the DEM along the line with `profileValues(demItem, 'dem')` (`refreshProfileElev`, on each new
+  line) and draws it in brown on its own right axis, ranged over the x range shown; CSV rows with
+  asset `dem`.
 - **Hover readout** (bottom right; tap on touch screens): map x/y in km, latitude/longitude, and the value under the
   pointer read from the full-resolution COG (exact native value, with units). During an animation,
   anomaly or stack it reports that layer's value instead (for the stack, the mean and how many dates
@@ -598,7 +602,7 @@ on a Mac (default `/usr/bin/google-chrome`); `mapOverlays.test.mjs` also needs `
 | `touchClose.test.mjs` | Emulated phone: a tap's readout has a close button (and a pan hides it); the time-series plot x adds no point |
 | `frontPositions.test.mjs` | Fronts along a line down Jakobshavn fjord (47 crossings 1973-2021, retreat, plot, year slider) and a flow line (2014 on); travel-time marks (1 and 5 years, signs, map, untick); typed flow-line points (lat/lon with letters, x/y km, bad text) |
 | `mapOverlays.test.mjs` | Speed contours (default and typed levels), flow particles (trails drawn, 10 s particle movie decoded by ffmpeg and its loop seam checked, restart after a move, stop), vv ± error in the readout, Jakobshavn basin true area vs map area |
-| `grimpLayers.test.mjs` | GrIMP DEM elevation contours over the annual velocity (`every 100`: multiples of 100; typed levels), the DEM collection's readout at Summit (~3250 m), the mask legend (ice, land, water) and readout naming each class |
+| `grimpLayers.test.mjs` | GrIMP DEM elevation contours over the annual velocity (`every 100`: multiples of 100; typed levels), the DEM collection's readout at Summit (~3250 m), the mask legend (ice, land, water), the readout naming each class, and DEM elevation along a profile line opened from a link (right axis) |
 | `shareLink.test.mjs` | A shared link reopens the ticked layers, the fronts year range, typed contour levels, a trimmed flow line (accepted) with 5-year marks, and a drawn line |
 | `seasonal.test.mjs` | Monthly series at a Jakobshavn point folded onto the months of the year; monthly means; a click on a value shows that product; time-bar option disabled and restored |
 | `digitize.test.mjs` | Digitize: every tool, freehand, rename/delete, vertex drag, circle resize, moving shapes, GeoPackage read back by GDAL (layers, EPSG, names, true areas vs GDAL geodesic within 0.01%, validator), EPSG:4326 choice, hemisphere stash, list scrolling. |

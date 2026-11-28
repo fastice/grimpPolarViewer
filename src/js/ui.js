@@ -68,6 +68,7 @@ const tips = {
   contourOn: 'Lines of equal speed (isotachs) of the shown product\'s speed (vv), at the levels typed below, read at the map\'s resolution and lightly smoothed',
   particleSave: 'Save 10 s of the moving particles over a still of the map as shown, as an MP4 at screen resolution that loops seamlessly when played on repeat. Moving the map stops it',
   contourLevels: 'Speeds to contour, m/yr, separated by commas (at most 12), or "every N" for every N m/yr',
+  pfElevOn: 'Plot the GrIMP DEM surface elevation (NSIDC-0715 v2, 30 m, above the WGS84 ellipsoid) along the line in brown, on its own axis at the right; saved in the CSV and PNG too',
   maskSel: 'Show the product only where the GIMP land ice / ocean mask (NSIDC-0714, 15 m) is ice, land or water, using the mask year (2000, 2015 or 2020) nearest the product\'s dates. Also applies to the swipe, animations and anomalies; downloads are not masked',
   demContourOn: 'Elevation contours of the GrIMP DEM (NSIDC-0715 v2, 30 m, 2008-2020 imagery) over whatever is shown, in Greenland (polar stereographic) views; lightly smoothed at the map\'s resolution',
   demContourLevels: 'Elevations to contour, m: "every N" for every N m (at most 60 lines in view), or values separated by commas (at most 12)',
@@ -348,7 +349,7 @@ map.on('pointermove', e => {
 // time-series points, plot x axis and trend, and the profile or flow line (with its travel-time marks and
 // date series and reference curve). It goes in the address bar and, where allowed, the clipboard.
 // Share this animation adds the area box and animation settings; the frames are loaded on request.
-const shareToggles = ['names', 'fronts', 'bounds', 'gl', 'arrows', 'particles', 'contour', 'demContour'];  // optional layers: <key>On
+const shareToggles = ['names', 'fronts', 'bounds', 'gl', 'arrows', 'particles', 'contour', 'demContour', 'pfElev'];  // optional layers: <key>On
 async function shareView(anim, note, qr = false, embed = false) {
   if (localCatalog) { $(note).textContent = 'This catalog is open from this computer, so a link cannot show it to anyone else.'; return; }
   const u = shareUrl(anim), q = u.searchParams;
