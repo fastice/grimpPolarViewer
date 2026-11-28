@@ -13,7 +13,7 @@ are laid together with the waits between sentences fast-forwarded.
 | `assemble.py` | Frames to `raw.mp4`, then cuts it to the narration (waits fast-forwarded to at most 5 s) and mixes the WAVs in: `tutorial.mp4`. |
 | `captions.py` | `captions.vtt`, timed the same way as `assemble.py`. |
 | `makeStakes.py` | `helheimStakes.gpkg`, the sample GeoPackage (UTM 24N) opened in the Digitize scene. |
-| `index.html` | The tutorial page on Kopah. Update its length ("8 minutes") when the video changes. |
+| `index.html` | The tutorial page on Kopah. Update its length ("10 minutes") when the video changes. |
 
 Everything else written here (audio, frames, video, timing) is ignored by git.
 

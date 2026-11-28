@@ -24,6 +24,10 @@
   "Speed opens on a log scale, in the same colors as the Grimp browse images, so slow ice and fast glaciers like Jakobshavn both show. Untick log scale for a linear scale, then type a maximum or drag the clip slider to set its range."
  ],
  [
+  "color",
+  "Show only, under the color map, uses the Grimp land ice and ocean mask to hide land and water, so you see the ice velocity alone."
+ ],
+ [
   "time",
   "The bar on the left is a timeline, newest at the top."
  ],
@@ -33,7 +37,7 @@
  ],
  [
   "time",
-  "Move the mouse over the map to read off the speed and its error."
+  "Move the mouse over the map to read off the speed and its error, and in Greenland the surface elevation from the Grimp D E M."
  ],
  [
   "ts",
@@ -80,8 +84,16 @@
   "Set Plot to change from a date, and each curve shows how much faster or slower the ice is than it was then, all along the glacier."
  ],
  [
+  "pf",
+  "In Greenland, tick Elevation to plot the surface from the Grimp D E M along the line, on its own axis at the right."
+ ],
+ [
   "layers",
   "You can add glacier names, calving fronts, basins and speed contours."
+ ],
+ [
+  "layers",
+  "Elevation contours draw the surface from the Grimp D E M over any Greenland product, every hundred meters, or at heights you type."
  ],
  [
   "layers",
@@ -94,6 +106,14 @@
  [
   "strain",
   "Pick effective, along flow, shear or divergence, and how far apart to take the differences, then click Compute. Move the mouse over the map to read the value."
+ ],
+ [
+  "figure",
+  "Save figure makes a picture of part of the map for a paper or a slide. Draw a box, then pick its size: a multiple of the screen, the data's own pixels, or a width in inches at a set d p i."
+ ],
+ [
+  "figure",
+  "The map is drawn again at that size, so lines and labels stay sharp, with a color bar, scale bar and dates. Save it as a P N G, a JPEG, or a Geo TIFF that opens in place in Q G I S, and keep the small side file: its link rebuilds the figure."
  ],
  [
   "anim",
@@ -162,6 +182,10 @@
  [
   "share",
   "And Open a folder reads a catalog and its Geo TIFFs from your own computer, so you can look at your own data without uploading anything."
+ ],
+ [
+  "grimp",
+  "Grimp's surface elevation model, the D E M, is a collection too, and so is the land ice and ocean mask for 2000, 2015 and 2020, drawn in its class colors. Point at the mask to name the class."
  ],
  [
   "ant",
