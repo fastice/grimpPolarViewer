@@ -124,6 +124,13 @@ The vertical bar at the left edge of the map has one tick per acquisition date (
 - RGB(A) assets (three or more bands, e.g. `browse`) are drawn as stored; the stretch controls hide.
   Three-band images without alpha (the velocity browse COGs) have a pure white (255, 255, 255)
   background, which is drawn transparent.
+- **Class maps** (one band whose asset has `classification:classes`, e.g. the GIMP land ice / ocean
+  mask): each value in its `color_hint`, no interpolation; the stretch controls hide, the legend lists
+  the classes, the readout names the class, and figures get a class key.
+- **Show only** (Greenland, EPSG:3413 single-band products; under the color map): everything, ice, ice
+  and land, land or water, from the GIMP mask epoch nearest the product's middle date (shown beside
+  it). Applies to the main and swipe layers, animation frames, anomalies and figures; the readout
+  says `masked (land)`; downloads are never masked. Share key `mask`.
 - **Profile elevation** (Greenland): **Elevation (GrIMP DEM) on a right axis** (`pfElevOn`, share key `on=pfElev`)
   reads the DEM along the line with `profileValues(demItem, 'dem')` (`refreshProfileElev`, on each new
   line) and draws it in brown on its own right axis, ranged over the x range shown; CSV rows with
@@ -383,6 +390,23 @@ show only while it is open.
   dates in the time range, or dates picked from one site with the list checkboxes or
   Shift/Ctrl/Cmd-click on a box). The old **Select all sites** box is hidden.
 
+### Save figure
+
+The **Save figure** section draws a box (pink) and saves that part of the map drawn again at a size
+chosen under **Size**: 2, 4 or 8 times the box on screen, the data's own pixels (finest level), or a
+width in inches at the dpi. `figure.js` resizes the map off screen to the box and raises its pixel
+ratio (`map.setPixelRatio`), so every layer is redrawn at that resolution (finer COG overviews, sharp
+vector lines and labels), composites the layer canvases (`compositeMap`), draws the color bar (or
+class key), dates and a scale bar if ticked, and restores the map. Limits: 8192 px a side, 16.7
+million in all (Safari's canvas). **Format**: PNG (pHYs dpi and tEXt Title/Software/Source chunks
+written into the browser's PNG), JPEG (quality 0.92; dpi in the JFIF header, the same text as a COM
+comment) or TIFF (written by the viewer: 8-bit RGB, Deflate via `CompressionStream`, one strip, dpi,
+DocumentName, ImageDescription = link, Software, and GeoTIFF tags: pixel scale, tie point and the
+view's EPSG code, so it opens in place in QGIS; with labels off it is a clean picture layer). Only the
+image downloads by itself; **Save the .json sidecar** saves the box, size, product, colors and the
+link that rebuilds it (`fig`, `fsize`, `fdpi`, `fw`, `flab`, `ffmt`), and **PNG/JPEG/TIFF again**
+saves the image again. Flow particles are not drawn.
+
 ## Catalog requirements
 
 Catalogs are stac-geoparquet files, as written by `rustac` (used by `tools/`). The viewer reads:
@@ -548,6 +572,8 @@ These are the viewer's own limits (`maxFramePixels`, `maxAnimPixels`), not the b
   3 points over the 9 annual mosaics in about 4 s; 1 point over the 516 six-day windows (with error
   bars, 2580 files) in about 1 minute; 2 points in about 3 minutes. A 100-point file on the 6/12-day
   series would take well over an hour, so narrow the time range or leave Error bars off.
+- **Show only uses the mask year nearest the product** (2000, 2015 or 2020), so where a front has
+  moved since, ice can read as water (Jakobshavn's 2024-25 front area is water in the 2020 mask).
 - **On touch screens a tap reads the value,** so tapping cannot step through overlapping dates;
   use the time bar or the item list.
 - `mp4-muxer` is superseded by Mediabunny, and geotiff.js 3.1 is a beta pinned to match OpenLayers.
