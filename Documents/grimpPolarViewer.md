@@ -127,7 +127,8 @@ The vertical bar at the left edge of the map has one tick per acquisition date (
 - **Hover readout** (bottom right; tap on touch screens): map x/y in km, latitude/longitude, and the value under the
   pointer read from the full-resolution COG (exact native value, with units). During an animation,
   anomaly or stack it reports that layer's value instead (for the stack, the mean and how many dates
-  went into it).
+  went into it). In EPSG:3413 views a last line gives the GrIMP DEM elevation (`readoutElevation` in `contours.js`,
+  full 30 m, above the ellipsoid), read alongside the value; left out when the DEM itself is shown.
 - **Pixel size** (beside the scale bar, bottom left): the pixel size the map is drawing. For the
   product this is the COG level OpenLayers picks for the zoom (`getZForResolution` with the source's
   `zDirection`, as its WebGL tile renderer does): an overview such as `Pixels 3,200 m (overview; full

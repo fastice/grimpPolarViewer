@@ -8,6 +8,12 @@ const contourCell = 3, contourMinPts = 6, contourMaxLevels = 12, contourMaxEvery
 // the GrIMP DEM (NSIDC-0715 v2, 30 m; its own collection too), read for elevation contours in EPSG:3413
 const demItem = { id: 'grimp-dem', assets: { dem: { href: 'https://s3.kopah.uw.edu/ianj-grimp/public/nsidc-0715/v02/GrIMP_DEM_30m_v02.0.tif',
   'raster:bands': [{ nodata: -9999, unit: 'm' }] } } };
+// the readout's elevation line in Greenland views (heights are above the WGS84 ellipsoid), unless the DEM is shown
+async function readoutElevation(coord) {
+  if (viewCode !== 'EPSG:3413' || selected?.assets?.[$('asset').value]?.href === demItem.assets.dem.href) return '';
+  const [v] = (await readFrame(demItem, 'dem', [coord[0] - 15, coord[1] - 15, coord[0] + 15, coord[1] + 15], 30, 1, 1)).values;
+  return Number.isFinite(v) ? `<b>elevation</b> ${Math.round(v)} m (ellipsoid)` : '';
+}
 // levels from the text: numbers separated by commas, or "every N" (multiples of N within the grid's range)
 function parseLevels(text, lo = -Infinity, hi = Infinity) {
   const every = /^\s*every\s+([\d.]+)\s*$/i.exec(text);

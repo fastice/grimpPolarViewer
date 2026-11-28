@@ -37,6 +37,8 @@ check('land masked in the readout', /vv masked \(land\)/.test(ro), ro);
 await zoomTo(p, await toMap(p, -48.9, 69.17), 30e3); await sleep(3000);
 ro = await readAt(p, -48.9, 69.17);
 check('ice still read', /vv [\d.]+/.test(ro) && !/masked/.test(ro), ro);
+const zr = +(/elevation (\d+) m \(ellipsoid\)/.exec(ro) || [])[1];
+check('readout gives the DEM elevation on Jakobshavn (a few hundred m)', zr > 100 && zr < 1500, ro);
 await shot(p, 'maskIce');
 await p.click('#share'); await sleep(500);
 check('share link carries mask=1', /[?&]mask=1(&|$)/.test(await p.evaluate(() => location.href)), await p.evaluate(() => location.href));
@@ -47,7 +49,7 @@ await browser.close();
 await zoomTo(p, await toMap(p, -38.46, 72.58), 50e3); await sleep(2000);
 ro = await readAt(p, -38.46, 72.58);
 const z = +(/dem ([\d.]+) m/.exec(ro) || [])[1];
-check('DEM readout at Summit about 3250 m (ellipsoid)', z > 3150 && z < 3350, ro);
+check('DEM readout at Summit about 3250 m (ellipsoid), with no second elevation line', z > 3150 && z < 3350 && !/elevation/.test(ro), ro);
 await browser.close();
 
 // the mask

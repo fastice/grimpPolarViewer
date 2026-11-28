@@ -171,7 +171,8 @@ over whatever is shown, labeled in m: type values separated by commas, or **ever
 for every 100 m. Either box takes "every N".
 
 When you point at a velocity product that has error layers, the readout gives the value with its
-1-sigma error (for example *vv 5595.4 ± 12.1 m/yr*).
+1-sigma error (for example *vv 5595.4 ± 12.1 m/yr*). In Greenland it also gives the surface elevation
+from the GrIMP DEM (*elevation 1253 m (ellipsoid)*, height above the WGS84 ellipsoid).
 
 In Antarctica, **Coastlines** draws the UCI AIV grounding line (white) and the ice front and coast of the GrIMP
 2026 ice mask (cyan, with ice shelf names as you zoom in); click either entry in its legend to hide or show

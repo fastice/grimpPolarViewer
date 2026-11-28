@@ -326,9 +326,11 @@ function updateReadout(e) {
   clearTimeout(readoutTimer);
   const token = ++readoutToken;
   readoutTimer = setTimeout(async () => {
+    const elev = readoutElevation(e.coordinate).catch(() => '');
     let val;
     try { val = await readoutValue(e.coordinate); } catch (err) { val = `value unavailable (${esc(err.message)})`; }
-    if (token === readoutToken) ro.innerHTML = val ? `${coords}<br>${val}` : coords;
+    const z = await elev;
+    if (token === readoutToken) ro.innerHTML = [coords, val, z].filter(Boolean).join('<br>');
   }, 150);
 }
 map.on('pointermove', e => { if (!e.dragging) updateReadout(e); });
